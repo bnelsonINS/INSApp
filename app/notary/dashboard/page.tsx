@@ -347,7 +347,7 @@ export default async function NotaryDashboardPage() {
   const missingCredentialItems = buildMissingCredentialItems(safeCredentials);
   const hasMissingReadinessItems =
     missingProfileItems.length > 0 || missingCredentialItems.length > 0;
-  const isApproved = profile.approval_status === "approved";
+  //const isApproved = profile.approval_status === "approved";
 
   const credentialAlerts: string[] = [];
   const today = new Date();
@@ -405,7 +405,7 @@ export default async function NotaryDashboardPage() {
         </div>
       </section>
 
-      {!isApproved && (
+      {hasMissingReadinessItems && (
         <section
           className={`rounded-2xl border p-5 shadow-sm ${
             hasMissingReadinessItems

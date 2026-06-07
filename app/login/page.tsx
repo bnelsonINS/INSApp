@@ -1,124 +1,160 @@
-"use client";
+import Image from "next/image";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "../../src/lib/supabase-server";
 
-import { useState } from "react";
-import { supabase } from "../../src/lib/supabase";
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ error?: string }>;
+}) {
+  const params = await searchParams;
+  const error = params?.error;
 
-export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  async function signIn(formData: FormData) {
+    "use server";
 
-  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+    const email = String(formData.get("email") || "");
+    const password = String(formData.get("password") || "");
 
-    setIsLoading(true);
-    setMessage("Signing in...");
+    const supabase = await createSupabaseServerClient();
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
       password,
     });
 
-    if (error) {
-      setMessage(error.message);
-      setIsLoading(false);
-      return;
-    }
+    if (error) redirect("/login?error=Invalid email or password");
 
-    const user = data.user;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (!user) {
-      setMessage("Login succeeded, but no user was returned.");
-      setIsLoading(false);
-      return;
-    }
+    if (!user) redirect("/login?error=Unable to sign in");
 
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile } = await supabase
       .from("profiles")
-      .select("role, is_active")
+      .select("role")
       .eq("id", user.id)
       .single();
 
-    if (profileError || !profile) {
-      setMessage("Login worked, but no profile was found.");
-      setIsLoading(false);
-      return;
-    }
+    if (profile?.role === "admin") redirect("/dashboard");
+    if (profile?.role === "notary") redirect("/notary/dashboard");
+    if (profile?.role === "client") redirect("/client/dashboard");
 
-    if (!profile.is_active) {
-      await supabase.auth.signOut();
-      setMessage("This account is inactive.");
-      setIsLoading(false);
-      return;
-    }
-
-    if (profile.role === "admin") {
-      window.location.assign("/dashboard");
-      return;
-    }
-
-    if (profile.role === "notary") {
-      window.location.assign("/notary/dashboard");
-      return;
-    }
-
-    if (profile.role === "client") {
-      window.location.assign("/client/dashboard");
-      return;
-    }
-
-    await supabase.auth.signOut();
-    setMessage("This account does not have a valid role.");
-    setIsLoading(false);
+    redirect("/login?error=Account role not found");
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-100 p-6">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow">
-        <h1 className="text-2xl font-bold">Indiana Notary Solutions</h1>
+    <main className="min-h-screen bg-slate-950">
+      <div className="grid min-h-screen lg:grid-cols-2">
+        <section className="flex items-center justify-center bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950 px-6 py-12 text-white">
+          <div className="max-w-md text-center">
+            <div className="mx-auto flex h-44 w-44 items-center justify-center rounded-full bg-white shadow-2xl">
+              <Image
+                src="/ins-logo.png"
+                alt="Indiana Notary Solutions logo"
+                width={155}
+                height={155}
+                priority
+              />
+            </div>
 
-        <p className="mt-2 text-sm text-slate-600">
-          Sign in to your platform account.
-        </p>
+            <h1 className="mt-8 text-4xl font-bold tracking-tight">
+              Indiana Notary Solutions
+            </h1>
 
-        <form onSubmit={handleLogin} className="mt-6 space-y-4">
-          <div>
-            <label className="text-sm font-medium">Email</label>
-            <input
-              className="mt-1 w-full rounded-lg border p-3"
-              type="email"
-              value={email}
-              autoComplete="email"
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={isLoading}
-            />
+            <p className="mt-4 text-lg text-blue-100">
+              Secure notary assignments, credentials, documents, and client
+              orders in one clean platform.
+            </p>
+
+            <div className="mt-8 rounded-2xl border border-white/20 bg-white/10 p-5 text-sm text-blue-100 shadow-lg">
+              Built for admins, notaries, and title company clients.
+            </div>
           </div>
+        </section>
 
-          <div>
-            <label className="text-sm font-medium">Password</label>
-            <input
-              className="mt-1 w-full rounded-lg border p-3"
-              type="password"
-              value={password}
-              autoComplete="current-password"
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={isLoading}
-            />
+        <section className="flex items-center justify-center bg-slate-100 px-6 py-12">
+          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl sm:p-10">
+            <h2 className="text-3xl font-bold text-slate-900">Welcome back</h2>
+
+            <p className="mt-2 text-slate-600">
+              Sign in to access your account.
+            </p>
+
+            {error && (
+              <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                {error}
+              </div>
+            )}
+
+            <form action={signIn} className="mt-8 space-y-5">
+              <div>
+                <label className="text-sm font-semibold text-slate-700">
+                  Email address
+                </label>
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none focus:border-blue-800 focus:ring-4 focus:ring-blue-100"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-slate-700">
+                    Password
+                  </label>
+
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm font-semibold text-blue-800 hover:text-blue-950"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+
+                <input
+                  name="password"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none focus:border-blue-800 focus:ring-4 focus:ring-blue-100"
+                />
+              </div>
+
+              <button
+                type="submit"
+                style={{
+                  width: "100%",
+                  borderRadius: "12px",
+                  backgroundColor: "#1e3a8a",
+                  padding: "12px 20px",
+                  fontWeight: 700,
+                  color: "#ffffff",
+                  boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                }}
+                className="transition hover:opacity-90"
+              >
+                Sign in
+              </button>
+            </form>
+
+            <div className="mt-8 border-t border-slate-200 pt-6 text-center">
+              <p className="text-sm text-slate-600">Need an account?</p>
+
+              <Link
+                href="/signup"
+                className="mt-2 inline-flex font-bold text-blue-800 hover:text-blue-950"
+              >
+                Create your account
+              </Link>
+            </div>
           </div>
-
-          <button
-            className="w-full rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            type="submit"
-            disabled={isLoading}
-          >
-            {isLoading ? "Signing In..." : "Sign In"}
-          </button>
-        </form>
-
-        {message && <p className="mt-4 text-sm text-slate-700">{message}</p>}
+        </section>
       </div>
     </main>
   );
