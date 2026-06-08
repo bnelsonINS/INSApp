@@ -76,7 +76,7 @@ export default async function UsersPage({
 
   const adminCount = users.filter((user) => user.role === "admin").length;
   const notaryCount = users.filter((user) => user.role === "notary").length;
-  //const clientCount = users.filter((user) => user.role === "client").length;
+  const clientCount = users.filter((user) => user.role === "client").length;
   const activeCount = users.filter((user) => user.is_active).length;
 
   return (
@@ -101,12 +101,6 @@ export default async function UsersPage({
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-slate-600">Total Results</p>
-          <p className="mt-2 text-4xl font-bold text-slate-950">
-            {users.length}
-          </p>
-        </div>
 
         <div className="rounded-2xl border border-purple-100 bg-purple-50 p-5 shadow-sm">
           <p className="text-sm font-semibold text-purple-700">Admins</p>
@@ -121,6 +115,13 @@ export default async function UsersPage({
             {notaryCount}
           </p>
         </div>
+
+        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-5 shadow-sm">
+  <p className="text-sm font-semibold text-amber-700">Clients</p>
+  <p className="mt-2 text-4xl font-bold text-amber-950">
+    {clientCount}
+  </p>
+</div>
 
         <div className="rounded-2xl border border-green-100 bg-green-50 p-5 shadow-sm">
           <p className="text-sm font-semibold text-green-700">Active Users</p>

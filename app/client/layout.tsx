@@ -37,13 +37,15 @@ export default async function ClientLayout({
   return (
     <div className="min-h-screen bg-slate-100">
       <div className="flex min-h-screen">
-        {/* Desktop sidebar */}
-        <aside className="hidden w-64 shrink-0 border-r border-slate-300 bg-white md:block">
-          <div className="border-b border-slate-300 p-5">
+        <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white md:block">
+          <div className="border-b border-slate-200 p-5">
             <p className="font-bold text-slate-950">
               Indiana Notary Solutions
             </p>
-            <p className="mt-2 text-sm text-slate-600">{profile.email}</p>
+
+            <p className="mt-2 break-all text-sm text-slate-500">
+  {profile.email}
+</p>
           </div>
 
           <nav className="space-y-2 p-4">
@@ -51,7 +53,7 @@ export default async function ClientLayout({
               <Link
                 key={item.href}
                 href={item.href}
-                className="block rounded-xl px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950"
+                className="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-800"
               >
                 {item.label}
               </Link>
@@ -60,14 +62,18 @@ export default async function ClientLayout({
         </aside>
 
         <div className="min-w-0 flex-1">
-          {/* Mobile header */}
-          <header className="border-b border-slate-300 bg-white md:hidden">
-            <div className="flex items-center justify-between gap-3 p-4">
+          <header className="border-b border-slate-200 bg-white px-4 py-4 md:px-6">
+            <div className="flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <p className="truncate font-bold text-slate-950">
-                  Indiana Notary Solutions
+                <p className="text-sm font-semibold text-emerald-700">
+                  Client Portal
                 </p>
-                <p className="truncate text-sm text-slate-600">
+
+                <p className="truncate font-bold text-slate-950">
+                  {profile.full_name || profile.email}
+                </p>
+
+                <p className="truncate text-sm text-slate-500 md:hidden">
                   {profile.email}
                 </p>
               </div>
@@ -75,8 +81,8 @@ export default async function ClientLayout({
               <LogoutButton />
             </div>
 
-            <details className="border-t border-slate-200 p-4">
-              <summary className="inline-flex cursor-pointer rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
+            <details className="mt-4 md:hidden">
+              <summary className="inline-flex cursor-pointer rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm">
                 Menu
               </summary>
 
@@ -85,25 +91,13 @@ export default async function ClientLayout({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="rounded-xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700"
+                    className="rounded-xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800"
                   >
                     {item.label}
                   </Link>
                 ))}
               </nav>
             </details>
-          </header>
-
-          {/* Desktop top bar */}
-          <header className="hidden border-b border-slate-300 bg-white px-6 py-4 md:flex md:items-center md:justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Client Portal</p>
-              <p className="font-semibold text-slate-900">
-                {profile.full_name || profile.email}
-              </p>
-            </div>
-
-            <LogoutButton />
           </header>
 
           <main className="p-4 sm:p-6 lg:p-8">{children}</main>

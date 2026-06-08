@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../src/lib/supabase-admin";
-import { sendNotaryWelcomeEmail } from "../../../src/lib/email";
+import {
+  sendNotaryWelcomeEmail,
+  sendClientWelcomeEmail,
+} from "../../../src/lib/email";
 
 type Role = "notary" | "client";
 
@@ -70,6 +73,29 @@ export async function POST(request: NextRequest) {
       is_active: true,
       approval_status: "approved",
     });
+
+    if (role === "notary") {
+  try {
+    await sendNotaryWelcomeEmail({
+      to: email,
+      fullName,
+    });
+  } catch (emailError) {
+    console.error("Notary welcome email failed:", emailError);
+  }
+}
+
+if (role === "client") {
+  try {
+    await sendClientWelcomeEmail({
+      to: email,
+      fullName,
+      businessName,
+    });
+  } catch (emailError) {
+    console.error("Client welcome email failed:", emailError);
+  }
+}
 
     if (profileError) {
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);

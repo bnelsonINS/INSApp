@@ -1,40 +1,139 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "../../../src/lib/supabase-server";
 
-const stats = [
-  {
-    label: "Active Orders",
-    value: "0",
-    note: "Currently in progress",
-    className: "border-blue-200 bg-blue-50 text-blue-800",
-  },
-  {
-    label: "Awaiting Assignment",
-    value: "0",
-    note: "Waiting for a notary",
-    className: "border-amber-200 bg-amber-50 text-amber-800",
-  },
-  {
-    label: "Scheduled",
-    value: "0",
-    note: "Assigned and scheduled",
-    className: "border-purple-200 bg-purple-50 text-purple-800",
-  },
-  {
-    label: "Completed",
-    value: "0",
-    note: "Finished orders",
-    className: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  },
-];
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-export default function ClientDashboardPage() {
+type Assignment = {
+  id: string;
+  status: string | null;
+  control_number: string | null;
+  borrower_name: string | null;
+  signing_date: string | null;
+  signing_time: string | null;
+  signing_city: string | null;
+  signing_state: string | null;
+  signing_zip: string | null;
+  created_at: string;
+};
+
+function formatDate(date: string | null) {
+  if (!date) return "Not scheduled";
+
+  return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function statusBadge(status: string | null) {
+  const normalized = (status ?? "").toLowerCase();
+
+  if (normalized === "new request") return "bg-amber-100 text-amber-800";
+  if (normalized === "not confirmed") return "bg-amber-100 text-amber-800";
+  if (normalized === "confirmed") return "bg-blue-100 text-blue-800";
+  if (normalized === "in progress") return "bg-purple-100 text-purple-800";
+  if (normalized === "signing complete")
+    return "bg-orange-100 text-orange-800";
+  if (normalized === "closed") return "bg-green-100 text-green-800";
+  if (normalized === "cancelled") return "bg-red-100 text-red-800";
+
+  return "bg-slate-100 text-slate-800";
+}
+
+export default async function ClientDashboardPage() {
+  const supabase = await createSupabaseServerClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, role, is_active")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || profile.role !== "client" || !profile.is_active) {
+    redirect("/login");
+  }
+
+  const { data: assignments } = await supabase
+    .from("assignments")
+    .select(
+      "id, status, control_number, borrower_name, signing_date, signing_time, signing_city, signing_state, signing_zip, created_at"
+    )
+    .eq("client_id", user.id)
+    .order("created_at", { ascending: false });
+
+  const safeAssignments = (assignments ?? []) as Assignment[];
+
+  const activeOrders = safeAssignments.filter((item) => {
+    const status = (item.status ?? "").toLowerCase();
+    return status !== "closed" && status !== "cancelled";
+  });
+
+  const awaitingAssignment = safeAssignments.filter((item) => {
+    const status = (item.status ?? "").toLowerCase();
+    return (
+      status === "new request" ||
+      status === "needs notary" ||
+      status === "not confirmed"
+    );
+  });
+
+  const scheduled = safeAssignments.filter((item) => {
+    const status = (item.status ?? "").toLowerCase();
+    return status === "confirmed" || status === "in progress";
+  });
+
+  const completed = safeAssignments.filter((item) => {
+    const status = (item.status ?? "").toLowerCase();
+    return status === "signing complete" || status === "closed";
+  });
+
+  const stats = [
+    {
+      label: "Active Orders",
+      value: String(activeOrders.length),
+      note: "Currently in progress",
+      className: "border-blue-200 bg-blue-50 text-blue-800",
+    },
+    {
+      label: "Awaiting Assignment",
+      value: String(awaitingAssignment.length),
+      note: "Waiting for a notary",
+      className: "border-amber-200 bg-amber-50 text-amber-800",
+    },
+    {
+      label: "Scheduled",
+      value: String(scheduled.length),
+      note: "Assigned and scheduled",
+      className: "border-purple-200 bg-purple-50 text-purple-800",
+    },
+    {
+      label: "Completed",
+      value: String(completed.length),
+      note: "Finished orders",
+      className: "border-slate-200 bg-slate-50 text-slate-800",
+    },
+  ];
+
+  const recentOrders = safeAssignments.slice(0, 5);
+
   return (
     <div className="space-y-6">
       <section className="rounded-3xl bg-slate-950 p-6 text-white shadow-sm">
         <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div>
             <p className="text-sm text-slate-300">Welcome back</p>
+
             <h1 className="mt-2 text-3xl font-bold">Client Dashboard</h1>
+
             <p className="mt-3 max-w-2xl text-sm text-slate-300">
               Submit signing requests, track order progress, upload documents,
               and communicate with Indiana Notary Solutions.
@@ -43,7 +142,7 @@ export default function ClientDashboardPage() {
 
           <Link
             href="/client/dashboard/orders/new"
-            className="rounded-xl bg-white px-5 py-3 text-center text-sm font-bold text-slate-950 hover:bg-slate-100"
+            className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
           >
             Create New Order
           </Link>
@@ -57,9 +156,11 @@ export default function ClientDashboardPage() {
             className={`rounded-2xl border p-5 shadow-sm ${stat.className}`}
           >
             <p className="text-sm font-bold">{stat.label}</p>
+
             <p className="mt-3 text-3xl font-black text-slate-950">
               {stat.value}
             </p>
+
             <p className="mt-2 text-sm">{stat.note}</p>
           </div>
         ))}
@@ -72,6 +173,7 @@ export default function ClientDashboardPage() {
               <h2 className="text-xl font-bold text-slate-950">
                 Recent Orders
               </h2>
+
               <p className="mt-1 text-sm text-slate-500">
                 Your newest signing requests will appear here.
               </p>
@@ -79,19 +181,59 @@ export default function ClientDashboardPage() {
 
             <Link
               href="/client/dashboard/orders"
-              className="text-sm font-bold text-teal-700 hover:text-teal-800"
+              className="text-sm font-bold text-blue-700 hover:text-blue-800"
             >
               View all
             </Link>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-            <p className="font-bold text-slate-700">No orders yet</p>
-            <p className="mt-2 text-sm text-slate-500">
-              Create your first order to start tracking signings from the client
-              portal.
-            </p>
-          </div>
+          {recentOrders.length === 0 ? (
+            <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+              <p className="font-bold text-slate-700">No orders yet</p>
+
+              <p className="mt-2 text-sm text-slate-500">
+                Create your first order to start tracking signings from the
+                client portal.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-6 divide-y divide-slate-100">
+              {recentOrders.map((order) => (
+                <Link
+                  key={order.id}
+                  href={`/client/dashboard/orders/${order.id}`}
+                  className="block py-4 hover:bg-slate-50"
+                >
+                  <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+                    <div>
+                      <p className="font-bold text-slate-950">
+                        {order.control_number || order.id.slice(0, 8)}
+                      </p>
+
+                      <p className="mt-1 text-sm text-slate-600">
+                        {order.borrower_name || "Borrower"} ·{" "}
+                        {order.signing_city || "—"},{" "}
+                        {order.signing_state || "IN"}{" "}
+                        {order.signing_zip || ""}
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        {formatDate(order.signing_date)}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${statusBadge(
+                        order.status
+                      )}`}
+                    >
+                      {order.status || "New Request"}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -100,7 +242,7 @@ export default function ClientDashboardPage() {
           <div className="mt-5 space-y-3">
             <Link
               href="/client/dashboard/orders/new"
-              className="block rounded-2xl bg-teal-700 px-4 py-3 text-center text-sm font-bold text-white hover:bg-teal-800"
+              className="block rounded-2xl bg-blue-600 px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-blue-700"
             >
               Create Order
             </Link>

@@ -4,6 +4,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 type NotificationMetadata = {
   email?: string;
+  recipient_email?: string;
+  recipient_name?: string;
   phone?: string;
   credential_type?: string;
   credential_label?: string;
@@ -144,7 +146,9 @@ serve(async () => {
 });
 
 async function sendEmail(notification: NotificationRow, resendApiKey: string) {
-  const to = notification.metadata?.email;
+  const to =
+    notification.metadata?.email ||
+    notification.metadata?.recipient_email;
 
   if (!to) {
     throw new Error("Missing recipient email in notification metadata.");
@@ -189,7 +193,7 @@ function buildNotificationMessage(notification: NotificationRow) {
     notification.metadata?.reason ||
     "";
 
-  if (rejectionReason.trim()) {
+  if (String(rejectionReason).trim()) {
     return `Your ${credentialLabel} was rejected by Indiana Notary Solutions.
 
 Reason:
