@@ -329,7 +329,7 @@ Please log in to your notary dashboard to review the documents.
       sortBy: { column: "created_at", order: "desc" },
     });
 
-  const titleDocumentsWithUrls = await Promise.all(
+  let titleDocumentsWithUrls = await Promise.all(
     (titleDocumentFiles ?? [])
       .filter((file) => file.name !== ".emptyFolderPlaceholder")
       .map(async (file) => {
@@ -342,13 +342,47 @@ Please log in to your notary dashboard to review the documents.
         return {
           name: file.name,
           displayName: cleanDisplayName(file.name),
-          createdAt: file.created_at,
-          updatedAt: file.updated_at,
+          createdAt: file.created_at ?? order.created_at ?? null,
+          updatedAt: file.updated_at ?? null,
           size: file.metadata?.size,
           signedUrl: data?.signedUrl ?? null,
         };
       })
   );
+
+  if (order.documents_url) {
+    let fallbackTitleDocumentPath = String(order.documents_url);
+
+    if (fallbackTitleDocumentPath.includes("/assignment-documents/")) {
+      fallbackTitleDocumentPath =
+        fallbackTitleDocumentPath.split("/assignment-documents/")[1];
+    }
+
+    const fallbackTitleDocumentName =
+      fallbackTitleDocumentPath.split("/").pop() || "title-document";
+
+    const alreadyListed = titleDocumentsWithUrls.some(
+      (doc) => doc.name === fallbackTitleDocumentName
+    );
+
+    if (!alreadyListed) {
+      const { data } = await supabase.storage
+        .from("assignment-documents")
+        .createSignedUrl(fallbackTitleDocumentPath, 60 * 60);
+
+      titleDocumentsWithUrls = [
+        {
+          name: fallbackTitleDocumentName,
+          displayName: cleanDisplayName(fallbackTitleDocumentName),
+          createdAt: order.created_at ?? null,
+          updatedAt: null,
+          size: undefined,
+          signedUrl: data?.signedUrl ?? null,
+        },
+        ...titleDocumentsWithUrls,
+      ];
+    }
+  }
 
   const signingDate = formatDate(order.signing_date);
   const signingTime = formatTime(order.signing_time);

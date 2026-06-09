@@ -142,7 +142,7 @@ export default async function ClientProfilePage() {
 
       <form
         action={updateClientProfile}
-        encType="multipart/form-data"
+        //encType="multipart/form-data"
         className="space-y-6"
       >
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

@@ -53,6 +53,18 @@ function formatMoney(value: number | string | null | undefined) {
   return `$${amount.toFixed(2)}`;
 }
 
+
+function firstTextValue(...values: Array<string | number | null | undefined>) {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+
+    const text = String(value).trim();
+    if (text) return text;
+  }
+
+  return "—";
+}
+
 function statusBadge(status: string | null) {
   const normalized = (status ?? "").toLowerCase();
 
@@ -468,6 +480,14 @@ Thank you for choosing Indiana Notary Solutions.
     .eq("order_id", assignment.id)
     .order("file_name", { ascending: true });
 
+  const { data: clientProfile } = assignment.client_id
+    ? await supabaseAdmin
+        .from("profiles")
+        .select("*")
+        .eq("id", assignment.client_id)
+        .maybeSingle()
+    : { data: null };
+
   const titleDocumentsWithUrls = await Promise.all(
     (titleDocuments ?? []).map(async (doc) => {
       const { data } = await supabaseAdmin.storage
@@ -487,6 +507,74 @@ Thank you for choosing Indiana Notary Solutions.
   const signingDate = formatDate(assignment.signing_date);
   const signingTime = formatTime(assignment.signing_time);
   const notaryFee = assignment.notary_fee ?? null;
+
+  const titleCompanyName = firstTextValue(
+    assignment.title_company_name,
+    assignment.title_company,
+    assignment.company_name,
+    assignment.client_company,
+    assignment.client_name,
+    clientProfile?.company_name,
+    clientProfile?.business_name,
+    clientProfile?.company,
+    clientProfile?.organization_name
+  );
+
+  const titleCompanyContact = firstTextValue(
+    assignment.title_contact_name,
+    assignment.title_company_contact,
+    assignment.client_contact_name,
+    assignment.contact_name,
+    assignment.escrow_officer,
+    clientProfile?.contact_name,
+    clientProfile?.primary_contact,
+    clientProfile?.primary_contact_name,
+    clientProfile?.full_name,
+    clientProfile?.name
+  );
+
+  const titleCompanyPhone = firstTextValue(
+    assignment.title_company_phone,
+    assignment.title_contact_phone,
+    assignment.client_phone,
+    assignment.contact_phone,
+    clientProfile?.company_phone,
+    clientProfile?.business_phone,
+    clientProfile?.phone,
+    clientProfile?.phone_number
+  );
+
+  const titleCompanyEmail = firstTextValue(
+    assignment.title_company_email,
+    assignment.title_contact_email,
+    assignment.client_email,
+    assignment.contact_email,
+    clientProfile?.company_email,
+    clientProfile?.business_email,
+    clientProfile?.email
+  );
+
+  const fileNumber = firstTextValue(
+    assignment.file_number,
+    assignment.file_no,
+    assignment.client_file_number,
+    assignment.control_number
+  );
+
+  const productName = firstTextValue(
+    assignment.product_type,
+    assignment.product,
+    assignment.loan_type,
+    assignment.transaction_type,
+    assignment.order_type,
+    assignment.signing_type
+  );
+
+  const titleCompanyContactLines = [
+    titleCompanyContact,
+    titleCompanyPhone,
+    titleCompanyEmail,
+  ].filter((value) => value && value !== "—");
 
   const progressSteps = [
     "Not Confirmed",
@@ -549,8 +637,8 @@ Thank you for choosing Indiana Notary Solutions.
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <aside className="space-y-6">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+        <aside className="min-w-0 space-y-6">
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
   <h2 className="text-2xl font-bold text-slate-900">
     Assignment Summary
@@ -558,14 +646,26 @@ Thank you for choosing Indiana Notary Solutions.
 
   <div className="mt-6 space-y-6">
     <div>
-      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-        Signer / Borrower
-      </p>
+  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+    Signer / Borrower
+  </p>
 
-      <p className="mt-1 text-lg font-medium text-slate-700">
-        {assignment.borrower_name ?? "—"}
-      </p>
-    </div>
+  <p className="mt-2 text-2xl font-semibold text-slate-800">
+    {assignment.borrower_name || "—"}
+  </p>
+
+  {assignment.borrower_phone && (
+  <a
+    href={`tel:${assignment.borrower_phone.replace(/\D/g, "")}`}
+    className="mt-2 block text-base font-medium text-[#0B1F4D] transition hover:text-blue-700 hover:underline"
+  >
+    {assignment.borrower_phone.replace(
+      /(\d{3})(\d{3})(\d{4})/,
+      "($1) $2-$3"
+    )}
+  </a>
+)}
+</div>
 
     <div>
       <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
@@ -602,7 +702,7 @@ Thank you for choosing Indiana Notary Solutions.
         Notary Fee
       </p>
 
-      <p className="mt-2 text-4xl font-bold text-[#0B1F4D]">
+      <p className="mt-2 text-xl font-bold text-[#0B1F4D]">
         {formatMoney(notaryFee)}
       </p>
     </div>
@@ -649,12 +749,62 @@ Thank you for choosing Indiana Notary Solutions.
 
             <div className="mt-4 text-sm">
               <p className="font-semibold text-slate-700">Your Fee</p>
-              <p className="text-xl font-bold">{formatMoney(notaryFee)}</p>
+              <p className="text-xl font-bold text-slate-900">
+  {formatMoney(notaryFee)}
+</p>
+            </div>
+          </section>
+
+          <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900">Title Company Info</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Reference details for this signing.
+            </p>
+
+            <div className="mt-5 space-y-4 text-sm">
+              <div className="grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-4">
+                <p className="font-bold text-slate-400">Product</p>
+                <p className="min-w-0 break-words font-medium text-slate-800">
+                  {productName}
+                </p>
+              </div>
+
+              <div className="grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-4">
+                <p className="font-bold text-slate-400">Client</p>
+                <p className="min-w-0 break-words font-medium text-slate-800">
+                  {titleCompanyName}
+                </p>
+              </div>
+
+              <div className="grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-4">
+                <p className="font-bold text-slate-400">Contact</p>
+                <div className="min-w-0 font-medium text-slate-800">
+                  {titleCompanyContactLines.length > 0 ? (
+                    titleCompanyContactLines.map((line, index) => (
+                      <p
+                        key={`${line}-${index}`}
+                        className={index === 0 ? "break-words" : "mt-1 break-all text-slate-600"}
+                      >
+                        {line}
+                      </p>
+                    ))
+                  ) : (
+                    <p>—</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-4">
+                <p className="font-bold text-slate-400">File #</p>
+                <p className="min-w-0 break-words font-medium text-slate-800">
+                  {fileNumber}
+                </p>
+              </div>
             </div>
           </section>
         </aside>
 
-        <section className="space-y-6">
+        <section className="min-w-0 space-y-6">
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Special Instructions</h2>
 
@@ -979,37 +1129,45 @@ Thank you for choosing Indiana Notary Solutions.
             </form>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">Activity</h2>
-
-            {!activity?.length ? (
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
-                No activity yet.
-              </div>
-            ) : (
-              <div className="mt-4 space-y-3">
-                {activity.map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
-                    <p className="font-medium">{item.action}</p>
-
-                    {item.actor_name && (
-                      <p className="text-slate-600">{item.actor_name}</p>
-                    )}
-
-                    <p className="whitespace-pre-line text-slate-600">
-                      {item.details ?? "—"}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-400">
-                      {formatActivityDate(item.created_at)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
         </section>
       </div>
+
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-bold text-slate-900">Activity</h2>
+
+        {!activity?.length ? (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+            No activity yet.
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {activity.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm"
+              >
+                <p className="text-base font-bold text-slate-900">
+                  {item.action}
+                </p>
+
+                {item.actor_name && (
+                  <p className="mt-1 text-sm font-medium text-slate-700">
+                    {item.actor_name}
+                  </p>
+                )}
+
+                <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-slate-600">
+                  {item.details ?? "—"}
+                </p>
+
+                <p className="mt-3 text-xs font-medium text-slate-400">
+                  {formatActivityDate(item.created_at)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </main>
   );
 }

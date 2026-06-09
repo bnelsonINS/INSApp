@@ -260,23 +260,22 @@ export default async function NotaryEarningsPage() {
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <p className="font-bold text-slate-950">Not Payable Yet</p>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Assignment has not been closed by the title company or is still
-                waiting on payment.
+                Signing has not been completed yet. 
               </p>
             </div>
 
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
               <p className="font-bold text-amber-900">Pending Payment</p>
               <p className="mt-2 text-sm leading-6 text-amber-800">
-                The signing is complete. Indiana Notary Solutions is processing
-                your payment after file closeout.
+                The signing is complete. Indiana Notary Solutions is working with the title compny
+                to close out the file.
               </p>
             </div>
 
             <div className="rounded-xl border border-green-200 bg-green-50 p-4">
               <p className="font-bold text-green-900">Paid / Closed</p>
               <p className="mt-2 text-sm leading-6 text-green-800">
-                The assignment has been closed and payment has been processed.
+                The signing has been closed and payment has been processed.
               </p>
             </div>
           </div>
