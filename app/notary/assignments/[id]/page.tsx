@@ -56,16 +56,16 @@ function formatMoney(value: number | string | null | undefined) {
 function statusBadge(status: string | null) {
   const normalized = (status ?? "").toLowerCase();
 
-  if (normalized === "not confirmed") return "bg-yellow-100 text-yellow-800";
-  if (normalized === "confirmed") return "bg-blue-100 text-blue-800";
-  if (normalized === "in progress") return "bg-purple-100 text-purple-800";
-  if (normalized === "late") return "bg-red-100 text-red-800";
-  if (normalized === "signing complete") return "bg-orange-100 text-orange-800";
-  if (normalized === "did not sign") return "bg-red-100 text-red-800";
-  if (normalized === "closed") return "bg-green-100 text-green-800";
-  if (normalized === "cancelled") return "bg-red-100 text-red-800";
+  if (normalized === "not confirmed") return "bg-yellow-100 text-yellow-800 ring-yellow-200";
+  if (normalized === "confirmed") return "bg-blue-100 text-blue-800 ring-blue-200";
+  if (normalized === "in progress") return "bg-purple-100 text-purple-800 ring-purple-200";
+  if (normalized === "late") return "bg-red-100 text-red-800 ring-red-200";
+  if (normalized === "signing complete") return "bg-orange-100 text-orange-800 ring-orange-200";
+  if (normalized === "did not sign") return "bg-red-100 text-red-800 ring-red-200";
+  if (normalized === "closed") return "bg-green-100 text-green-800 ring-green-200";
+  if (normalized === "cancelled") return "bg-red-100 text-red-800 ring-red-200";
 
-  return "bg-slate-100 text-slate-800";
+  return "bg-slate-100 text-slate-800 ring-slate-200";
 }
 
 function safeFileName(name: string) {
@@ -121,7 +121,7 @@ function nextAction(
   if (normalized === "confirmed") {
     return (
       <form action={`/notary/assignments/${assignment.id}/start`} method="post">
-        <button className="rounded-lg bg-purple-700 px-4 py-2 text-white">
+        <button className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950">
           Start Signing
         </button>
       </form>
@@ -132,7 +132,7 @@ function nextAction(
     return (
       <a
         href="#upload-documents"
-        className="rounded-lg bg-orange-600 px-4 py-2 text-white"
+        className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
       >
         Upload Documents
       </a>
@@ -515,19 +515,20 @@ Thank you for choosing Indiana Notary Solutions.
     showUploadDocuments && documentsWithUrls.length > 0;
 
   return (
-    <main className="space-y-6 p-4 sm:p-6">
-      <div className="rounded-xl bg-white p-5 shadow sm:p-6">
+    <main className="space-y-6 bg-slate-50 p-4 sm:p-6">
+      <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
+        <div className="p-6">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
           <div>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm font-semibold uppercase tracking-wide text-blue-100">
               Control # {assignment.control_number ?? "—"}
             </p>
 
-            <h1 className="text-2xl font-bold">
+            <h1 className="mt-2 text-2xl font-bold sm:text-3xl">
               {assignment.borrower_name ?? "Assignment"}
             </h1>
 
-            <p className="text-slate-600">
+            <p className="mt-2 text-blue-100/90">
               {assignment.signing_type ?? "Signing"} • {signingDate}{" "}
               {signingTime && `at ${signingTime}`}
             </p>
@@ -535,7 +536,7 @@ Thank you for choosing Indiana Notary Solutions.
 
           <div className="flex flex-wrap items-center gap-3">
             <span
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${statusBadge(
+              className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
                 assignment.status
               )}`}
             >
@@ -545,48 +546,71 @@ Thank you for choosing Indiana Notary Solutions.
             {nextAction(assignment, signingDate, signingTime)}
           </div>
         </div>
-      </div>
+        </div>
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
         <aside className="space-y-6">
-          <section className="rounded-xl bg-white p-5 shadow">
-            <h2 className="text-lg font-semibold">Assignment Summary</h2>
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+  <h2 className="text-2xl font-bold text-slate-900">
+    Assignment Summary
+  </h2>
 
-            <div className="mt-4 space-y-4 text-sm">
-              <div>
-                <p className="font-semibold text-slate-700">
-                  Signer / Borrower
-                </p>
-                <p>{assignment.borrower_name ?? "—"}</p>
-              </div>
+  <div className="mt-6 space-y-6">
+    <div>
+      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Signer / Borrower
+      </p>
 
-              <div>
-                <p className="font-semibold text-slate-700">Appointment</p>
-                <p>{signingDate}</p>
-                <p>{signingTime || "Time not set"}</p>
-              </div>
+      <p className="mt-1 text-lg font-medium text-slate-700">
+        {assignment.borrower_name ?? "—"}
+      </p>
+    </div>
 
-              <div>
-                <p className="font-semibold text-slate-700">
-                  Signing Location
-                </p>
-                <p>{assignment.signing_address ?? "—"}</p>
-                <p>
-                  {assignment.signing_city ?? "—"},{" "}
-                  {assignment.signing_state ?? "IN"}{" "}
-                  {assignment.signing_zip ?? ""}
-                </p>
-              </div>
+    <div>
+      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Appointment
+      </p>
 
-              <div>
-                <p className="font-semibold text-slate-700">Notary Fee</p>
-                <p className="text-xl font-bold">{formatMoney(notaryFee)}</p>
-              </div>
-            </div>
-          </section>
+      <p className="mt-1 text-lg font-medium text-slate-700">
+        {signingDate}
+      </p>
 
-          <section className="rounded-xl bg-white p-5 shadow">
-            <h2 className="text-lg font-semibold">Progress</h2>
+      <p className="text-lg font-medium text-slate-700">
+        {signingTime || "Time not set"}
+      </p>
+    </div>
+
+    <div>
+      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Signing Location
+      </p>
+
+      <p className="mt-1 text-lg font-medium text-slate-700">
+        {assignment.signing_address ?? "—"}
+      </p>
+
+      <p className="text-lg font-medium text-slate-700">
+        {assignment.signing_city ?? "—"},{" "}
+        {assignment.signing_state ?? "IN"}{" "}
+        {assignment.signing_zip ?? ""}
+      </p>
+    </div>
+
+    <div>
+      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Notary Fee
+      </p>
+
+      <p className="mt-2 text-4xl font-bold text-[#0B1F4D]">
+        {formatMoney(notaryFee)}
+      </p>
+    </div>
+  </div>
+</section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900">Progress</h2>
 
             <div className="mt-4 space-y-3">
               {progressSteps.map((step, index) => {
@@ -598,7 +622,7 @@ Thank you for choosing Indiana Notary Solutions.
                     <div
                       className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
                         completed
-                          ? "bg-green-600 text-white"
+                          ? "bg-emerald-600 text-white"
                           : "bg-slate-200 text-slate-500"
                       }`}
                     >
@@ -620,8 +644,8 @@ Thank you for choosing Indiana Notary Solutions.
             </div>
           </section>
 
-          <section className="rounded-xl bg-white p-5 shadow">
-            <h2 className="text-lg font-semibold">Payment</h2>
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900">Payment</h2>
 
             <div className="mt-4 text-sm">
               <p className="font-semibold text-slate-700">Your Fee</p>
@@ -631,10 +655,10 @@ Thank you for choosing Indiana Notary Solutions.
         </aside>
 
         <section className="space-y-6">
-          <section className="rounded-xl bg-white p-5 shadow">
-            <h2 className="text-lg font-semibold">Special Instructions</h2>
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900">Special Instructions</h2>
 
-            <div className="mt-4 rounded-lg border bg-slate-50 p-4 text-sm text-slate-700">
+            <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-slate-700">
               {assignment.special_instructions ? (
                 <p>{assignment.special_instructions}</p>
               ) : (
@@ -643,14 +667,14 @@ Thank you for choosing Indiana Notary Solutions.
             </div>
           </section>
 
-          <section className="rounded-xl bg-white p-5 shadow">
-            <h2 className="text-lg font-semibold">Title Documents</h2>
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900">Title Documents</h2>
             <p className="text-sm text-slate-500">
               Documents provided for this signing.
             </p>
 
             {!titleDocumentsWithUrls.length ? (
-              <div className="mt-4 rounded-lg border p-4 text-sm text-slate-500">
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
                 No title documents have been uploaded yet.
               </div>
             ) : (
@@ -658,7 +682,7 @@ Thank you for choosing Indiana Notary Solutions.
                 {titleDocumentsWithUrls.map((doc) => (
                   <div
                     key={doc.id}
-                    className="flex flex-col justify-between gap-2 rounded-lg border bg-slate-50 p-3 text-sm md:flex-row md:items-center"
+                    className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm md:flex-row md:items-center"
                   >
                     <div>
                       <p className="font-medium text-slate-900">
@@ -671,7 +695,7 @@ Thank you for choosing Indiana Notary Solutions.
                         href={doc.signedUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="rounded-lg bg-slate-900 px-3 py-2 text-center text-white"
+                        className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
                       >
                         Open Document
                       </a>
@@ -686,9 +710,9 @@ Thank you for choosing Indiana Notary Solutions.
 
           <section
             id="upload-documents"
-            className="rounded-xl bg-white p-5 shadow"
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
           >
-            <h2 className="text-lg font-semibold">Returned Documents</h2>
+            <h2 className="text-lg font-bold text-slate-900">Returned Documents</h2>
             <p className="text-sm text-slate-500">
               Signed documents you have uploaded.
             </p>
@@ -698,7 +722,7 @@ Thank you for choosing Indiana Notary Solutions.
                 <form
                   id="returned-documents-upload-form"
                   action={uploadReturnedDocuments}
-                  className="mt-4 rounded-lg border bg-slate-50 p-4"
+                  className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5"
                 >
                   <input
                     type="hidden"
@@ -716,7 +740,7 @@ Thank you for choosing Indiana Notary Solutions.
                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                     multiple
                     required
-                    className="mt-2 w-full rounded-lg border bg-white p-3 text-sm"
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                   />
 
                   <p className="mt-2 text-xs text-slate-500">
@@ -729,27 +753,25 @@ Thank you for choosing Indiana Notary Solutions.
                   <button
                     type="submit"
                     form="returned-documents-upload-form"
-                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                    className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
                   >
                     Upload Completed Documents
                   </button>
 
                   {canMarkScanbacksComplete && (
                     <details className="group">
-                      <summary className="list-none cursor-pointer rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700">
+                      <summary className="list-none cursor-pointer rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700">
                         ✓ Scanbacks Upload Complete
                       </summary>
 
                       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                        <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl">
+                        <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-xl">
                           <div className="flex items-center justify-between border-b p-5">
                             <h3 className="text-xl font-bold text-slate-900">
                               Signing Status
                             </h3>
 
-                            <span className="text-sm text-slate-400">
-                              Click outside is disabled
-                            </span>
+                            <span className="text-sm font-medium text-slate-500">Complete before closing</span>
                           </div>
 
                           <form
@@ -791,7 +813,7 @@ Thank you for choosing Indiana Notary Solutions.
                               <select
                                 name="shipping_carrier"
                                 defaultValue="FedEx"
-                                className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-3 text-sm"
+                                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                               >
                                 <option value="FedEx">FedEx</option>
                                 <option value="UPS">UPS</option>
@@ -810,7 +832,7 @@ Thank you for choosing Indiana Notary Solutions.
                                 name="tracking_number"
                                 type="text"
                                 placeholder="Enter tracking number"
-                                className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-3 text-sm"
+                                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                               />
                             </div>
 
@@ -823,7 +845,7 @@ Thank you for choosing Indiana Notary Solutions.
                                 name="completion_notes"
                                 rows={4}
                                 placeholder="Example: Funds collected. Documents signed successfully."
-                                className="mt-2 w-full rounded-lg border border-slate-300 bg-white p-3 text-sm"
+                                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                               />
                             </div>
 
@@ -836,7 +858,7 @@ Thank you for choosing Indiana Notary Solutions.
                               Notify Client
                             </label>
 
-                            <div className="rounded-lg border bg-slate-50 p-4 text-sm text-slate-600">
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
                               <p className="font-semibold text-slate-900">
                                 Client notification preview
                               </p>
@@ -871,7 +893,7 @@ Thank you for choosing Indiana Notary Solutions.
 
                               <button
                                 type="submit"
-                                className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                                className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
                               >
                                 Save
                               </button>
@@ -886,14 +908,14 @@ Thank you for choosing Indiana Notary Solutions.
             )}
 
             {!showUploadDocuments && (
-              <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+              <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 p-5 text-sm text-green-800">
                 Scanbacks upload has been marked complete. Returned documents
                 are locked for this assignment.
               </div>
             )}
 
             {!documentsWithUrls.length ? (
-              <div className="mt-4 rounded-lg border p-4 text-sm text-slate-500">
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
                 No uploaded documents yet.
               </div>
             ) : (
@@ -901,7 +923,7 @@ Thank you for choosing Indiana Notary Solutions.
                 {documentsWithUrls.map((doc) => (
                   <div
                     key={doc.id}
-                    className="flex flex-col justify-between gap-2 rounded-lg border bg-slate-50 p-3 text-sm md:flex-row md:items-center"
+                    className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm md:flex-row md:items-center"
                   >
                     <div>
                       <p className="font-medium text-slate-900">
@@ -918,7 +940,7 @@ Thank you for choosing Indiana Notary Solutions.
                         href={doc.signedUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="rounded-lg bg-slate-900 px-3 py-2 text-center text-white"
+                        className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
                       >
                         View File
                       </a>
@@ -931,8 +953,8 @@ Thank you for choosing Indiana Notary Solutions.
             )}
           </section>
 
-          <section className="rounded-xl bg-white p-5 shadow">
-            <h2 className="text-lg font-semibold">Order Notes</h2>
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900">Order Notes</h2>
             <p className="text-sm text-slate-500">
               Add a note for this order. It will show in the activity log below.
             </p>
@@ -945,29 +967,29 @@ Thank you for choosing Indiana Notary Solutions.
                 required
                 rows={4}
                 placeholder="Type your note..."
-                className="w-full rounded-lg border p-3 text-sm outline-none focus:border-slate-900"
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
               />
 
               <button
                 type="submit"
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
               >
                 Add Note
               </button>
             </form>
           </section>
 
-          <section className="rounded-xl bg-white p-5 shadow">
-            <h2 className="text-lg font-semibold">Activity</h2>
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900">Activity</h2>
 
             {!activity?.length ? (
-              <div className="mt-4 rounded-lg border p-4 text-sm text-slate-500">
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
                 No activity yet.
               </div>
             ) : (
               <div className="mt-4 space-y-3">
                 {activity.map((item) => (
-                  <div key={item.id} className="rounded-lg border p-3 text-sm">
+                  <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
                     <p className="font-medium">{item.action}</p>
 
                     {item.actor_name && (

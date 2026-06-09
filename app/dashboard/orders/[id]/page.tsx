@@ -371,18 +371,18 @@ Please log in to your notary dashboard to review the documents.
       : null;
 
   return (
-    <main className="space-y-6 p-4 sm:p-6">
-      <section className="rounded-2xl bg-slate-950 p-6 text-white shadow">
+    <main className="min-h-screen space-y-6 bg-slate-50 p-4 sm:p-6">
+      <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] p-6 text-white shadow-sm">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
           <div>
             <a
               href="/dashboard/orders"
-              className="text-sm font-bold text-slate-300 underline hover:text-white"
+              className="text-sm font-bold text-blue-100 underline underline-offset-4 transition hover:text-white"
             >
               ← Back to Orders
             </a>
 
-            <p className="mt-5 text-sm text-slate-300">
+            <p className="mt-5 text-sm font-semibold text-blue-100">
               Control # {order.control_number ?? "—"}
             </p>
 
@@ -390,7 +390,7 @@ Please log in to your notary dashboard to review the documents.
               {order.borrower_name ?? "Order"}
             </h1>
 
-            <p className="mt-2 text-sm text-slate-300">
+            <p className="mt-2 text-sm text-blue-100/90">
               {order.signing_type ?? "Signing"} • {signingDate}{" "}
               {signingTime && `at ${signingTime}`}
             </p>
@@ -398,7 +398,7 @@ Please log in to your notary dashboard to review the documents.
 
           <div className="flex flex-col gap-3 md:items-end">
             <span
-              className={`w-fit rounded-full px-4 py-2 text-sm font-bold ${statusBadge(
+              className={`w-fit rounded-full px-4 py-2 text-sm font-bold ring-1 ring-inset ${statusBadge(
                 order.status
               )}`}
             >
@@ -407,7 +407,7 @@ Please log in to your notary dashboard to review the documents.
 
             <a
               href={`/dashboard/orders/${id}/edit`}
-              className="rounded-xl bg-white px-5 py-3 text-center text-sm font-bold text-slate-950 hover:bg-slate-100"
+              className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-50"
             >
               Edit Order
             </a>
@@ -415,7 +415,7 @@ Please log in to your notary dashboard to review the documents.
 <form action={`/dashboard/orders/${id}/cancel`} method="POST">
   <button
     type="submit"
-    className="rounded-lg bg-red-600 px-5 py-2 font-semibold text-white hover:bg-red-700"
+    className="rounded-xl bg-red-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-700"
   >
     Cancel Order
   </button>
@@ -452,37 +452,37 @@ Please log in to your notary dashboard to review the documents.
 
       <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
         <aside className="space-y-6">
-          <section className="rounded-2xl bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-950">Order Summary</h2>
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-900">Order Summary</h2>
 
             <div className="mt-5 space-y-5 text-sm">
               <div>
-                <p className="font-bold text-slate-500">Borrower</p>
-                <p className="mt-1 font-semibold text-slate-950">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Borrower</p>
+                <p className="mt-1 text-base font-semibold text-slate-800">
                   {order.borrower_name ?? "—"}
                 </p>
               </div>
 
               <div>
-                <p className="font-bold text-slate-500">Phone</p>
-                <p className="mt-1">{order.borrower_phone ?? "—"}</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Phone</p>
+                <p className="mt-1 text-base font-medium text-slate-700">{order.borrower_phone ?? "—"}</p>
               </div>
 
               <div>
-                <p className="font-bold text-slate-500">Email</p>
-                <p className="mt-1 break-all">{order.borrower_email ?? "—"}</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Email</p>
+                <p className="mt-1 break-all text-base font-medium text-slate-700">{order.borrower_email ?? "—"}</p>
               </div>
 
               <div>
-                <p className="font-bold text-slate-500">Appointment</p>
-                <p className="mt-1">{signingDate}</p>
-                <p>{signingTime || "Time not set"}</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Appointment</p>
+                <p className="mt-1 text-base font-medium text-slate-700">{signingDate}</p>
+                <p className="text-base font-medium text-slate-700">{signingTime || "Time not set"}</p>
               </div>
 
               <div>
-                <p className="font-bold text-slate-500">Signing Location</p>
-                <p className="mt-1">{order.signing_address ?? "—"}</p>
-                <p>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Signing Location</p>
+                <p className="mt-1 text-base font-medium text-slate-700">{order.signing_address ?? "—"}</p>
+                <p className="text-base font-medium text-slate-700">
                   {order.signing_city ?? "—"}, {order.signing_state ?? "IN"}{" "}
                   {order.signing_zip ?? ""}
                 </p>
@@ -490,8 +490,8 @@ Please log in to your notary dashboard to review the documents.
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-950">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-900">
               Assigned Notary
             </h2>
 
@@ -518,8 +518,8 @@ Please log in to your notary dashboard to review the documents.
         </aside>
 
         <section className="space-y-6">
-          <section className="rounded-2xl bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-950">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-900">
               Special Instructions
             </h2>
 
@@ -530,10 +530,10 @@ Please log in to your notary dashboard to review the documents.
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
               <div>
-                <h2 className="text-xl font-bold text-slate-950">
+                <h2 className="text-xl font-bold text-slate-900">
                   Title Documents
                 </h2>
                 <p className="text-sm text-slate-500">
@@ -545,7 +545,7 @@ Please log in to your notary dashboard to review the documents.
 
             <form
               action={uploadTitleDocuments}
-              className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4"
+              className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5"
             >
               <input type="hidden" name="assignment_id" value={id} />
 
@@ -559,14 +559,14 @@ Please log in to your notary dashboard to review the documents.
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                 multiple
                 required
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm"
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
               />
 
               <p className="mt-2 text-xs text-slate-500">
                 You can select and upload multiple documents at once.
               </p>
 
-              <button className="mt-4 rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800">
+              <button className="mt-4 rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950">
                 Upload Title Documents
               </button>
             </form>
@@ -598,7 +598,7 @@ Please log in to your notary dashboard to review the documents.
                         </p>
                       </div>
 
-                      <span className="rounded-xl bg-slate-950 px-4 py-2 text-center text-sm font-bold text-white">
+                      <span className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-950">
                         Open
                       </span>
                     </div>
@@ -608,8 +608,8 @@ Please log in to your notary dashboard to review the documents.
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-950">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-900">
               Uploaded Notary Documents
             </h2>
             <p className="text-sm text-slate-500">
@@ -644,7 +644,7 @@ Please log in to your notary dashboard to review the documents.
                         href={doc.signedUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="rounded-xl bg-slate-950 px-4 py-2 text-center text-sm font-bold text-white hover:bg-slate-800"
+                        className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
                       >
                         View File
                       </a>
@@ -655,8 +655,8 @@ Please log in to your notary dashboard to review the documents.
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-950">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-900">
               Order Chat / Notes
             </h2>
             <p className="text-sm text-slate-500">
@@ -671,18 +671,18 @@ Please log in to your notary dashboard to review the documents.
                 name="comment"
                 rows={4}
                 placeholder="Type your message..."
-                className="w-full rounded-xl border p-3"
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                 required
               />
 
-              <button className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800">
+              <button className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950">
                 Add Comment
               </button>
             </form>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-950">Activity</h2>
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-900">Activity</h2>
 
             <div className="mt-4 space-y-3">
               {!activity?.length ? (
@@ -698,10 +698,10 @@ Please log in to your notary dashboard to review the documents.
                   return (
                     <div
                       key={item.id}
-                      className="rounded-xl border border-slate-200 bg-white p-4"
+                      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                     >
                       <div className="flex flex-col justify-between gap-2 md:flex-row md:items-center">
-                        <p className="font-bold text-slate-950">
+                        <p className="font-bold text-slate-900">
                           {item.action ?? "Activity"}
                         </p>
                         <p className="text-xs text-slate-500">

@@ -224,72 +224,72 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <main className="space-y-6 p-4 sm:p-6">
-      <section className="rounded-2xl bg-slate-950 p-6 text-white shadow">
-        <p className="text-sm text-slate-300">Admin Overview</p>
+    <main className="space-y-6 bg-slate-50 p-4 sm:p-6">
+      <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] p-6 text-white shadow-sm">
+        <p className="text-sm font-semibold text-blue-100">Admin Overview</p>
         <h1 className="mt-1 text-2xl font-bold sm:text-3xl">Dashboard</h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-300">
+        <p className="mt-2 max-w-3xl text-sm text-blue-100/90">
           Track orders, notaries, assignment status, credential reviews, and
           platform financials.
         </p>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
-          <p className="text-sm font-semibold text-blue-700">Total Orders</p>
-          <p className="mt-2 text-4xl font-bold text-blue-950">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-500">Total Orders</p>
+          <p className="mt-2 text-4xl font-bold text-[#0B1F4D]">
             {totalOrders ?? 0}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-green-100 bg-green-50 p-5 shadow-sm">
-          <p className="text-sm font-semibold text-green-700">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-500">
             Active Notaries
           </p>
-          <p className="mt-2 text-4xl font-bold text-green-950">
+          <p className="mt-2 text-4xl font-bold text-[#0B1F4D]">
             {activeNotaries ?? 0}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-purple-100 bg-purple-50 p-5 shadow-sm">
-          <p className="text-sm font-semibold text-purple-700">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-500">
             Open Assignments
           </p>
-          <p className="mt-2 text-4xl font-bold text-purple-950">
+          <p className="mt-2 text-4xl font-bold text-[#0B1F4D]">
             {openAssignments ?? 0}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-5 shadow-sm">
-          <p className="text-sm font-semibold text-amber-700">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-500">
             Unassigned Orders
           </p>
-          <p className="mt-2 text-4xl font-bold text-amber-950">
+          <p className="mt-2 text-4xl font-bold text-[#0B1F4D]">
             {unassignedOrders ?? 0}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-orange-100 bg-orange-50 p-5 shadow-sm">
-          <p className="text-sm font-semibold text-orange-700">Needs QA</p>
-          <p className="mt-2 text-4xl font-bold text-orange-950">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-500">Needs QA</p>
+          <p className="mt-2 text-4xl font-bold text-[#0B1F4D]">
             {signingComplete ?? 0}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-red-100 bg-red-50 p-5 shadow-sm">
-          <p className="text-sm font-semibold text-red-700">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-500">
             Credentials Review
           </p>
-          <p className="mt-2 text-4xl font-bold text-red-950">
+          <p className="mt-2 text-4xl font-bold text-[#0B1F4D]">
             {credentialReviews.length}
           </p>
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
-        <div className="flex flex-col justify-between gap-3 border-b border-red-100 bg-red-50 p-5 md:flex-row md:items-center">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col justify-between gap-3 border-b border-slate-200 bg-slate-50 p-5 md:flex-row md:items-center">
           <div>
-            <h2 className="text-xl font-bold text-red-950">
+            <h2 className="text-xl font-bold text-slate-900">
               Credential Uploads Needing Review
             </h2>
             <p className="text-sm text-red-700">
@@ -299,7 +299,7 @@ export default async function DashboardPage() {
 
           <Link
             href="/dashboard/users"
-            className="rounded-xl bg-slate-950 px-4 py-2 text-center text-sm font-bold text-white hover:bg-slate-800"
+            className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
           >
             View Users
           </Link>
@@ -324,7 +324,7 @@ export default async function DashboardPage() {
                       ? `/dashboard/users/${credential.user_id}`
                       : "/dashboard/users"
                   }
-                  className="block p-5 hover:bg-slate-50"
+                  className="block p-5 transition hover:bg-slate-50"
                 >
                   <div className="grid gap-4 lg:grid-cols-[1.2fr_1.5fr_1fr_auto] lg:items-center">
                     <div>
@@ -350,7 +350,7 @@ export default async function DashboardPage() {
                       <p>Expires: {formatDate(credential.expiration_date)}</p>
                     </div>
 
-                    <span className="w-fit rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-800">
+                    <span className="w-fit rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-800 ring-1 ring-red-200">
                       {credentialStatusLabel(credential.status)}
                     </span>
                   </div>
@@ -361,10 +361,10 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
-        <div className="flex flex-col justify-between gap-3 border-b border-amber-100 bg-amber-50 p-5 md:flex-row md:items-center">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col justify-between gap-3 border-b border-slate-200 bg-slate-50 p-5 md:flex-row md:items-center">
           <div>
-            <h2 className="text-xl font-bold text-amber-950">
+            <h2 className="text-xl font-bold text-slate-900">
               Needs Attention
             </h2>
             <p className="text-sm text-amber-700">
@@ -374,7 +374,7 @@ export default async function DashboardPage() {
 
           <Link
             href="/dashboard/orders"
-            className="rounded-xl bg-slate-950 px-4 py-2 text-center text-sm font-bold text-white hover:bg-slate-800"
+            className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
           >
             View Orders
           </Link>
@@ -395,7 +395,7 @@ export default async function DashboardPage() {
                 <Link
                   key={order.id}
                   href={`/dashboard/orders/${order.id}`}
-                  className="block p-5 hover:bg-slate-50"
+                  className="block p-5 transition hover:bg-slate-50"
                 >
                   <div className="grid gap-4 lg:grid-cols-[1.5fr_2fr_auto] lg:items-center">
                     <div>
@@ -447,7 +447,7 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      <section className="rounded-2xl bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div>
           <h2 className="text-xl font-bold text-slate-950">Financials</h2>
           <p className="text-sm text-slate-500">
@@ -457,70 +457,70 @@ export default async function DashboardPage() {
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl bg-blue-50 p-5">
-            <p className="text-sm font-semibold text-blue-700">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <p className="text-sm font-semibold text-slate-500">
               Billables MTD
             </p>
-            <p className="mt-2 text-3xl font-bold text-blue-950">
+            <p className="mt-2 text-3xl font-bold text-[#0B1F4D]">
               {formatMoney(billablesMTD)}
             </p>
           </div>
 
-          <div className="rounded-2xl bg-amber-50 p-5">
-            <p className="text-sm font-semibold text-amber-700">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <p className="text-sm font-semibold text-slate-500">
               Payables MTD
             </p>
-            <p className="mt-2 text-3xl font-bold text-amber-950">
+            <p className="mt-2 text-3xl font-bold text-[#0B1F4D]">
               {formatMoney(payablesMTD)}
             </p>
           </div>
 
-          <div className="rounded-2xl bg-green-50 p-5">
-            <p className="text-sm font-semibold text-green-700">Profit MTD</p>
-            <p className="mt-2 text-3xl font-bold text-green-950">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <p className="text-sm font-semibold text-slate-500">Profit MTD</p>
+            <p className="mt-2 text-3xl font-bold text-[#0B1F4D]">
               {formatMoney(profitMTD)}
             </p>
           </div>
 
-          <div className="rounded-2xl bg-slate-50 p-5">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <p className="text-sm font-semibold text-slate-600">
               Current Quarter Profit
             </p>
-            <p className="mt-2 text-3xl font-bold text-slate-950">
+            <p className="mt-2 text-3xl font-bold text-[#0B1F4D]">
               {formatMoney(profitCurrentQuarter)}
             </p>
           </div>
 
-          <div className="rounded-2xl bg-blue-50 p-5">
-            <p className="text-sm font-semibold text-blue-700">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <p className="text-sm font-semibold text-slate-500">
               Billables YTD
             </p>
-            <p className="mt-2 text-3xl font-bold text-blue-950">
+            <p className="mt-2 text-3xl font-bold text-[#0B1F4D]">
               {formatMoney(billablesYTD)}
             </p>
           </div>
 
-          <div className="rounded-2xl bg-amber-50 p-5">
-            <p className="text-sm font-semibold text-amber-700">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <p className="text-sm font-semibold text-slate-500">
               Payables YTD
             </p>
-            <p className="mt-2 text-3xl font-bold text-amber-950">
+            <p className="mt-2 text-3xl font-bold text-[#0B1F4D]">
               {formatMoney(payablesYTD)}
             </p>
           </div>
 
-          <div className="rounded-2xl bg-green-50 p-5">
-            <p className="text-sm font-semibold text-green-700">Profit YTD</p>
-            <p className="mt-2 text-3xl font-bold text-green-950">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <p className="text-sm font-semibold text-slate-500">Profit YTD</p>
+            <p className="mt-2 text-3xl font-bold text-[#0B1F4D]">
               {formatMoney(profitYTD)}
             </p>
           </div>
 
-          <div className="rounded-2xl bg-purple-50 p-5">
-            <p className="text-sm font-semibold text-purple-700">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <p className="text-sm font-semibold text-slate-500">
               Current Quarter Billables
             </p>
-            <p className="mt-2 text-3xl font-bold text-purple-950">
+            <p className="mt-2 text-3xl font-bold text-[#0B1F4D]">
               {formatMoney(billablesCurrentQuarter)}
             </p>
           </div>
@@ -567,7 +567,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-xl font-bold text-slate-950">Quick Actions</h2>
 
         <div className="mt-4 flex flex-wrap gap-3">
@@ -580,14 +580,14 @@ export default async function DashboardPage() {
 
           <Link
             href="/dashboard/users"
-            className="rounded-xl border px-4 py-2 text-sm font-bold hover:bg-slate-50"
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
           >
             Manage Users
           </Link>
 
           <Link
             href="/dashboard/orders/new"
-            className="rounded-xl border px-4 py-2 text-sm font-bold hover:bg-slate-50"
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
           >
             Create Order
           </Link>

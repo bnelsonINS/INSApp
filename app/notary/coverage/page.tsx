@@ -99,6 +99,15 @@ const indianaCounties = [
   "Whitley",
 ];
 
+const inputClass =
+  "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100";
+
+const buttonClass =
+  "rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950";
+
+const sectionClass =
+  "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6";
+
 export default async function CoveragePage() {
   const supabase = await createSupabaseServerClient();
 
@@ -134,23 +143,74 @@ export default async function CoveragePage() {
       : String(profile.travel_radius_miles);
 
   return (
-    <main className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Coverage Areas</h1>
-        <p className="text-slate-600">
-          Tell us where you are willing to accept signing assignments. Indiana Notary Solutions uses your coverage areas to determine which signing opportunities are offered to you.
-          You are only required to provide one of the following.
+    <main className="space-y-6 bg-slate-50 p-4 sm:p-6">
+      <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
+        <div className="p-6">
+          <p className="text-sm font-medium text-blue-100">Coverage Areas</p>
+
+          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+            Service Area Preferences
+          </h1>
+
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100/90">
+            Tell us where you are willing to accept signing assignments. Indiana
+            Notary Solutions uses your travel preferences, counties, and ZIP
+            codes to match you with signing opportunities.
+          </p>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 border-l-4 border-l-blue-500 bg-white p-5 shadow-sm sm:p-6">
+        <h2 className="text-lg font-bold text-slate-950">
+          Choose at least one coverage method
+        </h2>
+
+        <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
+          You can use a travel radius, selected Indiana counties, individual ZIP
+          codes, or a combination of all three. ZIP codes are the most precise
+          matching method, while counties and travel radius help broaden your
+          assignment availability.
         </p>
-      </div>
 
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-bold text-slate-950">Travel Radius</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Best for general distance-based matching.
+            </p>
+          </div>
 
-      <section className="space-y-4 rounded-xl bg-white p-6 shadow">
-        <h2 className="text-lg font-semibold">Travel Preferences</h2>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-bold text-slate-950">Counties</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Best for broad Indiana service areas.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-bold text-slate-950">ZIP Codes</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Best for exact signing assignment matching.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className={sectionClass}>
+        <div className="mb-5">
+          <h2 className="text-xl font-bold text-slate-950">
+            Travel Preferences
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500">
+            Set your home ZIP code and maximum travel distance. This helps
+            reduce notifications for assignments that are too far away.
+          </p>
+        </div>
 
         <form
           action="/notary/coverage/update-travel"
           method="post"
-          className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"
+          className="grid gap-4 md:grid-cols-[1fr_1fr_auto]"
         >
           <input
             key={`home-${homeZip}`}
@@ -158,7 +218,7 @@ export default async function CoveragePage() {
             placeholder="Home ZIP, example: 47130"
             maxLength={5}
             defaultValue={homeZip}
-            className="rounded-lg border p-2"
+            className={inputClass}
           />
 
           <input
@@ -169,25 +229,29 @@ export default async function CoveragePage() {
             max="250"
             placeholder="Travel radius in miles"
             defaultValue={travelRadius}
-            className="rounded-lg border p-2"
+            className={inputClass}
           />
 
-          <button className="rounded-lg bg-slate-900 px-4 py-2 text-white">
-            Save
-          </button>
+          <button className={buttonClass}>Save</button>
         </form>
-
-        <p className="text-sm text-slate-500">
-          Set your home ZIP code and maximum travel distance. This helps us identify assignments that are within your preferred service area and reduces notifications for jobs that are too far away.
-        </p>
       </section>
 
-      <div className="text-center">
-  <p className="text-1xl font-extrabold text-red-700">OR</p>
-</div>
+      <div className="flex items-center gap-4">
+        <div className="h-px flex-1 bg-slate-200" />
+        <p className="rounded-full border border-slate-200 bg-white px-4 py-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+          Optional
+        </p>
+        <div className="h-px flex-1 bg-slate-200" />
+      </div>
 
-      <section className="space-y-4 rounded-xl bg-white p-6 shadow">
-        <h2 className="text-lg font-semibold">Add County</h2>
+      <section className={sectionClass}>
+        <div className="mb-5">
+          <h2 className="text-xl font-bold text-slate-950">County Coverage</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500">
+            Add all Indiana counties you are willing to serve. You can update
+            this list at any time.
+          </p>
+        </div>
 
         <form
           action="/notary/coverage/add-county"
@@ -197,7 +261,7 @@ export default async function CoveragePage() {
           <select
             name="county"
             required
-            className="rounded-lg border p-2 md:w-80"
+            className={`${inputClass} md:w-80`}
             defaultValue=""
           >
             <option value="">Select Indiana county</option>
@@ -208,37 +272,57 @@ export default async function CoveragePage() {
             ))}
           </select>
 
-          <button className="rounded-lg bg-slate-900 px-4 py-2 text-white">
-            Add County
-          </button>
+          <button className={buttonClass}>Add County</button>
         </form>
-        Add all counties you are willing to serve. You can update this list at any time.
 
-        <div className="flex flex-wrap gap-2 pt-2">
-          {counties?.map((item) => (
-            <form
-              key={item.id}
-              action={`/notary/coverage/counties/${item.id}/delete`}
-              method="post"
-            >
-              <button className="rounded-full bg-slate-100 px-3 py-1 text-sm hover:bg-red-100">
-                {item.county} ×
-              </button>
-            </form>
-          ))}
+        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-sm font-bold text-slate-950">
+              Selected Counties
+            </p>
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
+              {counties?.length ?? 0}
+            </span>
+          </div>
 
-          {!counties?.length && (
-            <p className="text-sm text-red-500">No counties added yet.</p>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {counties?.map((item) => (
+              <form
+                key={item.id}
+                action={`/notary/coverage/counties/${item.id}/delete`}
+                method="post"
+              >
+                <button className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700">
+                  {item.county} ×
+                </button>
+              </form>
+            ))}
+
+            {!counties?.length && (
+              <p className="text-sm text-slate-500">No counties added yet.</p>
+            )}
+          </div>
         </div>
       </section>
 
-      <div className="text-center">
-  <p className="text-1xl font-extrabold text-red-700">OR</p>
-</div>
+      <div className="flex items-center gap-4">
+        <div className="h-px flex-1 bg-slate-200" />
+        <p className="rounded-full border border-slate-200 bg-white px-4 py-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+          Optional
+        </p>
+        <div className="h-px flex-1 bg-slate-200" />
+      </div>
 
-      <section className="space-y-4 rounded-xl bg-white p-6 shadow">
-        <h2 className="text-lg font-semibold">Add ZIP Code</h2>
+      <section className={sectionClass}>
+        <div className="mb-5">
+          <h2 className="text-xl font-bold text-slate-950">
+            ZIP Code Coverage
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500">
+            Enter ZIP codes where you actively accept assignments. ZIP codes are
+            the most precise way to match you to signing requests.
+          </p>
+        </div>
 
         <form
           action="/notary/coverage/add-zip"
@@ -250,31 +334,39 @@ export default async function CoveragePage() {
             placeholder="Example: 47130"
             maxLength={5}
             required
-            className="rounded-lg border p-2 md:w-80"
+            className={`${inputClass} md:w-80`}
           />
 
-          <button className="rounded-lg bg-slate-900 px-4 py-2 text-white">
-            Add ZIP Code
-          </button>
+          <button className={buttonClass}>Add ZIP Code</button>
         </form>
-        Enter the ZIP codes where you actively accept assignments. ZIP codes are our primary method for matching notaries to signing requests.
 
-        <div className="flex flex-wrap gap-2 pt-2">
-          {zipCodes?.map((item) => (
-            <form
-              key={item.id}
-              action={`/notary/coverage/zips/${item.id}/delete`}
-              method="post"
-            >
-              <button className="rounded-full bg-slate-100 px-3 py-1 text-sm hover:bg-red-100">
-                {item.zip_code} ×
-              </button>
-            </form>
-          ))}
+        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-sm font-bold text-slate-950">
+              Selected ZIP Codes
+            </p>
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
+              {zipCodes?.length ?? 0}
+            </span>
+          </div>
 
-          {!zipCodes?.length && (
-            <p className="text-sm text-slate-700">No ZIP codes added yet.</p>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {zipCodes?.map((item) => (
+              <form
+                key={item.id}
+                action={`/notary/coverage/zips/${item.id}/delete`}
+                method="post"
+              >
+                <button className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700">
+                  {item.zip_code} ×
+                </button>
+              </form>
+            ))}
+
+            {!zipCodes?.length && (
+              <p className="text-sm text-slate-500">No ZIP codes added yet.</p>
+            )}
+          </div>
         </div>
       </section>
     </main>

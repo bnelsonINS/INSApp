@@ -82,16 +82,16 @@ function average(value: number, count: number) {
 function statusBadge(status: string | null) {
   const normalized = (status ?? "").toLowerCase();
 
-  if (normalized === "new request") return "bg-blue-100 text-blue-800";
-  if (normalized === "not confirmed") return "bg-amber-100 text-amber-800";
-  if (normalized === "confirmed") return "bg-purple-100 text-purple-800";
-  if (normalized === "in progress") return "bg-indigo-100 text-indigo-800";
-  if (normalized === "late") return "bg-red-100 text-red-800";
-  if (normalized === "signing complete") return "bg-orange-100 text-orange-800";
-  if (normalized === "closed") return "bg-green-100 text-green-800";
-  if (normalized === "completed") return "bg-green-100 text-green-800";
+  if (normalized === "new request") return "bg-blue-50 text-blue-800 ring-blue-200";
+  if (normalized === "not confirmed") return "bg-amber-50 text-amber-800 ring-amber-200";
+  if (normalized === "confirmed") return "bg-purple-50 text-purple-800 ring-purple-200";
+  if (normalized === "in progress") return "bg-indigo-50 text-indigo-800 ring-indigo-200";
+  if (normalized === "late") return "bg-red-50 text-red-800 ring-red-200";
+  if (normalized === "signing complete") return "bg-orange-50 text-orange-800 ring-orange-200";
+  if (normalized === "closed") return "bg-green-50 text-green-800 ring-green-200";
+  if (normalized === "completed") return "bg-green-50 text-green-800 ring-green-200";
 
-  return "bg-slate-100 text-slate-700";
+  return "bg-slate-50 text-slate-700 ring-slate-200";
 }
 
 function titlePaymentStatus(status: string | null) {
@@ -109,18 +109,18 @@ function notaryPaymentStatus(status: string | null) {
 
 function paymentBadge(label: string) {
   if (label === "Collected" || label === "Paid / Closed") {
-    return "bg-green-100 text-green-800";
+    return "bg-green-50 text-green-800 ring-green-200";
   }
 
   if (label === "Ready to Invoice" || label === "Owed") {
-    return "bg-amber-100 text-amber-800";
+    return "bg-amber-50 text-amber-800 ring-amber-200";
   }
 
   if (label === "Not Billable Yet" || label === "Not Payable Yet") {
-    return "bg-slate-100 text-slate-700";
+    return "bg-slate-50 text-slate-700 ring-slate-200";
   }
 
-  return "bg-blue-100 text-blue-800";
+  return "bg-blue-50 text-blue-800 ring-blue-200";
 }
 
 export default async function AdminFinancialsPage() {
@@ -231,14 +231,16 @@ export default async function AdminFinancialsPage() {
   ];
 
   return (
-    <main className="space-y-6 p-4 sm:p-6">
-      <section className="rounded-2xl bg-slate-950 p-6 text-white shadow">
-        <p className="text-sm text-slate-300">Company Financials</p>
-        <h1 className="mt-1 text-2xl font-bold sm:text-3xl">Financials</h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-300">
-          Track billables, notary payables, profit, pending payments, and order
-          financial performance.
-        </p>
+    <main className="min-h-screen space-y-6 bg-slate-50 p-4 sm:p-6">
+      <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
+        <div className="p-6 sm:p-7">
+          <p className="text-sm font-semibold uppercase tracking-wide text-blue-100">Company Financials</p>
+          <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Financials</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-blue-100/90">
+            Track billables, notary payables, profit, pending payments, and order
+            financial performance.
+          </p>
+        </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -276,58 +278,58 @@ export default async function AdminFinancialsPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-3">
-        <section className="rounded-2xl bg-white p-5 shadow-sm xl:col-span-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
           <h2 className="text-xl font-bold text-slate-950">
             Revenue / Payables / Profit
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-600">
             Current month, quarter, year, and lifetime totals.
           </p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl bg-blue-50 p-4">
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
               <p className="text-sm font-semibold text-blue-700">Billables QTD</p>
               <p className="mt-1 text-2xl font-bold text-blue-950">
                 {formatMoney(billablesQTD)}
               </p>
             </div>
 
-            <div className="rounded-xl bg-amber-50 p-4">
+            <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
               <p className="text-sm font-semibold text-amber-700">Payables QTD</p>
               <p className="mt-1 text-2xl font-bold text-amber-950">
                 {formatMoney(payablesQTD)}
               </p>
             </div>
 
-            <div className="rounded-xl bg-green-50 p-4">
+            <div className="rounded-xl border border-green-100 bg-green-50 p-4">
               <p className="text-sm font-semibold text-green-700">Profit QTD</p>
               <p className="mt-1 text-2xl font-bold text-green-950">
                 {formatMoney(profitQTD)}
               </p>
             </div>
 
-            <div className="rounded-xl bg-blue-50 p-4">
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
               <p className="text-sm font-semibold text-blue-700">Billables YTD</p>
               <p className="mt-1 text-2xl font-bold text-blue-950">
                 {formatMoney(billablesYTD)}
               </p>
             </div>
 
-            <div className="rounded-xl bg-amber-50 p-4">
+            <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
               <p className="text-sm font-semibold text-amber-700">Payables YTD</p>
               <p className="mt-1 text-2xl font-bold text-amber-950">
                 {formatMoney(payablesYTD)}
               </p>
             </div>
 
-            <div className="rounded-xl bg-green-50 p-4">
+            <div className="rounded-xl border border-green-100 bg-green-50 p-4">
               <p className="text-sm font-semibold text-green-700">Profit YTD</p>
               <p className="mt-1 text-2xl font-bold text-green-950">
                 {formatMoney(profitYTD)}
               </p>
             </div>
 
-            <div className="rounded-xl bg-blue-50 p-4">
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
               <p className="text-sm font-semibold text-blue-700">
                 Lifetime Billables
               </p>
@@ -336,7 +338,7 @@ export default async function AdminFinancialsPage() {
               </p>
             </div>
 
-            <div className="rounded-xl bg-amber-50 p-4">
+            <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
               <p className="text-sm font-semibold text-amber-700">
                 Lifetime Payables
               </p>
@@ -345,7 +347,7 @@ export default async function AdminFinancialsPage() {
               </p>
             </div>
 
-            <div className="rounded-xl bg-green-50 p-4">
+            <div className="rounded-xl border border-green-100 bg-green-50 p-4">
               <p className="text-sm font-semibold text-green-700">
                 Lifetime Profit
               </p>
@@ -356,14 +358,14 @@ export default async function AdminFinancialsPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl bg-white p-5 shadow-sm">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-xl font-bold text-slate-950">Averages</h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-600">
             Useful for pricing and margin checks.
           </p>
 
           <div className="mt-5 space-y-3">
-            <div className="rounded-xl bg-blue-50 p-4">
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
               <p className="text-sm font-semibold text-blue-700">
                 Avg Title Fee
               </p>
@@ -372,7 +374,7 @@ export default async function AdminFinancialsPage() {
               </p>
             </div>
 
-            <div className="rounded-xl bg-amber-50 p-4">
+            <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
               <p className="text-sm font-semibold text-amber-700">
                 Avg Notary Fee
               </p>
@@ -381,7 +383,7 @@ export default async function AdminFinancialsPage() {
               </p>
             </div>
 
-            <div className="rounded-xl bg-green-50 p-4">
+            <div className="rounded-xl border border-green-100 bg-green-50 p-4">
               <p className="text-sm font-semibold text-green-700">
                 Avg Profit / Order
               </p>
@@ -394,11 +396,11 @@ export default async function AdminFinancialsPage() {
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-2xl bg-white p-5 shadow-sm">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-xl font-bold text-slate-950">
             Notary Payment Queue
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-600">
             Signing-complete orders that likely need notary payment review.
           </p>
 
@@ -413,7 +415,7 @@ export default async function AdminFinancialsPage() {
 
           <div className="mt-4 space-y-3">
             {!pendingNotaryOrders.length ? (
-              <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+              <p className="rounded-xl bg-slate-50 p-4 text-sm font-medium text-slate-700">
                 No pending notary payments.
               </p>
             ) : (
@@ -421,12 +423,12 @@ export default async function AdminFinancialsPage() {
                 <Link
                   key={order.id}
                   href={`/dashboard/orders/${order.id}`}
-                  className="block rounded-xl border p-4 hover:bg-slate-50"
+                  className="block rounded-xl border border-slate-200 bg-white p-4 transition hover:bg-slate-50 hover:shadow-sm"
                 >
                   <div className="flex justify-between gap-3">
                     <div>
-                      <p className="font-bold">{order.control_number ?? "—"}</p>
-                      <p className="text-sm text-slate-500">
+                      <p className="font-bold text-slate-950">{order.control_number ?? "—"}</p>
+                      <p className="text-sm text-slate-600">
                         {order.borrower_name ?? "Unnamed Order"}
                       </p>
                     </div>
@@ -440,9 +442,9 @@ export default async function AdminFinancialsPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl bg-white p-5 shadow-sm">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-xl font-bold text-slate-950">1099 Watch</h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-600">
             Simple placeholder until payment batches and notary totals are
             added.
           </p>
@@ -456,7 +458,7 @@ export default async function AdminFinancialsPage() {
             </p>
           </div>
 
-          <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+          <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm font-medium leading-6 text-slate-700">
             For real 1099 tracking, add a payment table later with payment date,
             payment batch ID, notary ID, amount paid, and tax year. Otherwise,
             tax season will be less “accounting” and more “archaeology.”
@@ -464,11 +466,11 @@ export default async function AdminFinancialsPage() {
         </section>
       </section>
 
-      <section className="rounded-2xl bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-xl font-bold text-slate-950">
           Quarterly Breakdown
         </h2>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-600">
           Billables, payables, and profit by quarter for the current year.
         </p>
 
@@ -487,7 +489,7 @@ export default async function AdminFinancialsPage() {
                   {quarter.label}
                 </p>
 
-                <div className="mt-3 space-y-2 text-sm">
+                <div className="mt-3 space-y-2 text-sm font-medium text-slate-800">
                   <p>
                     <span className="font-semibold text-blue-700">
                       Billables:
@@ -513,18 +515,18 @@ export default async function AdminFinancialsPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl bg-white shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 bg-slate-50 p-5">
           <h2 className="text-xl font-bold text-slate-950">
             Order Financial Table
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-600">
             Full financial view by assignment.
           </p>
         </div>
 
         {!orders.length ? (
-          <div className="p-8 text-sm text-slate-500">No orders found.</div>
+          <div className="p-8 text-sm font-medium text-slate-700">No orders found.</div>
         ) : (
           <>
             <div className="space-y-4 p-4 md:hidden">
@@ -535,7 +537,7 @@ export default async function AdminFinancialsPage() {
                 return (
                   <div
                     key={order.id}
-                    className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -549,7 +551,7 @@ export default async function AdminFinancialsPage() {
 
                       <Link
                         href={`/dashboard/orders/${order.id}`}
-                        className="shrink-0 rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                        className="shrink-0 rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
                       >
                         View
                       </Link>
@@ -613,7 +615,7 @@ export default async function AdminFinancialsPage() {
 
                     <div className="mt-4 flex flex-wrap gap-2">
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold ${statusBadge(
+                        className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
                           order.status
                         )}`}
                       >
@@ -621,7 +623,7 @@ export default async function AdminFinancialsPage() {
                       </span>
 
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold ${paymentBadge(
+                        className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${paymentBadge(
                           titleStatus
                         )}`}
                       >
@@ -629,7 +631,7 @@ export default async function AdminFinancialsPage() {
                       </span>
 
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold ${paymentBadge(
+                        className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${paymentBadge(
                           notaryStatus
                         )}`}
                       >
@@ -642,8 +644,8 @@ export default async function AdminFinancialsPage() {
             </div>
 
             <div className="hidden w-full max-w-full overflow-x-auto md:block">
-              <table className="w-[1200px] min-w-full text-left text-sm">
-                <thead className="bg-slate-100 text-slate-700">
+              <table className="w-[1200px] min-w-full text-left text-sm text-slate-800">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                   <tr>
                     <th className="whitespace-nowrap p-3">Control #</th>
                     <th className="whitespace-nowrap p-3">Borrower</th>
@@ -665,36 +667,36 @@ export default async function AdminFinancialsPage() {
                     const notaryStatus = notaryPaymentStatus(order.status);
 
                     return (
-                      <tr key={order.id} className="border-t hover:bg-slate-50">
-                        <td className="whitespace-nowrap p-3 font-semibold">
+                      <tr key={order.id} className="border-t border-slate-200 transition hover:bg-slate-50">
+                        <td className="whitespace-nowrap p-3 font-semibold text-slate-950">
                           {order.control_number ?? "—"}
                         </td>
 
-                        <td className="p-3">{order.borrower_name ?? "—"}</td>
+                        <td className="p-3 font-medium text-slate-800">{order.borrower_name ?? "—"}</td>
 
-                        <td className="whitespace-nowrap p-3">
+                        <td className="whitespace-nowrap p-3 font-medium text-slate-800">
                           {formatDate(order.signing_date)}
                         </td>
 
-                        <td className="whitespace-nowrap p-3 font-semibold">
+                        <td className="whitespace-nowrap p-3 font-semibold text-slate-950">
                           {formatMoney(getTitleFee(order))}
                         </td>
 
-                        <td className="whitespace-nowrap p-3 font-semibold">
+                        <td className="whitespace-nowrap p-3 font-semibold text-slate-950">
                           {formatMoney(getNotaryFee(order))}
                         </td>
 
-                        <td className="whitespace-nowrap p-3 font-bold">
+                        <td className="whitespace-nowrap p-3 font-bold text-slate-950">
                           {formatMoney(getProfit(order))}
                         </td>
 
-                        <td className="whitespace-nowrap p-3">
+                        <td className="whitespace-nowrap p-3 font-medium text-slate-800">
                           {getMargin(order).toFixed(1)}%
                         </td>
 
                         <td className="whitespace-nowrap p-3">
                           <span
-                            className={`rounded-full px-3 py-1 text-xs font-bold ${statusBadge(
+                            className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
                               order.status
                             )}`}
                           >
@@ -704,7 +706,7 @@ export default async function AdminFinancialsPage() {
 
                         <td className="whitespace-nowrap p-3">
                           <span
-                            className={`rounded-full px-3 py-1 text-xs font-bold ${paymentBadge(
+                            className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${paymentBadge(
                               titleStatus
                             )}`}
                           >
@@ -714,7 +716,7 @@ export default async function AdminFinancialsPage() {
 
                         <td className="whitespace-nowrap p-3">
                           <span
-                            className={`rounded-full px-3 py-1 text-xs font-bold ${paymentBadge(
+                            className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${paymentBadge(
                               notaryStatus
                             )}`}
                           >
@@ -725,7 +727,7 @@ export default async function AdminFinancialsPage() {
                         <td className="whitespace-nowrap p-3 text-right">
                           <Link
                             href={`/dashboard/orders/${order.id}`}
-                            className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                            className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
                           >
                             View
                           </Link>

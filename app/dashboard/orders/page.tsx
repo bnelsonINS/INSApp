@@ -84,19 +84,19 @@ function getProfit(order: AssignmentOrder) {
 function statusBadge(status: string | null) {
   const normalized = (status ?? "").toLowerCase();
 
-  if (normalized === "new request") return "bg-blue-100 text-blue-800";
-  if (normalized === "not confirmed") return "bg-amber-100 text-amber-800";
-  if (normalized === "confirmed") return "bg-purple-100 text-purple-800";
-  if (normalized === "in progress") return "bg-indigo-100 text-indigo-800";
-  if (normalized === "late") return "bg-red-100 text-red-800";
-  if (normalized === "docs uploaded") return "bg-orange-100 text-orange-800";
-  if (normalized === "qa") return "bg-teal-100 text-teal-800";
-  if (normalized === "signing complete") return "bg-orange-100 text-orange-800";
-  if (normalized === "completed") return "bg-green-100 text-green-800";
-  if (normalized === "closed") return "bg-green-100 text-green-800";
-  if (normalized === "cancelled") return "bg-red-100 text-red-800";
+  if (normalized === "new request") return "bg-blue-50 text-blue-700 ring-blue-200";
+  if (normalized === "not confirmed") return "bg-amber-50 text-amber-700 ring-amber-200";
+  if (normalized === "confirmed") return "bg-purple-50 text-purple-700 ring-purple-200";
+  if (normalized === "in progress") return "bg-indigo-50 text-indigo-700 ring-indigo-200";
+  if (normalized === "late") return "bg-red-50 text-red-700 ring-red-200";
+  if (normalized === "docs uploaded") return "bg-orange-50 text-orange-700 ring-orange-200";
+  if (normalized === "qa") return "bg-teal-50 text-teal-700 ring-teal-200";
+  if (normalized === "signing complete") return "bg-orange-50 text-orange-700 ring-orange-200";
+  if (normalized === "completed") return "bg-green-50 text-green-700 ring-green-200";
+  if (normalized === "closed") return "bg-green-50 text-green-700 ring-green-200";
+  if (normalized === "cancelled") return "bg-red-50 text-red-700 ring-red-200";
 
-  return "bg-slate-100 text-slate-700";
+  return "bg-slate-50 text-slate-700 ring-slate-200";
 }
 
 function bucketLabel(bucket: string) {
@@ -129,19 +129,19 @@ function bucketDescription(bucket: string) {
 
 function bucketCardStyle(bucket: string) {
   if (bucket === "incoming") {
-    return "border-blue-100 bg-blue-50 text-blue-950 hover:bg-blue-100";
+    return "border-blue-200 bg-blue-50 text-blue-950 hover:bg-blue-100";
   }
 
   if (bucket === "assigned") {
-    return "border-purple-100 bg-purple-50 text-purple-950 hover:bg-purple-100";
+    return "border-purple-200 bg-purple-50 text-purple-950 hover:bg-purple-100";
   }
 
   if (bucket === "qa") {
-    return "border-orange-100 bg-orange-50 text-orange-950 hover:bg-orange-100";
+    return "border-orange-200 bg-orange-50 text-orange-950 hover:bg-orange-100";
   }
 
   if (bucket === "completed") {
-    return "border-green-100 bg-green-50 text-green-950 hover:bg-green-100";
+    return "border-green-200 bg-green-50 text-green-950 hover:bg-green-100";
   }
 
   return "border-slate-200 bg-white text-slate-950 hover:bg-slate-50";
@@ -149,7 +149,7 @@ function bucketCardStyle(bucket: string) {
 
 function orderCard(order: AssignmentOrder) {
   return (
-    <div key={order.id} className="rounded-2xl border bg-white p-4 shadow-sm">
+    <div key={order.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm text-slate-500">Control #</p>
@@ -157,7 +157,7 @@ function orderCard(order: AssignmentOrder) {
         </div>
 
         <span
-          className={`rounded-full px-3 py-1 text-xs font-bold ${statusBadge(
+          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
             order.status
           )}`}
         >
@@ -290,13 +290,13 @@ export default async function OrdersPage({
   ).length;
 
   return (
-    <main className="space-y-6 p-4 sm:p-6">
-      <section className="rounded-2xl bg-slate-950 p-6 text-white shadow">
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+    <main className="space-y-6 bg-slate-50 p-4 sm:p-6">
+      <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
+        <div className="flex flex-col justify-between gap-4 p-6 md:flex-row md:items-center">
           <div>
-            <p className="text-sm text-slate-300">Admin Order Queue</p>
-            <h1 className="mt-1 text-2xl font-bold sm:text-3xl">Orders</h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-300">
+            <p className="text-sm font-semibold text-blue-100">Admin Order Queue</p>
+            <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Orders</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-blue-100/90">
               Sort incoming title company requests, assigned orders, QA files,
               and completed work.
             </p>
@@ -304,7 +304,7 @@ export default async function OrdersPage({
 
           <a
             href="/dashboard/orders/new"
-            className="rounded-xl bg-white px-5 py-3 text-center text-sm font-bold text-slate-950 hover:bg-slate-100"
+            className="rounded-xl bg-white px-5 py-3 text-center text-sm font-bold text-[#0B1F4D] shadow-sm transition hover:bg-blue-50"
           >
             + New Order
           </a>
@@ -314,7 +314,7 @@ export default async function OrdersPage({
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <a
           href="/dashboard/orders?bucket=incoming"
-          className={`rounded-2xl border p-5 shadow-sm ${bucketCardStyle(
+          className={`rounded-2xl border p-5 shadow-sm transition ${bucketCardStyle(
             "incoming"
           )}`}
         >
@@ -325,7 +325,7 @@ export default async function OrdersPage({
 
         <a
           href="/dashboard/orders?bucket=assigned"
-          className={`rounded-2xl border p-5 shadow-sm ${bucketCardStyle(
+          className={`rounded-2xl border p-5 shadow-sm transition ${bucketCardStyle(
             "assigned"
           )}`}
         >
@@ -336,7 +336,7 @@ export default async function OrdersPage({
 
         <a
           href="/dashboard/orders?bucket=qa"
-          className={`rounded-2xl border p-5 shadow-sm ${bucketCardStyle(
+          className={`rounded-2xl border p-5 shadow-sm transition ${bucketCardStyle(
             "qa"
           )}`}
         >
@@ -347,7 +347,7 @@ export default async function OrdersPage({
 
         <a
           href="/dashboard/orders?bucket=completed"
-          className={`rounded-2xl border p-5 shadow-sm ${bucketCardStyle(
+          className={`rounded-2xl border p-5 shadow-sm transition ${bucketCardStyle(
             "completed"
           )}`}
         >
@@ -357,7 +357,7 @@ export default async function OrdersPage({
         </a>
       </section>
 
-      <section className="rounded-2xl bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-bold text-slate-950">Find Orders</h2>
         <p className="text-sm text-slate-500">
           Search by control number, borrower, city, or ZIP code.
@@ -368,18 +368,18 @@ export default async function OrdersPage({
             name="q"
             defaultValue={search}
             placeholder="Search by control #, borrower, city, or ZIP"
-            className="rounded-xl border p-3"
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
           />
 
           {bucket !== "all" && <input type="hidden" name="bucket" value={bucket} />}
 
-          <button className="rounded-xl bg-slate-950 px-5 py-3 font-bold text-white hover:bg-slate-800">
+          <button className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950">
             Search
           </button>
 
           <a
             href="/dashboard/orders"
-            className="rounded-xl border px-5 py-3 text-center font-bold hover:bg-slate-50"
+            className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-50"
           >
             Reset
           </a>
@@ -399,8 +399,8 @@ export default async function OrdersPage({
             href={`/dashboard/orders${key === "all" ? "" : `?bucket=${key}`}`}
             className={`rounded-full px-4 py-2 text-sm font-bold ${
               bucket === key
-                ? "bg-slate-950 text-white"
-                : "bg-white text-slate-700 hover:bg-slate-100"
+                ? "bg-[#0B1F4D] text-white shadow-sm"
+                : "border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50"
             }`}
           >
             {label}
@@ -408,7 +408,7 @@ export default async function OrdersPage({
         ))}
       </section>
 
-      <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 bg-slate-50 p-5">
           <h2 className="text-xl font-bold text-slate-950">
             {bucketLabel(bucket)}
@@ -426,7 +426,7 @@ export default async function OrdersPage({
 
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-100 text-slate-700">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="p-3">Control #</th>
                     <th className="p-3">Signing</th>
@@ -443,7 +443,7 @@ export default async function OrdersPage({
 
                 <tbody>
                   {safeOrders.map((order) => (
-                    <tr key={order.id} className="border-t hover:bg-slate-50">
+                    <tr key={order.id} className="border-t border-slate-200 transition hover:bg-slate-50">
                       <td className="p-3 font-semibold">
                         {order.control_number ?? "—"}
                       </td>
@@ -497,7 +497,7 @@ export default async function OrdersPage({
 
                       <td className="p-3">
                         <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold ${statusBadge(
+                          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
                             order.status
                           )}`}
                         >
@@ -508,7 +508,7 @@ export default async function OrdersPage({
                       <td className="p-3 text-right">
                         <a
                           href={`/dashboard/orders/${order.id}`}
-                          className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                          className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
                         >
                           View
                         </a>

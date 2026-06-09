@@ -47,26 +47,28 @@ export default async function ClientOrdersPage() {
   const safeOrders = orders ?? [];
 
   return (
-    <div className="space-y-5">
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-950">Orders</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Search, review, and track your signing orders.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
+        <div className="flex flex-col justify-between gap-5 p-6 md:flex-row md:items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Orders</h1>
+            <p className="mt-2 text-sm text-blue-100/90">
+              Search, review, and track your signing orders.
+            </p>
+          </div>
 
-        <Link
-          href="/client/dashboard/orders/new"
-          className="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 sm:w-auto"
-        >
-          + Create Order
-        </Link>
+          <Link
+            href="/client/dashboard/orders/new"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#0B1F4D] shadow-sm transition hover:bg-blue-50 sm:w-auto"
+          >
+            + Create Order
+          </Link>
+        </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="grid gap-3 lg:grid-cols-[220px_1fr_auto] lg:items-center">
-          <select className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500">
+          <select className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100">
             {filters.map((filter) => (
               <option key={filter}>{filter}</option>
             ))}
@@ -74,11 +76,11 @@ export default async function ClientOrdersPage() {
 
           <input
             type="text"
-            className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+            className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
             placeholder="Search orders..."
           />
 
-          <button className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 lg:w-auto">
+          <button className="w-full rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 lg:w-auto">
             Search
           </button>
         </div>
@@ -95,7 +97,7 @@ export default async function ClientOrdersPage() {
 
             <Link
               href="/client/dashboard/orders/new"
-              className="mt-5 inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700"
+              className="mt-5 inline-flex items-center justify-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
             >
               + Create Order
             </Link>
@@ -107,7 +109,7 @@ export default async function ClientOrdersPage() {
             {safeOrders.map((order) => (
               <article
                 key={order.id}
-                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -117,56 +119,56 @@ export default async function ClientOrdersPage() {
 
                     <Link
                       href={`/client/dashboard/orders/${order.id}`}
-                      className="mt-1 block truncate text-base font-bold text-blue-700 hover:underline"
+                      className="mt-1 block truncate text-base font-bold text-[#0B1F4D] hover:text-blue-950"
                     >
                       {order.control_number || order.id.slice(0, 8)}
                     </Link>
                   </div>
 
-                  <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+                  <span className="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-200">
                     {order.status || "Needs Notary"}
                   </span>
                 </div>
 
-                <div className="mt-4 grid gap-3 text-sm">
-                  <div>
+                <div className="mt-5 grid gap-4 text-sm">
+                  <div className="rounded-xl bg-slate-50 p-4">
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                       Signer
                     </p>
                     <p className="mt-1 font-semibold text-slate-900">
                       {order.borrower_name || "No signer"}
                     </p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                    <p className="mt-1 text-xs leading-5 text-slate-600">
                       {order.signing_city || "—"},{" "}
                       {order.signing_state || "IN"} {order.signing_zip || ""}
                     </p>
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
+                    <div className="rounded-xl bg-slate-50 p-4">
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                         Appointment
                       </p>
                       <p className="mt-1 font-semibold text-slate-900">
                         {order.signing_date || "Not scheduled"}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-slate-600">
                         {order.signing_time || "Time TBD"}
                       </p>
                     </div>
 
-                    <div>
+                    <div className="rounded-xl bg-slate-50 p-4">
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                         Product
                       </p>
-                      <p className="mt-1 text-slate-700">
+                      <p className="mt-1 font-semibold text-slate-900">
                         {order.signing_type || "Signing"}
                       </p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div>
+                    <div className="rounded-xl bg-slate-50 p-4">
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                         Client
                       </p>
@@ -175,25 +177,25 @@ export default async function ClientOrdersPage() {
                       </p>
                     </div>
 
-                    <div>
+                    <div className="rounded-xl bg-slate-50 p-4">
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                         Paid?
                       </p>
-                      <p className="mt-1 text-slate-700">—</p>
+                      <p className="mt-1 font-semibold text-slate-700">—</p>
                     </div>
 
-                    <div>
+                    <div className="rounded-xl bg-slate-50 p-4">
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                         Docs
                       </p>
-                      <p className="mt-1 font-bold text-blue-700">0</p>
+                      <p className="mt-1 font-bold text-[#0B1F4D]">0</p>
                     </div>
                   </div>
                 </div>
 
                 <Link
                   href={`/client/dashboard/orders/${order.id}`}
-                  className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                  className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
                 >
                   View Order
                 </Link>
@@ -202,6 +204,15 @@ export default async function ClientOrdersPage() {
           </section>
 
           <section className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:block">
+            <div className="border-b border-slate-200 bg-white px-5 py-4">
+              <h2 className="text-lg font-bold text-slate-900">
+                Order List
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                All client orders currently attached to your account.
+              </p>
+            </div>
+
             <div className="w-full overflow-x-auto">
               <table className="w-max min-w-[1050px] text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -222,11 +233,11 @@ export default async function ClientOrdersPage() {
 
                 <tbody className="divide-y divide-slate-100">
                   {safeOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-slate-50">
+                    <tr key={order.id} className="transition hover:bg-slate-50">
                       <td className="whitespace-nowrap px-4 py-4">
                         <Link
                           href={`/client/dashboard/orders/${order.id}`}
-                          className="font-bold text-blue-700 hover:underline"
+                          className="font-bold text-[#0B1F4D] hover:text-blue-950"
                         >
                           {order.control_number || order.id.slice(0, 8)}
                         </Link>
@@ -261,7 +272,7 @@ export default async function ClientOrdersPage() {
                         </p>
                       </td>
 
-                      <td className="whitespace-nowrap px-4 py-4 text-slate-700">
+                      <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-700">
                         {order.signing_type || "Signing"}
                       </td>
 
@@ -274,11 +285,11 @@ export default async function ClientOrdersPage() {
                       </td>
 
                       <td className="whitespace-nowrap px-4 py-4">
-                        <span className="font-bold text-blue-700">0</span>
+                        <span className="font-bold text-[#0B1F4D]">0</span>
                       </td>
 
                       <td className="whitespace-nowrap px-4 py-4">
-                        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+                        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-200">
                           {order.status || "Needs Notary"}
                         </span>
                       </td>

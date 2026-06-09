@@ -118,17 +118,26 @@ export default async function ClientProfilePage() {
     redirect("/client/profile?saved=1");
   }
 
+  const inputClass =
+    "mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100";
+
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl bg-slate-950 p-6 text-white shadow-sm">
-        <p className="text-sm font-semibold text-emerald-300">
-          Client Profile
-        </p>
-        <h1 className="mt-2 text-2xl font-bold">Company & Contact Settings</h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-300">
-          Manage your company details, client contact information, billing email,
-          and default signing instructions.
-        </p>
+      <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
+        <div className="p-6">
+          <p className="text-sm font-semibold text-blue-100">
+            Client Profile
+          </p>
+
+          <h1 className="mt-2 text-3xl font-bold">
+            Company & Contact Settings
+          </h1>
+
+          <p className="mt-3 max-w-3xl text-sm text-blue-100/90">
+            Manage your company details, client contact information, billing
+            email, and default signing instructions.
+          </p>
+        </div>
       </section>
 
       <form
@@ -136,8 +145,9 @@ export default async function ClientProfilePage() {
         encType="multipart/form-data"
         className="space-y-6"
       >
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-950">Company Logo</h2>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-bold text-slate-900">Company Logo</h2>
+
           <p className="mt-1 text-sm text-slate-500">
             Upload a logo to personalize your client portal.
           </p>
@@ -149,7 +159,7 @@ export default async function ClientProfilePage() {
                 alt="Current company logo"
                 width={96}
                 height={96}
-                className="rounded-2xl border border-slate-200 object-contain p-2"
+                className="h-24 w-24 rounded-2xl border border-slate-200 bg-white object-contain p-2 shadow-sm"
               />
             ) : (
               <div className="flex h-24 w-24 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-sm font-bold text-slate-500">
@@ -162,8 +172,9 @@ export default async function ClientProfilePage() {
                 type="file"
                 name="logo"
                 accept="image/png,image/jpeg,image/jpg,image/webp"
-                className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-[#0B1F4D] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white hover:file:bg-blue-950"
               />
+
               <p className="mt-2 text-xs text-slate-500">
                 Recommended: PNG, JPG, or WEBP. Square logos work best.
               </p>
@@ -171,18 +182,23 @@ export default async function ClientProfilePage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-950">Company Info</h2>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-bold text-slate-900">Company Info</h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            This information appears throughout your client portal.
+          </p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <div>
               <label className="text-sm font-semibold text-slate-700">
                 Company Name
               </label>
+
               <input
                 name="company_name"
                 defaultValue={profile.company_name || ""}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
+                className={inputClass}
               />
             </div>
 
@@ -190,10 +206,11 @@ export default async function ClientProfilePage() {
               <label className="text-sm font-semibold text-slate-700">
                 Company Phone
               </label>
+
               <input
                 name="company_phone"
                 defaultValue={profile.company_phone || ""}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
+                className={inputClass}
               />
             </div>
 
@@ -201,10 +218,11 @@ export default async function ClientProfilePage() {
               <label className="text-sm font-semibold text-slate-700">
                 Company Address
               </label>
+
               <input
                 name="company_address"
                 defaultValue={profile.company_address || ""}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
+                className={inputClass}
               />
             </div>
 
@@ -212,10 +230,11 @@ export default async function ClientProfilePage() {
               <label className="text-sm font-semibold text-slate-700">
                 City
               </label>
+
               <input
                 name="company_city"
                 defaultValue={profile.company_city || ""}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
+                className={inputClass}
               />
             </div>
 
@@ -223,10 +242,11 @@ export default async function ClientProfilePage() {
               <label className="text-sm font-semibold text-slate-700">
                 State
               </label>
+
               <input
                 name="company_state"
                 defaultValue={profile.company_state || "IN"}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
+                className={inputClass}
               />
             </div>
 
@@ -234,10 +254,11 @@ export default async function ClientProfilePage() {
               <label className="text-sm font-semibold text-slate-700">
                 ZIP
               </label>
+
               <input
                 name="company_zip"
                 defaultValue={profile.company_zip || ""}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
+                className={inputClass}
               />
             </div>
 
@@ -245,43 +266,50 @@ export default async function ClientProfilePage() {
               <label className="text-sm font-semibold text-slate-700">
                 Billing Email
               </label>
+
               <input
                 name="billing_email"
                 type="email"
                 defaultValue={profile.billing_email || ""}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
+                className={inputClass}
               />
             </div>
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-950">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-bold text-slate-900">
             Default Signing Instructions
           </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            These instructions can be reused when placing new orders.
+          </p>
 
           <textarea
             name="default_signing_instructions"
             rows={6}
             defaultValue={profile.default_signing_instructions || ""}
             placeholder="Example: Please call borrower before appointment. Scanbacks required after signing."
-            className="mt-4 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
+            className={`${inputClass} resize-y`}
           />
 
-          <label className="mt-5 flex items-center gap-3 text-sm font-semibold text-slate-700">
+          <label className="mt-5 flex gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-semibold text-slate-700">
             <input
               type="checkbox"
               name="email_notifications"
               defaultChecked={profile.email_notifications ?? true}
+              className="mt-1 h-4 w-4 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
             />
-            Receive email notifications
+
+            <span>Receive email notifications</span>
           </label>
         </section>
 
         <div className="flex justify-end">
           <button
             type="submit"
-            className="w-full rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 sm:w-auto"
+            className="w-full rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 sm:w-auto"
           >
             Save Profile
           </button>

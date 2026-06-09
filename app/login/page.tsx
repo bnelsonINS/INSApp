@@ -48,36 +48,47 @@ export default async function LoginPage({
   return (
     <main className="min-h-screen bg-slate-950">
       <div className="grid min-h-screen lg:grid-cols-2">
-        <section className="flex items-center justify-center bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950 px-6 py-12 text-white">
-          <div className="max-w-md text-center">
-            <div className="mx-auto flex h-44 w-44 items-center justify-center rounded-full bg-white shadow-2xl">
+        <section className="relative flex items-center justify-center overflow-hidden bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950 px-6 py-12 text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_35%)]" />
+
+          <div className="relative max-w-xl text-center">
+            <div className="mx-auto flex h-52 w-52 items-center justify-center rounded-3xl border border-white/20 bg-white p-5 shadow-2xl">
               <Image
                 src="/ins-logo.png"
                 alt="Indiana Notary Solutions logo"
-                width={155}
-                height={155}
+                width={170}
+                height={170}
                 priority
+                className="object-contain"
               />
             </div>
 
-            <h1 className="mt-8 text-4xl font-bold tracking-tight">
+            <h1 className="mt-8 text-4xl font-bold tracking-tight sm:text-5xl">
               Indiana Notary Solutions
             </h1>
 
-            <p className="mt-4 text-lg text-blue-100">
-              Secure notary assignments, credentials, documents, and client
-              orders in one clean platform.
+            <p className="mt-4 text-xl font-medium text-blue-100">
+              Everything your signing business needs. One platform.
             </p>
 
-            <div className="mt-8 rounded-2xl border border-white/20 bg-white/10 p-5 text-sm text-blue-100 shadow-lg">
-              Built for admins, notaries, and title company clients.
+            <p className="mx-auto mt-5 max-w-lg text-base leading-7 text-blue-100/90">
+              Manage assignments, credentials, documents, client orders,
+              messaging, and financial tracking in one secure workspace built
+              for admins, notaries, and title company clients.
+            </p>
+
+            <div className="mt-8 rounded-2xl border border-white/20 bg-white/10 p-5 text-sm leading-7 text-blue-50 shadow-lg backdrop-blur">
+              Track orders, monitor earnings, manage compliance, and run your
+              signing business with confidence.
             </div>
           </div>
         </section>
 
         <section className="flex items-center justify-center bg-slate-100 px-6 py-12">
           <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl sm:p-10">
-            <h2 className="text-3xl font-bold text-slate-900">Welcome back</h2>
+            <h2 className="text-3xl font-bold text-slate-900">
+              Welcome back
+            </h2>
 
             <p className="mt-2 text-slate-600">
               Sign in to access your account.
@@ -94,6 +105,7 @@ export default async function LoginPage({
                 <label className="text-sm font-semibold text-slate-700">
                   Email address
                 </label>
+
                 <input
                   name="email"
                   type="email"
@@ -128,23 +140,16 @@ export default async function LoginPage({
 
               <button
                 type="submit"
-                style={{
-                  width: "100%",
-                  borderRadius: "12px",
-                  backgroundColor: "#1e3a8a",
-                  padding: "12px 20px",
-                  fontWeight: 700,
-                  color: "#ffffff",
-                  boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                }}
-                className="transition hover:opacity-90"
+                className="w-full rounded-xl bg-blue-900 px-5 py-3 font-bold text-white shadow-lg transition hover:bg-blue-950"
               >
                 Sign in
               </button>
             </form>
 
             <div className="mt-8 border-t border-slate-200 pt-6 text-center">
-              <p className="text-sm text-slate-600">Need an account?</p>
+              <p className="text-sm text-slate-600">
+                Need an account?
+              </p>
 
               <Link
                 href="/signup"

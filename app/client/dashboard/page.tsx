@@ -31,16 +31,22 @@ function formatDate(date: string | null) {
 function statusBadge(status: string | null) {
   const normalized = (status ?? "").toLowerCase();
 
-  if (normalized === "new request") return "bg-amber-100 text-amber-800";
-  if (normalized === "not confirmed") return "bg-amber-100 text-amber-800";
-  if (normalized === "confirmed") return "bg-blue-100 text-blue-800";
-  if (normalized === "in progress") return "bg-purple-100 text-purple-800";
+  if (normalized === "new request")
+    return "bg-amber-100 text-amber-800 ring-amber-200";
+  if (normalized === "not confirmed")
+    return "bg-amber-100 text-amber-800 ring-amber-200";
+  if (normalized === "confirmed")
+    return "bg-blue-100 text-blue-800 ring-blue-200";
+  if (normalized === "in progress")
+    return "bg-purple-100 text-purple-800 ring-purple-200";
   if (normalized === "signing complete")
-    return "bg-orange-100 text-orange-800";
-  if (normalized === "closed") return "bg-green-100 text-green-800";
-  if (normalized === "cancelled") return "bg-red-100 text-red-800";
+    return "bg-orange-100 text-orange-800 ring-orange-200";
+  if (normalized === "closed")
+    return "bg-green-100 text-green-800 ring-green-200";
+  if (normalized === "cancelled")
+    return "bg-red-100 text-red-800 ring-red-200";
 
-  return "bg-slate-100 text-slate-800";
+  return "bg-slate-100 text-slate-800 ring-slate-200";
 }
 
 export default async function ClientDashboardPage() {
@@ -55,7 +61,7 @@ export default async function ClientDashboardPage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-  `
+      `
   id,
   role,
   is_active,
@@ -69,7 +75,7 @@ export default async function ClientDashboardPage() {
   company_zip,
   billing_email
 `
-)
+    )
     .eq("id", user.id)
     .single();
 
@@ -78,15 +84,15 @@ export default async function ClientDashboardPage() {
   }
 
   const profileIncomplete =
-  !profile.full_name ||
-  !profile.phone ||
-  !profile.company_name ||
-  !profile.company_phone ||
-  !profile.company_address ||
-  !profile.company_city ||
-  !profile.company_state ||
-  !profile.company_zip ||
-  !profile.billing_email;
+    !profile.full_name ||
+    !profile.phone ||
+    !profile.company_name ||
+    !profile.company_phone ||
+    !profile.company_address ||
+    !profile.company_city ||
+    !profile.company_state ||
+    !profile.company_zip ||
+    !profile.billing_email;
 
   const { data: assignments } = await supabase
     .from("assignments")
@@ -127,25 +133,25 @@ export default async function ClientDashboardPage() {
       label: "Active Orders",
       value: String(activeOrders.length),
       note: "Currently in progress",
-      className: "border-blue-200 bg-blue-50 text-blue-800",
+      className: "border-blue-200 bg-blue-50 text-blue-900",
     },
     {
       label: "Awaiting Assignment",
       value: String(awaitingAssignment.length),
       note: "Waiting for a notary",
-      className: "border-amber-200 bg-amber-50 text-amber-800",
+      className: "border-amber-200 bg-amber-50 text-amber-900",
     },
     {
       label: "Scheduled",
       value: String(scheduled.length),
       note: "Assigned and scheduled",
-      className: "border-purple-200 bg-purple-50 text-purple-800",
+      className: "border-purple-200 bg-purple-50 text-purple-900",
     },
     {
       label: "Completed",
       value: String(completed.length),
       note: "Finished orders",
-      className: "border-slate-200 bg-slate-50 text-slate-800",
+      className: "border-slate-200 bg-white text-slate-900",
     },
   ];
 
@@ -154,32 +160,34 @@ export default async function ClientDashboardPage() {
   return (
     <div className="space-y-6">
       {profileIncomplete && (
-  <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 shadow-sm">
-    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p className="font-bold">Some profile information is missing.</p>
-        <p className="text-sm">
-          Complete your company and contact information before placing orders.
-        </p>
-      </div>
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900 shadow-sm">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="font-bold">Some profile information is missing.</p>
+              <p className="mt-1 text-sm text-amber-800">
+                Complete your company and contact information before placing
+                orders.
+              </p>
+            </div>
 
-      <Link
-        href="/client/profile"
-        className="inline-flex items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-700"
-      >
-        Complete Profile
-      </Link>
-    </div>
-  </section>
-)}
-      <section className="rounded-3xl bg-slate-950 p-6 text-white shadow-sm">
-        <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
+            <Link
+              href="/client/profile"
+              className="inline-flex items-center justify-center rounded-xl bg-amber-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-amber-700"
+            >
+              Complete Profile
+            </Link>
+          </div>
+        </section>
+      )}
+
+      <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
+        <div className="flex flex-col justify-between gap-6 p-6 sm:flex-row sm:items-center">
           <div>
-            <p className="text-sm text-slate-300">Welcome back</p>
+            <p className="text-sm font-semibold text-blue-100">Welcome back</p>
 
             <h1 className="mt-2 text-3xl font-bold">Client Dashboard</h1>
 
-            <p className="mt-3 max-w-2xl text-sm text-slate-300">
+            <p className="mt-3 max-w-2xl text-sm text-blue-100/90">
               Submit signing requests, track order progress, upload documents,
               and communicate with Indiana Notary Solutions.
             </p>
@@ -187,7 +195,7 @@ export default async function ClientDashboardPage() {
 
           <Link
             href="/client/dashboard/orders/new"
-            className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
+            className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#0B1F4D] shadow-sm transition hover:bg-blue-50"
           >
             Create New Order
           </Link>
@@ -206,102 +214,106 @@ export default async function ClientDashboardPage() {
               {stat.value}
             </p>
 
-            <p className="mt-2 text-sm">{stat.note}</p>
+            <p className="mt-2 text-sm font-medium">{stat.note}</p>
           </div>
         ))}
       </section>
 
       <section className="grid gap-6 xl:grid-cols-3">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-slate-950">
-                Recent Orders
-              </h2>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:col-span-2">
+          <div className="border-b border-slate-200 bg-white p-6">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  Recent Orders
+                </h2>
 
-              <p className="mt-1 text-sm text-slate-500">
-                Your newest signing requests will appear here.
-              </p>
+                <p className="mt-2 text-sm text-slate-500">
+                  Your newest signing requests will appear here.
+                </p>
+              </div>
+
+              <Link
+                href="/client/dashboard/orders"
+                className="inline-flex w-fit items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-[#0B1F4D] transition hover:bg-slate-50"
+              >
+                View all
+              </Link>
             </div>
-
-            <Link
-              href="/client/dashboard/orders"
-              className="text-sm font-bold text-blue-700 hover:text-blue-800"
-            >
-              View all
-            </Link>
           </div>
 
-          {recentOrders.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-              <p className="font-bold text-slate-700">No orders yet</p>
+          <div className="bg-slate-50 p-6">
+            {recentOrders.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                <p className="font-bold text-slate-700">No orders yet</p>
 
-              <p className="mt-2 text-sm text-slate-500">
-                Create your first order to start tracking signings from the
-                client portal.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-6 divide-y divide-slate-100">
-              {recentOrders.map((order) => (
-                <Link
-                  key={order.id}
-                  href={`/client/dashboard/orders/${order.id}`}
-                  className="block py-4 hover:bg-slate-50"
-                >
-                  <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-                    <div>
-                      <p className="font-bold text-slate-950">
-                        {order.control_number || order.id.slice(0, 8)}
-                      </p>
+                <p className="mt-2 text-sm text-slate-500">
+                  Create your first order to start tracking signings from the
+                  client portal.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentOrders.map((order) => (
+                  <Link
+                    key={order.id}
+                    href={`/client/dashboard/orders/${order.id}`}
+                    className="block rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[#0B1F4D]/30 hover:shadow-md"
+                  >
+                    <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                      <div>
+                        <p className="text-lg font-bold text-slate-900">
+                          {order.control_number || order.id.slice(0, 8)}
+                        </p>
 
-                      <p className="mt-1 text-sm text-slate-600">
-                        {order.borrower_name || "Borrower"} ·{" "}
-                        {order.signing_city || "—"},{" "}
-                        {order.signing_state || "IN"}{" "}
-                        {order.signing_zip || ""}
-                      </p>
+                        <p className="mt-2 text-sm font-medium text-slate-600">
+                          {order.borrower_name || "Borrower"} ·{" "}
+                          {order.signing_city || "—"},{" "}
+                          {order.signing_state || "IN"}{" "}
+                          {order.signing_zip || ""}
+                        </p>
 
-                      <p className="mt-1 text-xs text-slate-500">
-                        {formatDate(order.signing_date)}
-                      </p>
+                        <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          {formatDate(order.signing_date)}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
+                          order.status
+                        )}`}
+                      >
+                        {order.status || "New Request"}
+                      </span>
                     </div>
-
-                    <span
-                      className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${statusBadge(
-                        order.status
-                      )}`}
-                    >
-                      {order.status || "New Request"}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-950">Quick Actions</h2>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-bold text-slate-900">Quick Actions</h2>
 
           <div className="mt-5 space-y-3">
             <Link
               href="/client/dashboard/orders/new"
-              className="block rounded-2xl bg-blue-600 px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-blue-700"
+              className="block rounded-xl bg-[#0B1F4D] px-5 py-3 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
             >
               Create Order
             </Link>
 
             <Link
               href="/client/dashboard/orders"
-              className="block rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-bold text-slate-700 hover:bg-slate-50"
+              className="block rounded-xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-50"
             >
               View Orders
             </Link>
 
             <Link
               href="/client/dashboard/messages"
-              className="block rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-bold text-slate-700 hover:bg-slate-50"
+              className="block rounded-xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-50"
             >
               Messages
             </Link>

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../src/lib/supabase-server";
 import LogoutButton from "../components/logout-button";
 import DashboardMobileMenu from "./dashboard-mobile-menu";
+
 export default async function DashboardLayout({
   children,
 }: {
@@ -34,36 +35,61 @@ export default async function DashboardLayout({
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <header className="border-b bg-white px-4 py-4 md:px-8">
+    <div className="min-h-screen bg-slate-50">
+      <header className="border-b border-slate-200 bg-white px-4 py-4 shadow-sm md:px-8">
         <div className="flex items-center justify-between gap-4">
-          <p className="font-semibold">Indiana Notary Solutions</p>
+          <div>
+            <p className="text-lg font-bold text-[#0B1F4D]">
+              Indiana Notary Solutions
+            </p>
+
+            <p className="mt-1 truncate text-sm text-slate-500">
+              {profile.email}
+            </p>
+          </div>
+
           <LogoutButton />
         </div>
 
-        <p className="mt-2 truncate text-sm text-slate-600">{profile.email}</p>
-
-        <div className="mt-4">
+        <div className="mt-4 md:hidden">
           <DashboardMobileMenu navItems={navItems} />
         </div>
       </header>
 
       <div className="flex">
-        <aside className="hidden min-h-[calc(100vh-4rem)] w-64 border-r bg-white p-4 md:block">
-          <nav className="space-y-2">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block rounded-lg px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+        <aside className="hidden min-h-[calc(100vh-81px)] w-72 border-r border-slate-200 bg-white p-4 md:block">
+          <div className="rounded-2xl bg-slate-50 p-3">
+            <nav className="space-y-2">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="group flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-white hover:text-[#0B1F4D] hover:shadow-sm"
+                >
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </nav>
+
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Admin Access
+              </p>
+
+              <p className="mt-2 text-sm font-medium text-slate-700">
+                Signed in as
+              </p>
+
+              <p className="truncate text-sm text-slate-500">
+                {profile.email}
+              </p>
+            </div>
+          </div>
         </aside>
 
-        <main className="w-full flex-1 overflow-x-auto">{children}</main>
+        <main className="w-full flex-1 overflow-x-auto p-4 sm:p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

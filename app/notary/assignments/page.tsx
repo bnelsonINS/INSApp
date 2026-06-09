@@ -24,7 +24,6 @@ type Assignment = {
 };
 
 const activeStatuses = [
-  //"New Request",
   "Not Confirmed",
   "Confirmed",
   "In Progress",
@@ -33,6 +32,15 @@ const activeStatuses = [
 ];
 
 const closedStatuses = ["Closed"];
+
+const inputClass =
+  "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100";
+
+const primaryButtonClass =
+  "rounded-xl bg-[#0B1F4D] px-5 py-3 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-950";
+
+const secondaryButtonClass =
+  "rounded-xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-50";
 
 function formatDate(date: string | null) {
   if (!date) return "Not scheduled";
@@ -70,51 +78,59 @@ function formatMoney(value: number | string | null | undefined) {
 function statusBadge(status: string | null) {
   const normalized = (status ?? "").toLowerCase();
 
-  if (normalized === "not confirmed") return "bg-amber-100 text-amber-800";
-  if (normalized === "confirmed") return "bg-blue-100 text-blue-800";
-  if (normalized === "in progress") return "bg-purple-100 text-purple-800";
-  if (normalized === "late") return "bg-red-100 text-red-800";
-  if (normalized === "signing complete") return "bg-orange-100 text-orange-800";
-  if (normalized === "closed") return "bg-green-100 text-green-800";
+  if (normalized === "not confirmed") {
+    return "bg-blue-50 text-blue-700 ring-blue-200";
+  }
 
-  return "bg-slate-100 text-slate-800";
+  if (normalized === "confirmed") {
+    return "bg-slate-100 text-slate-700 ring-slate-200";
+  }
+
+  if (normalized === "in progress") {
+    return "bg-slate-100 text-slate-700 ring-slate-200";
+  }
+
+  if (normalized === "late") {
+    return "bg-red-50 text-red-700 ring-red-200";
+  }
+
+  if (normalized === "signing complete") {
+    return "bg-green-50 text-green-700 ring-green-200";
+  }
+
+  if (normalized === "closed") {
+    return "bg-green-50 text-green-700 ring-green-200";
+  }
+
+  return "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
-function statusCardStyle(status: string) {
-  if (status === "Not Confirmed") {
-    return "border-amber-100 bg-amber-50 text-amber-950 hover:bg-amber-100";
-  }
+function statusAccent(status: string) {
+  if (status === "Not Confirmed") return "bg-blue-500";
+  if (status === "Confirmed") return "bg-slate-500";
+  if (status === "In Progress") return "bg-slate-500";
+  if (status === "Signing Complete") return "bg-green-600";
+  if (status === "Closed") return "bg-green-600";
 
-  if (status === "Confirmed") {
-    return "border-blue-100 bg-blue-50 text-blue-950 hover:bg-blue-100";
-  }
-
-  if (status === "In Progress") {
-    return "border-purple-100 bg-purple-50 text-purple-950 hover:bg-purple-100";
-  }
-
-  if (status === "Signing Complete") {
-    return "border-orange-100 bg-orange-50 text-orange-950 hover:bg-orange-100";
-  }
-
-  if (status === "Closed") {
-    return "border-green-100 bg-green-50 text-green-950 hover:bg-green-100";
-  }
-
-  return "border-slate-200 bg-white text-slate-950 hover:bg-slate-50";
+  return "bg-slate-400";
 }
 
 function assignmentCard(assignment: Assignment) {
   return (
-    <div key={assignment.id} className="rounded-2xl border bg-white p-4 shadow-sm">
+    <div
+      key={assignment.id}
+      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm text-slate-500">Control #</p>
-          <p className="font-bold">{assignment.control_number ?? "—"}</p>
+          <p className="text-sm font-semibold text-slate-500">Control #</p>
+          <p className="mt-1 font-bold text-slate-950">
+            {assignment.control_number ?? "—"}
+          </p>
         </div>
 
         <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${statusBadge(
+          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
             assignment.status
           )}`}
         >
@@ -124,8 +140,10 @@ function assignmentCard(assignment: Assignment) {
 
       <div className="mt-4 grid gap-3 text-sm">
         <div>
-          <p className="text-slate-500">Signing</p>
-          <p className="font-medium">{formatDate(assignment.signing_date)}</p>
+          <p className="font-semibold text-slate-500">Signing</p>
+          <p className="font-semibold text-slate-950">
+            {formatDate(assignment.signing_date)}
+          </p>
           <p className="text-slate-600">{formatTime(assignment.signing_time)}</p>
           <p className="text-xs text-slate-500">
             {assignment.signing_type ?? "Signing"}
@@ -133,22 +151,28 @@ function assignmentCard(assignment: Assignment) {
         </div>
 
         <div>
-          <p className="text-slate-500">Borrower</p>
-          <p className="font-medium">{assignment.borrower_name ?? "—"}</p>
+          <p className="font-semibold text-slate-500">Borrower</p>
+          <p className="font-semibold text-slate-950">
+            {assignment.borrower_name ?? "—"}
+          </p>
         </div>
 
         <div>
-          <p className="text-slate-500">Location</p>
-          <p className="font-medium">{assignment.signing_address ?? "—"}</p>
+          <p className="font-semibold text-slate-500">Location</p>
+          <p className="font-semibold text-slate-950">
+            {assignment.signing_address ?? "—"}
+          </p>
           <p className="text-slate-600">
             {assignment.signing_city ?? "—"}, {assignment.signing_state ?? "IN"}{" "}
             {assignment.signing_zip ?? ""}
           </p>
         </div>
 
-        <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-xs text-slate-500">Notary Fee</p>
-          <p className="font-semibold">{formatMoney(assignment.notary_fee)}</p>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="text-xs font-semibold text-slate-500">Notary Fee</p>
+          <p className="font-bold text-slate-950">
+            {formatMoney(assignment.notary_fee)}
+          </p>
         </div>
       </div>
 
@@ -156,20 +180,20 @@ function assignmentCard(assignment: Assignment) {
         {assignment.documents_url ? (
           <a
             href={assignment.documents_url}
-            className="rounded-xl border px-4 py-2 text-center text-sm font-semibold hover:bg-slate-50"
+            className={secondaryButtonClass}
             target="_blank"
           >
             View Docs
           </a>
         ) : (
-          <span className="rounded-xl border px-4 py-2 text-center text-sm text-slate-400">
+          <span className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-center text-sm font-semibold text-slate-400">
             No Docs
           </span>
         )}
 
         <a
           href={`/notary/assignments/${assignment.id}`}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-slate-800"
+          className={primaryButtonClass}
         >
           View Assignment
         </a>
@@ -253,37 +277,39 @@ export default async function AssignmentsPage({
   ).length;
 
   return (
-    <main className="space-y-6 p-4 sm:p-6">
-      <section className="rounded-2xl bg-slate-950 p-6 text-white shadow">
-        <p className="text-sm text-slate-300">Notary Work Queue</p>
-        <h1 className="mt-1 text-2xl font-bold sm:text-3xl">Assignments</h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-300">
-          View active signings, documents, status updates, and closed work.
-        </p>
+    <main className="space-y-6 bg-slate-50 p-4 sm:p-6">
+      <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
+        <div className="p-6">
+          <p className="text-sm font-medium text-blue-100">
+            Notary Work Queue
+          </p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+            Assignments
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100/90">
+            View active signings, documents, status updates, and closed work.
+          </p>
+        </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-950">Find Assignments</h2>
-        <p className="text-sm text-slate-500">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-950">Find Assignments</h2>
+        <p className="mt-1 text-sm text-slate-500">
           Search by control number, borrower, city, or ZIP code.
         </p>
 
         <form
           method="get"
-          className="mt-4 grid gap-3 md:grid-cols-[1.5fr_1fr_1fr_1fr_auto_auto]"
+          className="mt-5 grid gap-3 md:grid-cols-[1.5fr_1fr_1fr_1fr_auto_auto]"
         >
           <input
             name="q"
             defaultValue={search}
             placeholder="Search assignments"
-            className="rounded-xl border p-3"
+            className={inputClass}
           />
 
-          <select
-            name="status"
-            defaultValue={status}
-            className="rounded-xl border p-3"
-          >
+          <select name="status" defaultValue={status} className={inputClass}>
             <option value="">All Statuses</option>
             <option value="Not Confirmed">Not Confirmed</option>
             <option value="Confirmed">Confirmed</option>
@@ -297,99 +323,64 @@ export default async function AssignmentsPage({
             name="from"
             type="date"
             defaultValue={from}
-            className="rounded-xl border p-3"
+            className={inputClass}
           />
 
           <input
             name="to"
             type="date"
             defaultValue={to}
-            className="rounded-xl border p-3"
+            className={inputClass}
           />
 
-          <button className="rounded-xl bg-slate-950 px-5 py-3 font-bold text-white hover:bg-slate-800">
-            Filter
-          </button>
+          <button className={primaryButtonClass}>Filter</button>
 
-          <a
-            href="/notary/assignments"
-            className="rounded-xl border px-5 py-3 text-center font-bold hover:bg-slate-50"
-          >
+          <a href="/notary/assignments" className={secondaryButtonClass}>
             Reset
           </a>
         </form>
       </section>
 
       <section className="grid gap-4 md:grid-cols-5">
-        <a
-          href="/notary/assignments?status=Not Confirmed"
-          className={`rounded-2xl border p-5 shadow-sm ${statusCardStyle(
-            "Not Confirmed"
-          )}`}
-        >
-          <p className="text-sm font-semibold">Not Confirmed</p>
-          <p className="mt-2 text-4xl font-bold">{notConfirmedCount}</p>
-          <p className="mt-2 text-xs opacity-75">Needs your response</p>
-        </a>
-
-        <a
-          href="/notary/assignments?status=Confirmed"
-          className={`rounded-2xl border p-5 shadow-sm ${statusCardStyle(
-            "Confirmed"
-          )}`}
-        >
-          <p className="text-sm font-semibold">Confirmed</p>
-          <p className="mt-2 text-4xl font-bold">{confirmedCount}</p>
-          <p className="mt-2 text-xs opacity-75">Appointment confirmed</p>
-        </a>
-
-        <a
-          href="/notary/assignments?status=In Progress"
-          className={`rounded-2xl border p-5 shadow-sm ${statusCardStyle(
-            "In Progress"
-          )}`}
-        >
-          <p className="text-sm font-semibold">In Progress</p>
-          <p className="mt-2 text-4xl font-bold">{inProgressCount}</p>
-          <p className="mt-2 text-xs opacity-75">Currently active</p>
-        </a>
-
-        <a
-          href="/notary/assignments?status=Signing Complete"
-          className={`rounded-2xl border p-5 shadow-sm ${statusCardStyle(
-            "Signing Complete"
-          )}`}
-        >
-          <p className="text-sm font-semibold">Signing Complete</p>
-          <p className="mt-2 text-4xl font-bold">{signingCompleteCount}</p>
-          <p className="mt-2 text-xs opacity-75">Awaiting closeout</p>
-        </a>
-
-        <a
-          href="/notary/assignments?status=Closed"
-          className={`rounded-2xl border p-5 shadow-sm ${statusCardStyle(
-            "Closed"
-          )}`}
-        >
-          <p className="text-sm font-semibold">Closed</p>
-          <p className="mt-2 text-4xl font-bold">{closedCount}</p>
-          <p className="mt-2 text-xs opacity-75">Processed work</p>
-        </a>
+        {[
+          ["Not Confirmed", notConfirmedCount, "Needs your response"],
+          ["Confirmed", confirmedCount, "Appointment confirmed"],
+          ["In Progress", inProgressCount, "Currently active"],
+          ["Signing Complete", signingCompleteCount, "Awaiting closeout"],
+          ["Closed", closedCount, "Processed work"],
+        ].map(([label, count, description]) => (
+          <a
+            key={label}
+            href={`/notary/assignments?status=${encodeURIComponent(
+              String(label)
+            )}`}
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:bg-slate-50"
+          >
+            <div
+              className={`mb-4 h-1 w-10 rounded-full ${statusAccent(
+                String(label)
+              )}`}
+            />
+            <p className="text-sm font-semibold text-slate-600">{label}</p>
+            <p className="mt-2 text-4xl font-bold text-slate-950">{count}</p>
+            <p className="mt-2 text-xs text-slate-500">{description}</p>
+          </a>
+        ))}
       </section>
 
-      <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
-        <div className="border-b border-blue-100 bg-blue-50 p-5">
-          <h2 className="text-xl font-bold text-blue-950">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 p-5">
+          <h2 className="text-xl font-bold text-slate-950">
             Active Assignments
           </h2>
-          <p className="text-sm text-blue-700">
+          <p className="mt-1 text-sm text-slate-500">
             These are assignments that still require action or are waiting to be
             closed.
           </p>
         </div>
 
         {!activeAssignments.length ? (
-          <div className="p-8 text-sm text-slate-500">
+          <div className="p-8 text-center text-sm text-slate-500">
             No active assignments right now.
           </div>
         ) : (
@@ -400,28 +391,28 @@ export default async function AssignmentsPage({
 
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-100 text-slate-700">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="p-3">Control #</th>
-                    <th className="p-3">Signing</th>
-                    <th className="p-3">Borrower</th>
-                    <th className="p-3">Location</th>
-                    <th className="p-3">Notary Fee</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3">Documents</th>
-                    <th className="p-3">Actions</th>
+                    <th className="px-4 py-3 font-bold">Control #</th>
+                    <th className="px-4 py-3 font-bold">Signing</th>
+                    <th className="px-4 py-3 font-bold">Borrower</th>
+                    <th className="px-4 py-3 font-bold">Location</th>
+                    <th className="px-4 py-3 font-bold">Notary Fee</th>
+                    <th className="px-4 py-3 font-bold">Status</th>
+                    <th className="px-4 py-3 font-bold">Documents</th>
+                    <th className="px-4 py-3 font-bold">Actions</th>
                   </tr>
                 </thead>
 
-                <tbody>
+                <tbody className="divide-y divide-slate-200">
                   {activeAssignments.map((assignment) => (
-                    <tr key={assignment.id} className="border-t hover:bg-slate-50">
-                      <td className="p-3 font-medium">
+                    <tr key={assignment.id} className="transition hover:bg-slate-50">
+                      <td className="px-4 py-4 font-semibold text-slate-950">
                         {assignment.control_number ?? "—"}
                       </td>
 
-                      <td className="p-3">
-                        <div className="font-medium">
+                      <td className="px-4 py-4">
+                        <div className="font-semibold text-slate-950">
                           {formatDate(assignment.signing_date)}
                         </div>
                         <div className="text-slate-500">
@@ -432,9 +423,11 @@ export default async function AssignmentsPage({
                         </div>
                       </td>
 
-                      <td className="p-3">{assignment.borrower_name ?? "—"}</td>
+                      <td className="px-4 py-4 text-slate-700">
+                        {assignment.borrower_name ?? "—"}
+                      </td>
 
-                      <td className="p-3">
+                      <td className="px-4 py-4 text-slate-700">
                         <div>{assignment.signing_address ?? "—"}</div>
                         <div className="text-slate-500">
                           {assignment.signing_city ?? "—"},{" "}
@@ -443,13 +436,13 @@ export default async function AssignmentsPage({
                         </div>
                       </td>
 
-                      <td className="p-3 font-semibold">
+                      <td className="px-4 py-4 font-bold text-slate-950">
                         {formatMoney(assignment.notary_fee)}
                       </td>
 
-                      <td className="p-3">
+                      <td className="px-4 py-4">
                         <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${statusBadge(
+                          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
                             assignment.status
                           )}`}
                         >
@@ -457,11 +450,11 @@ export default async function AssignmentsPage({
                         </span>
                       </td>
 
-                      <td className="p-3">
+                      <td className="px-4 py-4">
                         {assignment.documents_url ? (
                           <a
                             href={assignment.documents_url}
-                            className="font-medium text-blue-700 underline"
+                            className="font-bold text-[#0B1F4D] hover:underline"
                             target="_blank"
                           >
                             View Docs
@@ -471,10 +464,10 @@ export default async function AssignmentsPage({
                         )}
                       </td>
 
-                      <td className="p-3">
+                      <td className="px-4 py-4">
                         <a
                           href={`/notary/assignments/${assignment.id}`}
-                          className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                          className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-950"
                         >
                           View
                         </a>
@@ -488,18 +481,18 @@ export default async function AssignmentsPage({
         )}
       </section>
 
-      <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
-        <div className="border-b border-green-100 bg-green-50 p-5">
-          <h2 className="text-xl font-bold text-green-950">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 p-5">
+          <h2 className="text-xl font-bold text-slate-950">
             Closed Assignments
           </h2>
-          <p className="text-sm text-green-700">
+          <p className="mt-1 text-sm text-slate-500">
             These assignments have been processed and fully closed.
           </p>
         </div>
 
         {!closedAssignments.length ? (
-          <div className="p-8 text-sm text-slate-500">
+          <div className="p-8 text-center text-sm text-slate-500">
             No closed assignments yet.
           </div>
         ) : (
@@ -510,43 +503,45 @@ export default async function AssignmentsPage({
 
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-100 text-slate-700">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="p-3">Control #</th>
-                    <th className="p-3">Date</th>
-                    <th className="p-3">Borrower</th>
-                    <th className="p-3">City</th>
-                    <th className="p-3">Notary Fee</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3">Documents</th>
-                    <th className="p-3">Actions</th>
+                    <th className="px-4 py-3 font-bold">Control #</th>
+                    <th className="px-4 py-3 font-bold">Date</th>
+                    <th className="px-4 py-3 font-bold">Borrower</th>
+                    <th className="px-4 py-3 font-bold">City</th>
+                    <th className="px-4 py-3 font-bold">Notary Fee</th>
+                    <th className="px-4 py-3 font-bold">Status</th>
+                    <th className="px-4 py-3 font-bold">Documents</th>
+                    <th className="px-4 py-3 font-bold">Actions</th>
                   </tr>
                 </thead>
 
-                <tbody>
+                <tbody className="divide-y divide-slate-200">
                   {closedAssignments.map((assignment) => (
-                    <tr key={assignment.id} className="border-t hover:bg-slate-50">
-                      <td className="p-3 font-medium">
+                    <tr key={assignment.id} className="transition hover:bg-slate-50">
+                      <td className="px-4 py-4 font-semibold text-slate-950">
                         {assignment.control_number ?? "—"}
                       </td>
 
-                      <td className="p-3">
+                      <td className="px-4 py-4 text-slate-700">
                         {formatDate(assignment.signing_date)}
                       </td>
 
-                      <td className="p-3">{assignment.borrower_name ?? "—"}</td>
+                      <td className="px-4 py-4 text-slate-700">
+                        {assignment.borrower_name ?? "—"}
+                      </td>
 
-                      <td className="p-3">
+                      <td className="px-4 py-4 text-slate-700">
                         {assignment.signing_city ?? "—"}
                       </td>
 
-                      <td className="p-3 font-semibold">
+                      <td className="px-4 py-4 font-bold text-slate-950">
                         {formatMoney(assignment.notary_fee)}
                       </td>
 
-                      <td className="p-3">
+                      <td className="px-4 py-4">
                         <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${statusBadge(
+                          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
                             assignment.status
                           )}`}
                         >
@@ -554,11 +549,11 @@ export default async function AssignmentsPage({
                         </span>
                       </td>
 
-                      <td className="p-3">
+                      <td className="px-4 py-4">
                         {assignment.documents_url ? (
                           <a
                             href={assignment.documents_url}
-                            className="font-medium text-blue-700 underline"
+                            className="font-bold text-[#0B1F4D] hover:underline"
                             target="_blank"
                           >
                             View Docs
@@ -568,10 +563,10 @@ export default async function AssignmentsPage({
                         )}
                       </td>
 
-                      <td className="p-3">
+                      <td className="px-4 py-4">
                         <a
                           href={`/notary/assignments/${assignment.id}`}
-                          className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                          className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-950"
                         >
                           View
                         </a>

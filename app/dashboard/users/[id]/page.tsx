@@ -283,29 +283,29 @@ export default async function UserDetailPage({
   );
 
   return (
-    <main className="min-h-screen bg-slate-100 p-4 sm:p-6 lg:p-8">
+    <main className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] p-6 text-white shadow-sm">
   <Link
     href="/dashboard/users"
-    className="text-sm font-semibold text-blue-600 hover:text-blue-800"
+    className="text-sm font-bold text-blue-100 transition hover:text-white"
   >
     ← Back to Users
   </Link>
 
   <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
     <div>
-      <h1 className="text-4xl font-bold text-slate-900">
+      <h1 className="text-4xl font-bold text-white">
         {displayValue(user.full_name)}
       </h1>
 
-      <p className="mt-2 text-slate-600">
+      <p className="mt-2 text-blue-100/90">
         {displayValue(user.email)}
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <span
-          className={`rounded-full px-3 py-1 text-sm font-semibold ${
+          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${
             user.is_active
               ? "bg-green-100 text-green-700"
               : "bg-red-100 text-red-700"
@@ -314,12 +314,12 @@ export default async function UserDetailPage({
           {user.is_active ? "Active" : "Inactive"}
         </span>
 
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
+        <span className="rounded-full bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">
           {displayValue(user.role)}
         </span>
 
         {user.approval_status && (
-          <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
+          <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white ring-1 ring-white/20">
             {getStatusLabel(user.approval_status)}
           </span>
         )}
@@ -327,29 +327,29 @@ export default async function UserDetailPage({
     </div>
 
     <div className="grid gap-4 sm:grid-cols-3">
-      <div className="rounded-2xl border border-slate-200 p-4">
-        <p className="text-xs font-bold uppercase text-slate-500">
+      <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-blue-100">
           Joined
         </p>
-        <p className="mt-1 font-semibold text-slate-900">
+        <p className="mt-1 font-semibold text-white">
           {formatDate(user.created_at)}
         </p>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 p-4">
-        <p className="text-xs font-bold uppercase text-slate-500">
+      <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-blue-100">
           Updated
         </p>
-        <p className="mt-1 font-semibold text-slate-900">
+        <p className="mt-1 font-semibold text-white">
           {formatDate(user.updated_at)}
         </p>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 p-4">
-        <p className="text-xs font-bold uppercase text-slate-500">
+      <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-blue-100">
           Credentials
         </p>
-        <p className="mt-1 font-semibold text-slate-900">
+        <p className="mt-1 font-semibold text-white">
           {credentialsWithLinks.length}
         </p>
       </div>
@@ -357,9 +357,9 @@ export default async function UserDetailPage({
   </div>
 </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-1">
-            <h2 className="text-xl font-black text-slate-900">Admin Actions</h2>
+            <h2 className="text-xl font-bold text-slate-900">Admin Actions</h2>
             <p className="text-sm text-slate-500">
               Manage this user’s account, role, password, and access.
             </p>
@@ -368,11 +368,11 @@ export default async function UserDetailPage({
           <div className="mt-5 grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr]">
             <form
               action={updateUserProfile}
-              className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
             >
               <input type="hidden" name="id" value={id} />
 
-              <h3 className="text-sm font-black text-slate-900">
+              <h3 className="text-sm font-bold text-slate-900">
                 Profile Details
               </h3>
 
@@ -384,7 +384,7 @@ export default async function UserDetailPage({
                   <input
                     name="full_name"
                     defaultValue={user.full_name ?? ""}
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                   />
                 </label>
 
@@ -395,7 +395,7 @@ export default async function UserDetailPage({
                   <select
                     name="role"
                     defaultValue={user.role ?? "notary"}
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                   >
                     <option value="admin">Admin</option>
                     <option value="notary">Notary</option>
@@ -403,28 +403,28 @@ export default async function UserDetailPage({
                   </select>
                 </label>
 
-                <button className="w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-slate-800">
+                <button className="w-full rounded-xl bg-[#0B1F4D] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950">
                   Save Profile
                 </button>
               </div>
             </form>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <h3 className="text-sm font-black text-slate-900">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="text-sm font-bold text-slate-900">
                 Access Tools
               </h3>
 
               <div className="mt-4 space-y-3">
                 <form action={sendPasswordReset}>
                   <input type="hidden" name="email" value={user.email ?? ""} />
-                  <button className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-100">
+                  <button className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50">
                     Send Password Reset
                   </button>
                 </form>
 
                 <form action={setTemporaryPassword}>
                   <input type="hidden" name="id" value={id} />
-                  <button className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-100">
+                  <button className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50">
                     Set Temporary Password
                   </button>
                 </form>
@@ -447,7 +447,7 @@ export default async function UserDetailPage({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm">
               <h3 className="text-sm font-black text-red-900">Danger Zone</h3>
 
               <p className="mt-2 text-sm text-red-700">
@@ -457,7 +457,7 @@ export default async function UserDetailPage({
 
               <form action={deleteUser} className="mt-4">
                 <input type="hidden" name="id" value={id} />
-                <button className="w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-red-700">
+                <button className="w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-red-700">
                   Delete User
                 </button>
               </form>
@@ -465,13 +465,13 @@ export default async function UserDetailPage({
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="text-xl font-black text-slate-900">Notary Profile</h2>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="text-xl font-bold text-slate-900">Notary Profile</h2>
 
           {notaryProfile ? (
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                   Name
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
@@ -480,8 +480,8 @@ export default async function UserDetailPage({
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                   Business
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
@@ -489,8 +489,8 @@ export default async function UserDetailPage({
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                   Phone
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
@@ -498,8 +498,8 @@ export default async function UserDetailPage({
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                   Address
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
@@ -514,8 +514,8 @@ export default async function UserDetailPage({
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                   Commission
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
@@ -525,8 +525,8 @@ export default async function UserDetailPage({
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                   Coverage Radius
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
@@ -543,19 +543,19 @@ export default async function UserDetailPage({
           )}
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="text-xl font-black text-slate-900">Coverage Area</h2>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="text-xl font-bold text-slate-900">Coverage Area</h2>
 
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm font-black text-slate-900">Counties</p>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm font-bold text-slate-900">Counties</p>
 
               {coverageCounties.length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {coverageCounties.map((county) => (
                     <span
                       key={county.id}
-                      className="rounded-full bg-blue-100 px-3 py-1 text-sm font-bold text-blue-700"
+                      className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 ring-1 ring-blue-200"
                     >
                       {county.county_name || county.county || county.name}
                     </span>
@@ -568,15 +568,15 @@ export default async function UserDetailPage({
               )}
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm font-black text-slate-900">ZIP Codes</p>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm font-bold text-slate-900">ZIP Codes</p>
 
               {coverageZips.length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {coverageZips.map((zip) => (
                     <span
                       key={zip.id}
-                      className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-700"
+                      className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200"
                     >
                       {zip.zip_code || zip.zip || zip.postal_code}
                     </span>
@@ -591,10 +591,10 @@ export default async function UserDetailPage({
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-black text-slate-900">
+              <h2 className="text-xl font-bold text-slate-900">
                 Credentials
               </h2>
               <p className="text-sm text-slate-500">
@@ -604,7 +604,7 @@ export default async function UserDetailPage({
 
             <Link
               href={`/dashboard/users/${id}/credentials`}
-              className="text-sm font-black text-blue-700 hover:text-blue-900"
+              className="text-sm font-bold text-[#0B1F4D] hover:text-blue-950"
             >
               View All Credentials →
             </Link>
@@ -622,17 +622,17 @@ export default async function UserDetailPage({
                 return (
                   <div
                     key={credential.id}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm"
+                    className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-sm"
                   >
                     <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr_0.8fr_1fr]">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-lg font-black text-slate-900">
+                          <h3 className="text-lg font-bold text-slate-900">
                             {credentialType}
                           </h3>
 
                           <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-black ${getCredentialBadge(
+                            className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${getCredentialBadge(
                               status
                             )}`}
                           >
@@ -658,7 +658,7 @@ export default async function UserDetailPage({
                       </div>
 
                       <div>
-                        <p className="text-sm font-black text-slate-900">
+                        <p className="text-sm font-bold text-slate-900">
                           Dates
                         </p>
                         <div className="mt-2 space-y-1 text-sm text-slate-700">
@@ -668,7 +668,7 @@ export default async function UserDetailPage({
                       </div>
 
                       <div>
-                        <p className="text-sm font-black text-slate-900">
+                        <p className="text-sm font-bold text-slate-900">
                           Document
                         </p>
 
@@ -678,7 +678,7 @@ export default async function UserDetailPage({
                               href={credential.documentUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex rounded-xl border border-slate-900 bg-white px-4 py-2 text-sm font-black text-slate-900 hover:bg-slate-900 hover:text-white"
+                              className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
                             >
                               View Document
                             </a>
@@ -729,7 +729,7 @@ export default async function UserDetailPage({
                           </div>
                         ) : (
                           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <p className="text-sm font-black text-slate-900">
+                            <p className="text-sm font-bold text-slate-900">
                               Review Credential
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
@@ -747,7 +747,7 @@ export default async function UserDetailPage({
 
                                 <button
                                   type="submit"
-                                  className="w-full rounded-xl bg-green-600 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-green-700"
+                                  className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
                                 >
                                   Approve
                                 </button>
@@ -768,12 +768,12 @@ export default async function UserDetailPage({
                                   name="admin_notes"
                                   placeholder="Reason for rejection"
                                   required
-                                  className="min-h-20 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                                  className="min-h-20 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                 />
 
                                 <button
                                   type="submit"
-                                  className="w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-red-700"
+                                  className="w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-red-700"
                                 >
                                   Reject
                                 </button>
@@ -794,8 +794,8 @@ export default async function UserDetailPage({
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="text-xl font-black text-slate-900">Assigned Orders</h2>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="text-xl font-bold text-slate-900">Assigned Orders</h2>
 
           {assignedOrders.length > 0 ? (
             <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-200">
@@ -832,7 +832,7 @@ export default async function UserDetailPage({
                       <td className="px-4 py-3">
                         <Link
                           href={`/dashboard/orders/${order.id}`}
-                          className="font-black text-blue-700 hover:text-blue-900"
+                          className="font-bold text-[#0B1F4D] hover:text-blue-950"
                         >
                           Open
                         </Link>
