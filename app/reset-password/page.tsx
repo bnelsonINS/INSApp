@@ -104,21 +104,19 @@ export default function ResetPasswordPage() {
             </div>
 
             <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: "100%",
-                borderRadius: "12px",
-                backgroundColor: "#1e3a8a",
-                padding: "12px 20px",
-                fontWeight: 700,
-                color: "#ffffff",
-                boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                opacity: loading ? 0.7 : 1,
-              }}
-            >
-              {loading ? "Updating..." : "Update password"}
-            </button>
+  type="submit"
+  disabled={loading}
+  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0B1F4D] px-5 py-3 font-bold text-white shadow-lg transition hover:bg-blue-950 disabled:cursor-not-allowed disabled:opacity-70"
+>
+  {loading ? (
+    <>
+      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+      <span>Updating password...</span>
+    </>
+  ) : (
+    "Update password"
+  )}
+</button>
           </form>
 
           <div className="mt-8 border-t border-slate-200 pt-6 text-center">

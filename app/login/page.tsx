@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import SubmitButton from "../components/SubmitButton";
 import { createSupabaseServerClient } from "../../src/lib/supabase-server";
 
 export default async function LoginPage({
@@ -138,12 +139,12 @@ export default async function LoginPage({
                 />
               </div>
 
-              <button
-                type="submit"
+              <SubmitButton
+                pendingText="Signing in..."
                 className="w-full rounded-xl bg-blue-900 px-5 py-3 font-bold text-white shadow-lg transition hover:bg-blue-950"
               >
                 Sign in
-              </button>
+              </SubmitButton>
             </form>
 
             <div className="mt-8 border-t border-slate-200 pt-6 text-center">

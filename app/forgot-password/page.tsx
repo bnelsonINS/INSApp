@@ -89,19 +89,16 @@ export default function ForgotPasswordPage() {
             <button
   type="submit"
   disabled={loading}
-  style={{
-    width: "100%",
-    borderRadius: "12px",
-    backgroundColor: "#1e3a8a",
-    padding: "12px 20px",
-    fontWeight: 700,
-    color: "#ffffff",
-    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-    opacity: loading ? 0.7 : 1,
-    cursor: loading ? "not-allowed" : "pointer",
-  }}
+  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0B1F4D] px-5 py-3 font-bold text-white shadow-lg transition hover:bg-blue-950 disabled:cursor-not-allowed disabled:opacity-70"
 >
-  {loading ? "Sending..." : "Send reset link"}
+  {loading ? (
+    <>
+      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+      <span>Sending reset link...</span>
+    </>
+  ) : (
+    "Send reset link"
+  )}
 </button>
           </form>
 

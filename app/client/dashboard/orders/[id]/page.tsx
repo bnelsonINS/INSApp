@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../../../src/lib/supabase-server";
 import { supabaseAdmin } from "../../../../../src/lib/supabase-admin";
 import ApproveCloseButton from "./ApproveCloseButton";
+import UploadSubmitButton from "../../../../components/UploadSubmitButton";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -539,24 +540,31 @@ const trackingUrl = getTrackingUrl(order.shipping_carrier, order.tracking_number
               </label>
 
               <input
-                type="file"
-                name="document"
-                required
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                className="mt-3 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm"
-              />
+  type="file"
+  name="document"
+  required
+  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+  className="
+    mt-3 w-full rounded-xl border border-slate-300 bg-white p-3
+    text-sm font-medium text-slate-900
+    file:mr-4 file:rounded-lg file:border-0
+    file:bg-[#0B1F4D] file:px-4 file:py-2
+    file:text-sm file:font-bold file:text-white
+    hover:file:bg-blue-950
+  "
+/>
 
               <p className="mt-2 text-xs text-slate-500">
                 Upload closing packages, scanbacks, title docs, or supporting
                 documents.
               </p>
 
-              <button
-                type="submit"
-                className="mt-4 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700"
+              <UploadSubmitButton
+                loadingText="Uploading documents..."
+                className="mt-4 rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
               >
                 Upload Title Documents
-              </button>
+              </UploadSubmitButton>
             </form>
 
             {!documentsWithUrls.length ? (
