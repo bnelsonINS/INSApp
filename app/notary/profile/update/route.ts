@@ -27,6 +27,48 @@ export async function POST(request: NextRequest) {
 
   const formData = await request.formData();
 
+  const logoFile = formData.get("logo");
+
+  if (logoFile instanceof File && logoFile.size > 0) {
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+
+    if (!allowedTypes.includes(logoFile.type)) {
+      redirect("/notary/profile");
+    }
+
+    const fileExt = logoFile.name.split(".").pop() || "png";
+    const filePath = `${user.id}/logo-${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("profile-logos")
+      .upload(filePath, logoFile, {
+        cacheControl: "3600",
+        upsert: true,
+        contentType: logoFile.type,
+      });
+
+    if (uploadError) {
+  console.error("Logo upload error:", uploadError);
+  redirect("/notary/profile?logo=upload-error");
+}
+
+const {
+  data: { publicUrl },
+} = supabase.storage.from("profile-logos").getPublicUrl(filePath);
+
+const { error: profileLogoError } = await supabase
+  .from("profiles")
+  .update({
+    logo_url: publicUrl,
+  })
+  .eq("id", user.id);
+
+if (profileLogoError) {
+  console.error("Logo profile update error:", profileLogoError);
+  redirect("/notary/profile?logo=save-error");
+}
+  }
+
   const firstName = value(formData, "first_name");
   const lastName = value(formData, "last_name");
   const address = value(formData, "address");

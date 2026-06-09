@@ -513,7 +513,7 @@ export default async function AdminFinancialsPage() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
+      <section className="rounded-2xl bg-white shadow-sm">
         <div className="border-b border-slate-200 bg-slate-50 p-5">
           <h2 className="text-xl font-bold text-slate-950">
             Order Financial Table
@@ -526,97 +526,217 @@ export default async function AdminFinancialsPage() {
         {!orders.length ? (
           <div className="p-8 text-sm text-slate-500">No orders found.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-100 text-slate-700">
-                <tr>
-                  <th className="p-3">Control #</th>
-                  <th className="p-3">Borrower</th>
-                  <th className="p-3">Signing Date</th>
-                  <th className="p-3">Title Fee</th>
-                  <th className="p-3">Notary Fee</th>
-                  <th className="p-3">Profit</th>
-                  <th className="p-3">Margin</th>
-                  <th className="p-3">Order Status</th>
-                  <th className="p-3">Title Payment</th>
-                  <th className="p-3">Notary Payment</th>
-                  <th className="p-3 text-right">Action</th>
-                </tr>
-              </thead>
+          <>
+            <div className="space-y-4 p-4 md:hidden">
+              {orders.map((order) => {
+                const titleStatus = titlePaymentStatus(order.status);
+                const notaryStatus = notaryPaymentStatus(order.status);
 
-              <tbody>
-                {orders.map((order) => {
-                  const titleStatus = titlePaymentStatus(order.status);
-                  const notaryStatus = notaryPaymentStatus(order.status);
+                return (
+                  <div
+                    key={order.id}
+                    className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Control #
+                        </p>
+                        <p className="text-base font-bold text-slate-950">
+                          {order.control_number ?? "—"}
+                        </p>
+                      </div>
 
-                  return (
-                    <tr key={order.id} className="border-t hover:bg-slate-50">
-                      <td className="p-3 font-semibold">
-                        {order.control_number ?? "—"}
-                      </td>
+                      <Link
+                        href={`/dashboard/orders/${order.id}`}
+                        className="shrink-0 rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                      >
+                        View
+                      </Link>
+                    </div>
 
-                      <td className="p-3">{order.borrower_name ?? "—"}</td>
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500">
+                          Borrower
+                        </p>
+                        <p className="font-semibold text-slate-900">
+                          {order.borrower_name ?? "—"}
+                        </p>
+                      </div>
 
-                      <td className="p-3">{formatDate(order.signing_date)}</td>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500">
+                          Signing Date
+                        </p>
+                        <p className="font-semibold text-slate-900">
+                          {formatDate(order.signing_date)}
+                        </p>
+                      </div>
 
-                      <td className="p-3 font-semibold">
-                        {formatMoney(getTitleFee(order))}
-                      </td>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500">
+                          Title Fee
+                        </p>
+                        <p className="font-semibold text-slate-900">
+                          {formatMoney(getTitleFee(order))}
+                        </p>
+                      </div>
 
-                      <td className="p-3 font-semibold">
-                        {formatMoney(getNotaryFee(order))}
-                      </td>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500">
+                          Notary Fee
+                        </p>
+                        <p className="font-semibold text-slate-900">
+                          {formatMoney(getNotaryFee(order))}
+                        </p>
+                      </div>
 
-                      <td className="p-3 font-bold">
-                        {formatMoney(getProfit(order))}
-                      </td>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500">
+                          Profit
+                        </p>
+                        <p className="font-bold text-slate-950">
+                          {formatMoney(getProfit(order))}
+                        </p>
+                      </div>
 
-                      <td className="p-3">{getMargin(order).toFixed(1)}%</td>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500">
+                          Margin
+                        </p>
+                        <p className="font-semibold text-slate-900">
+                          {getMargin(order).toFixed(1)}%
+                        </p>
+                      </div>
+                    </div>
 
-                      <td className="p-3">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold ${statusBadge(
-                            order.status
-                          )}`}
-                        >
-                          {order.status ?? "Unknown"}
-                        </span>
-                      </td>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold ${statusBadge(
+                          order.status
+                        )}`}
+                      >
+                        {order.status ?? "Unknown"}
+                      </span>
 
-                      <td className="p-3">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold ${paymentBadge(
-                            titleStatus
-                          )}`}
-                        >
-                          {titleStatus}
-                        </span>
-                      </td>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold ${paymentBadge(
+                          titleStatus
+                        )}`}
+                      >
+                        Title: {titleStatus}
+                      </span>
 
-                      <td className="p-3">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold ${paymentBadge(
-                            notaryStatus
-                          )}`}
-                        >
-                          {notaryStatus}
-                        </span>
-                      </td>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold ${paymentBadge(
+                          notaryStatus
+                        )}`}
+                      >
+                        Notary: {notaryStatus}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-                      <td className="p-3 text-right">
-                        <Link
-                          href={`/dashboard/orders/${order.id}`}
-                          className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
-                        >
-                          View
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+            <div className="hidden w-full max-w-full overflow-x-auto md:block">
+              <table className="w-[1200px] min-w-full text-left text-sm">
+                <thead className="bg-slate-100 text-slate-700">
+                  <tr>
+                    <th className="whitespace-nowrap p-3">Control #</th>
+                    <th className="whitespace-nowrap p-3">Borrower</th>
+                    <th className="whitespace-nowrap p-3">Signing Date</th>
+                    <th className="whitespace-nowrap p-3">Title Fee</th>
+                    <th className="whitespace-nowrap p-3">Notary Fee</th>
+                    <th className="whitespace-nowrap p-3">Profit</th>
+                    <th className="whitespace-nowrap p-3">Margin</th>
+                    <th className="whitespace-nowrap p-3">Order Status</th>
+                    <th className="whitespace-nowrap p-3">Title Payment</th>
+                    <th className="whitespace-nowrap p-3">Notary Payment</th>
+                    <th className="whitespace-nowrap p-3 text-right">Action</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {orders.map((order) => {
+                    const titleStatus = titlePaymentStatus(order.status);
+                    const notaryStatus = notaryPaymentStatus(order.status);
+
+                    return (
+                      <tr key={order.id} className="border-t hover:bg-slate-50">
+                        <td className="whitespace-nowrap p-3 font-semibold">
+                          {order.control_number ?? "—"}
+                        </td>
+
+                        <td className="p-3">{order.borrower_name ?? "—"}</td>
+
+                        <td className="whitespace-nowrap p-3">
+                          {formatDate(order.signing_date)}
+                        </td>
+
+                        <td className="whitespace-nowrap p-3 font-semibold">
+                          {formatMoney(getTitleFee(order))}
+                        </td>
+
+                        <td className="whitespace-nowrap p-3 font-semibold">
+                          {formatMoney(getNotaryFee(order))}
+                        </td>
+
+                        <td className="whitespace-nowrap p-3 font-bold">
+                          {formatMoney(getProfit(order))}
+                        </td>
+
+                        <td className="whitespace-nowrap p-3">
+                          {getMargin(order).toFixed(1)}%
+                        </td>
+
+                        <td className="whitespace-nowrap p-3">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${statusBadge(
+                              order.status
+                            )}`}
+                          >
+                            {order.status ?? "Unknown"}
+                          </span>
+                        </td>
+
+                        <td className="whitespace-nowrap p-3">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${paymentBadge(
+                              titleStatus
+                            )}`}
+                          >
+                            {titleStatus}
+                          </span>
+                        </td>
+
+                        <td className="whitespace-nowrap p-3">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${paymentBadge(
+                              notaryStatus
+                            )}`}
+                          >
+                            {notaryStatus}
+                          </span>
+                        </td>
+
+                        <td className="whitespace-nowrap p-3 text-right">
+                          <Link
+                            href={`/dashboard/orders/${order.id}`}
+                            className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                          >
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </section>
     </main>

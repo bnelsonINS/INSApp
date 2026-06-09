@@ -264,11 +264,11 @@ export default async function UserDetailPage({
     })
   );
 
-  const assignedOrders = await getRowsByPossibleKeys<OrderRecord>("orders", id, [
-    "assigned_notary_id",
-    "notary_id",
-    "user_id",
-  ]);
+  const assignedOrders = await getRowsByPossibleKeys<OrderRecord>(
+  "assignments",
+  id,
+  ["assigned_notary_id", "notary_id", "user_id"]
+);
 
   const coverageCounties = await getRowsByPossibleKeys<CoverageCountyRecord>(
     "notary_coverage_counties",

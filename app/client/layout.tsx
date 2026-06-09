@@ -1,7 +1,9 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../src/lib/supabase-server";
 import LogoutButton from "../components/logout-button";
+import ClientMobileMenu from "../components/client-mobile-menu";
 
 const navItems = [
   { label: "Dashboard", href: "/client/dashboard" },
@@ -9,6 +11,7 @@ const navItems = [
   { label: "New Order", href: "/client/dashboard/orders/new" },
   { label: "Messages", href: "/client/dashboard/messages" },
   { label: "Billing", href: "/client/dashboard/billing" },
+  { label: "Profile", href: "/client/profile" },
 ];
 
 export default async function ClientLayout({
@@ -26,7 +29,7 @@ export default async function ClientLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("email, full_name, role, is_active")
+    .select("email, full_name, role, is_active, company_name, logo_url")
     .eq("id", user.id)
     .single();
 
@@ -36,19 +39,47 @@ export default async function ClientLayout({
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <div className="flex min-h-screen">
-        <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white md:block">
-          <div className="border-b border-slate-200 p-5">
-            <p className="font-bold text-slate-950">
-              Indiana Notary Solutions
-            </p>
+      <header className="border-b border-slate-200 bg-white px-4 py-4 md:px-8">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            {profile.logo_url ? (
+              <Image
+                src={profile.logo_url}
+                alt="Company Logo"
+                width={48}
+                height={48}
+                className="rounded-xl border border-slate-200 object-contain"
+              />
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-white">
+                INS
+              </div>
+            )}
 
-            <p className="mt-2 break-all text-sm text-slate-500">
-  {profile.email}
-</p>
+            <div className="min-w-0">
+              <p className="truncate font-bold text-slate-950">
+                {profile.company_name ||
+                  profile.full_name ||
+                  "Indiana Notary Solutions"}
+              </p>
+
+              <p className="mt-1 truncate text-sm text-slate-600">
+                {profile.email}
+              </p>
+            </div>
           </div>
 
-          <nav className="space-y-2 p-4">
+          <LogoutButton />
+        </div>
+
+        <div className="mt-4 md:hidden">
+          <ClientMobileMenu navItems={navItems} />
+        </div>
+      </header>
+
+      <div className="flex">
+        <aside className="hidden min-h-[calc(100vh-5rem)] w-64 shrink-0 border-r border-slate-200 bg-white p-4 md:block">
+          <nav className="space-y-2">
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -61,47 +92,9 @@ export default async function ClientLayout({
           </nav>
         </aside>
 
-        <div className="min-w-0 flex-1">
-          <header className="border-b border-slate-200 bg-white px-4 py-4 md:px-6">
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-emerald-700">
-                  Client Portal
-                </p>
-
-                <p className="truncate font-bold text-slate-950">
-                  {profile.full_name || profile.email}
-                </p>
-
-                <p className="truncate text-sm text-slate-500 md:hidden">
-                  {profile.email}
-                </p>
-              </div>
-
-              <LogoutButton />
-            </div>
-
-            <details className="mt-4 md:hidden">
-              <summary className="inline-flex cursor-pointer rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm">
-                Menu
-              </summary>
-
-              <nav className="mt-4 grid gap-2">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="rounded-xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
-            </details>
-          </header>
-
-          <main className="p-4 sm:p-6 lg:p-8">{children}</main>
-        </div>
+        <main className="w-full flex-1 overflow-x-auto p-4 sm:p-6 lg:p-8">
+          {children}
+        </main>
       </div>
     </div>
   );

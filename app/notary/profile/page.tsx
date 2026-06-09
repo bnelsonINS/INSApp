@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../src/lib/supabase-server";
 import LanguageSelector from "./language-selector";
+import Image from "next/image";
 
 export default async function NotaryProfilePage() {
   const supabase = await createSupabaseServerClient();
@@ -8,10 +9,8 @@ export default async function NotaryProfilePage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  
 
   if (!user) redirect("/login");
-  
 
   const { data: profile } = await supabase
     .from("notary_profiles")
@@ -19,42 +18,40 @@ export default async function NotaryProfilePage() {
     .eq("user_id", user.id)
     .single();
 
-    const { data: accountProfile } = await supabase
-  .from("profiles")
-  .select("approval_status")
-  .eq("id", user.id)
-  .single();
+  const { data: accountProfile } = await supabase
+    .from("profiles")
+    .select("approval_status, logo_url")
+    .eq("id", user.id)
+    .single();
 
-const missingItems: string[] = [];
+  const missingItems: string[] = [];
 
-if (!profile?.first_name) missingItems.push("First Name");
-if (!profile?.last_name) missingItems.push("Last Name");
+  if (!profile?.first_name) missingItems.push("First Name");
+  if (!profile?.last_name) missingItems.push("Last Name");
 
-if (!profile?.address) missingItems.push("Address");
-if (!profile?.city) missingItems.push("City");
-if (!profile?.state) missingItems.push("State");
-if (!profile?.zip) missingItems.push("ZIP Code");
+  if (!profile?.address) missingItems.push("Address");
+  if (!profile?.city) missingItems.push("City");
+  if (!profile?.state) missingItems.push("State");
+  if (!profile?.zip) missingItems.push("ZIP Code");
 
-if (!profile?.commission_number) {
-  missingItems.push("Commission Number");
-}
+  if (!profile?.commission_number) {
+    missingItems.push("Commission Number");
+  }
 
-if (!profile?.commission_expiration) {
-  missingItems.push("Commission Expiration");
-}
+  if (!profile?.commission_expiration) {
+    missingItems.push("Commission Expiration");
+  }
 
-if (!profile?.home_phone && !profile?.mobile_phone) {
-  missingItems.push("Home Phone or Mobile Phone");
-}
+  if (!profile?.home_phone && !profile?.mobile_phone) {
+    missingItems.push("Home Phone or Mobile Phone");
+  }
 
-if (
-  !profile?.accepts_text_messages &&
-  !profile?.accepts_email_notifications
-) {
-  missingItems.push(
-    "Accept Text Messages or Accept Email Notifications"
-  );
-}
+  if (
+    !profile?.accepts_text_messages &&
+    !profile?.accepts_email_notifications
+  ) {
+    missingItems.push("Accept Text Messages or Accept Email Notifications");
+  }
 
   return (
     <main className="space-y-6 p-4 sm:p-6">
@@ -68,33 +65,75 @@ if (
       </section>
 
       {accountProfile?.approval_status !== "approved" && (
-  <section className="rounded-2xl border border-amber-300 bg-amber-50 p-6 shadow-sm">
-    <h2 className="text-xl font-bold text-amber-900">
-      Profile Pending Approval
-    </h2>
+        <section className="rounded-2xl border border-amber-300 bg-amber-50 p-6 shadow-sm">
+          <h2 className="text-xl font-bold text-amber-900">
+            Profile Pending Approval
+          </h2>
 
-    <p className="mt-2 text-sm text-amber-800">
-      Complete all required profile information and credentials before your
-      account can be reviewed and approved for assignments.
-    </p>
+          <p className="mt-2 text-sm text-amber-800">
+            Complete all required profile information and credentials before
+            your account can be reviewed and approved for assignments.
+          </p>
 
-    {missingItems.length > 0 && (
-      <div className="mt-4">
-        <p className="font-semibold text-amber-900">
-          Missing Profile Requirements
-        </p>
+          {missingItems.length > 0 && (
+            <div className="mt-4">
+              <p className="font-semibold text-amber-900">
+                Missing Profile Requirements
+              </p>
 
-        <ul className="mt-2 list-disc pl-6 text-sm text-amber-800">
-          {missingItems.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      </div>
-    )}
-  </section>
-)}
+              <ul className="mt-2 list-disc pl-6 text-sm text-amber-800">
+                {missingItems.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
 
-      <form action="/notary/profile/update" method="post" className="space-y-6">
+      <form
+        action="/notary/profile/update"
+        method="post"
+        encType="multipart/form-data"
+        className="space-y-6"
+      >
+        <section className="rounded-2xl bg-white p-6 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-xl font-bold text-slate-950">Company Logo</h2>
+            <p className="text-sm text-slate-500">
+              Upload a logo to personalize your notary dashboard header.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            {accountProfile?.logo_url ? (
+              <Image
+  src={accountProfile.logo_url}
+  alt="Current company logo"
+  width={96}
+  height={96}
+  className="rounded-2xl border border-slate-200 object-contain p-2"
+/>
+            ) : (
+              <div className="flex h-24 w-24 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-sm font-bold text-slate-500">
+                No Logo
+              </div>
+            )}
+
+            <div className="w-full">
+              <input
+                type="file"
+                name="logo"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                className="w-full rounded-xl border p-3 text-sm"
+              />
+              <p className="mt-2 text-xs text-slate-500">
+                Recommended: PNG, JPG, or WEBP. Square logos work best.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <section className="rounded-2xl bg-white p-6 shadow-sm">
           <div className="mb-5">
             <h2 className="text-xl font-bold text-slate-950">
@@ -133,12 +172,12 @@ if (
           </div>
 
           <textarea
-  name="bio"
-  placeholder="Public profile bio / about me"
-  defaultValue={profile?.bio || ""}
-  rows={6}
-  className="mt-4 w-full resize-y rounded-xl border p-3"
-/>
+            name="bio"
+            placeholder="Public profile bio / about me"
+            defaultValue={profile?.bio || ""}
+            rows={6}
+            className="mt-4 w-full resize-y rounded-xl border p-3"
+          />
         </section>
 
         <section className="grid gap-6 lg:grid-cols-2">
@@ -337,8 +376,14 @@ if (
                 </label>
               ))}
             </div>
-            When you give us a telephone number, you agree that we (or any party acting on our behalf) have your express consent to contact you at the telephone number you provide, including with text or SMS messages. You agree that when we may contact you using an automatic telephone dialing system, autodialer, or with artificial or prerecorded voice messages. This consent applies whether the telephone number you provide is cellular, mobile, or another communication service for which the called party is charged.
-
+            When you give us a telephone number, you agree that we (or any party
+            acting on our behalf) have your express consent to contact you at
+            the telephone number you provide, including with text or SMS
+            messages. You agree that when we may contact you using an automatic
+            telephone dialing system, autodialer, or with artificial or
+            prerecorded voice messages. This consent applies whether the
+            telephone number you provide is cellular, mobile, or another
+            communication service for which the called party is charged.
           </section>
         </section>
 
@@ -454,10 +499,10 @@ if (
         </section>
 
         <div className="flex justify-end pb-10">
-  <button className="rounded-xl bg-slate-950 px-6 py-3 font-bold text-white shadow-lg hover:bg-slate-800">
-    Save Profile
-  </button>
-</div>
+          <button className="rounded-xl bg-slate-950 px-6 py-3 font-bold text-white shadow-lg hover:bg-slate-800">
+            Save Profile
+          </button>
+        </div>
       </form>
     </main>
   );

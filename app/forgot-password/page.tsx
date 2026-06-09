@@ -1,14 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 export default function ForgotPasswordPage() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = useMemo(() => {
+    return createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
+      }
+    );
+  }, []);
 
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -24,7 +33,7 @@ export default function ForgotPasswordPage() {
 
     const redirectTo = `${window.location.origin}/reset-password`;
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo,
     });
 
@@ -35,9 +44,7 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    setMessage(
-      "Password reset email sent. Check your inbox and follow the link."
-    );
+    setMessage("Password reset email sent. Check your inbox and follow the link.");
   }
 
   return (
@@ -80,21 +87,22 @@ export default function ForgotPasswordPage() {
             </div>
 
             <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: "100%",
-                borderRadius: "12px",
-                backgroundColor: "#1e3a8a",
-                padding: "12px 20px",
-                fontWeight: 700,
-                color: "#ffffff",
-                boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                opacity: loading ? 0.7 : 1,
-              }}
-            >
-              {loading ? "Sending..." : "Send reset link"}
-            </button>
+  type="submit"
+  disabled={loading}
+  style={{
+    width: "100%",
+    borderRadius: "12px",
+    backgroundColor: "#1e3a8a",
+    padding: "12px 20px",
+    fontWeight: 700,
+    color: "#ffffff",
+    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+    opacity: loading ? 0.7 : 1,
+    cursor: loading ? "not-allowed" : "pointer",
+  }}
+>
+  {loading ? "Sending..." : "Send reset link"}
+</button>
           </form>
 
           <div className="mt-8 border-t border-slate-200 pt-6 text-center">

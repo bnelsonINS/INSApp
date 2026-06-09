@@ -579,13 +579,6 @@ export default async function DashboardPage() {
           </Link>
 
           <Link
-            href="/dashboard/notaries"
-            className="rounded-xl border px-4 py-2 text-sm font-bold hover:bg-slate-50"
-          >
-            Manage Notaries
-          </Link>
-
-          <Link
             href="/dashboard/users"
             className="rounded-xl border px-4 py-2 text-sm font-bold hover:bg-slate-50"
           >

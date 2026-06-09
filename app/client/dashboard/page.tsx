@@ -54,13 +54,39 @@ export default async function ClientDashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, role, is_active")
+    .select(
+  `
+  id,
+  role,
+  is_active,
+  full_name,
+  phone,
+  company_name,
+  company_phone,
+  company_address,
+  company_city,
+  company_state,
+  company_zip,
+  billing_email
+`
+)
     .eq("id", user.id)
     .single();
 
   if (!profile || profile.role !== "client" || !profile.is_active) {
     redirect("/login");
   }
+
+  const profileIncomplete =
+  !profile.full_name ||
+  !profile.phone ||
+  !profile.company_name ||
+  !profile.company_phone ||
+  !profile.company_address ||
+  !profile.company_city ||
+  !profile.company_state ||
+  !profile.company_zip ||
+  !profile.billing_email;
 
   const { data: assignments } = await supabase
     .from("assignments")
@@ -127,6 +153,25 @@ export default async function ClientDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {profileIncomplete && (
+  <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 shadow-sm">
+    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div>
+        <p className="font-bold">Some profile information is missing.</p>
+        <p className="text-sm">
+          Complete your company and contact information before placing orders.
+        </p>
+      </div>
+
+      <Link
+        href="/client/profile"
+        className="inline-flex items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-700"
+      >
+        Complete Profile
+      </Link>
+    </div>
+  </section>
+)}
       <section className="rounded-3xl bg-slate-950 p-6 text-white shadow-sm">
         <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div>

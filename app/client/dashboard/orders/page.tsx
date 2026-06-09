@@ -24,25 +24,21 @@ export default async function ClientOrdersPage() {
   }
 
   const { data: orders } = await supabase
-    .from("orders")
+    .from("assignments")
     .select(
       `
       id,
-      lender,
-      file_number,
+      client_id,
+      control_number,
+      signing_type,
+      borrower_name,
       signing_city,
       signing_state,
       signing_zip,
       signing_date,
       signing_time,
       status,
-      created_at,
-      order_signers (
-        first_name,
-        last_name,
-        phone,
-        email
-      )
+      created_at
     `
     )
     .eq("client_id", user.id)
@@ -62,15 +58,15 @@ export default async function ClientOrdersPage() {
 
         <Link
           href="/client/dashboard/orders/new"
-          className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700"
+          className="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 sm:w-auto"
         >
           + Create Order
         </Link>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <select className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500">
+        <div className="grid gap-3 lg:grid-cols-[220px_1fr_auto] lg:items-center">
+          <select className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500">
             {filters.map((filter) => (
               <option key={filter}>{filter}</option>
             ))}
@@ -78,86 +74,176 @@ export default async function ClientOrdersPage() {
 
           <input
             type="text"
-            className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+            className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
             placeholder="Search orders..."
           />
 
-          <button className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+          <button className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 lg:w-auto">
             Search
           </button>
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1050px] text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3">Order # ↕</th>
-                <th className="px-4 py-3">Signers ↕</th>
-                <th className="px-4 py-3">Appointment ↕</th>
-                <th className="px-4 py-3">Client ↕</th>
-                <th className="px-4 py-3">Product ↕</th>
-                <th className="px-4 py-3">Notary ↕</th>
-                <th className="px-4 py-3">Paid?</th>
-                <th className="px-4 py-3">Docs</th>
-                <th className="px-4 py-3">Status</th>
-              </tr>
-            </thead>
+      {safeOrders.length === 0 ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mx-auto max-w-md rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+            <p className="text-lg font-bold text-slate-800">No orders yet</p>
+            <p className="mt-2 text-sm text-slate-500">
+              Create your first order to start tracking signings from the client
+              portal.
+            </p>
 
-            {safeOrders.length === 0 ? (
-              <tbody>
-                <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center">
-                    <div className="mx-auto max-w-md rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8">
-                      <p className="text-lg font-bold text-slate-800">
-                        No orders yet
-                      </p>
-                      <p className="mt-2 text-sm text-slate-500">
-                        Create your first order to start tracking signings from
-                        the client portal.
-                      </p>
+            <Link
+              href="/client/dashboard/orders/new"
+              className="mt-5 inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700"
+            >
+              + Create Order
+            </Link>
+          </div>
+        </section>
+      ) : (
+        <>
+          <section className="grid gap-4 lg:hidden">
+            {safeOrders.map((order) => (
+              <article
+                key={order.id}
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      Order #
+                    </p>
 
-                      <Link
-                        href="/client/dashboard/orders/new"
-                        className="mt-5 inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700"
-                      >
-                        + Create Order
-                      </Link>
+                    <Link
+                      href={`/client/dashboard/orders/${order.id}`}
+                      className="mt-1 block truncate text-base font-bold text-blue-700 hover:underline"
+                    >
+                      {order.control_number || order.id.slice(0, 8)}
+                    </Link>
+                  </div>
+
+                  <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+                    {order.status || "Needs Notary"}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3 text-sm">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      Signer
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-900">
+                      {order.borrower_name || "No signer"}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      {order.signing_city || "—"},{" "}
+                      {order.signing_state || "IN"} {order.signing_zip || ""}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Appointment
+                      </p>
+                      <p className="mt-1 font-semibold text-slate-900">
+                        {order.signing_date || "Not scheduled"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {order.signing_time || "Time TBD"}
+                      </p>
                     </div>
-                  </td>
-                </tr>
-              </tbody>
-            ) : (
-              <tbody className="divide-y divide-slate-100">
-                {safeOrders.map((order) => {
-                  const signer = order.order_signers?.[0];
 
-                  return (
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Product
+                      </p>
+                      <p className="mt-1 text-slate-700">
+                        {order.signing_type || "Signing"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Client
+                      </p>
+                      <p className="mt-1 font-semibold text-slate-900">
+                        {profile.full_name || "Client"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Paid?
+                      </p>
+                      <p className="mt-1 text-slate-700">—</p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Docs
+                      </p>
+                      <p className="mt-1 font-bold text-blue-700">0</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Link
+                  href={`/client/dashboard/orders/${order.id}`}
+                  className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                >
+                  View Order
+                </Link>
+              </article>
+            ))}
+          </section>
+
+          <section className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:block">
+            <div className="w-full overflow-x-auto">
+              <table className="w-max min-w-[1050px] text-left text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="whitespace-nowrap px-4 py-3">Order # ↕</th>
+                    <th className="whitespace-nowrap px-4 py-3">Signer ↕</th>
+                    <th className="whitespace-nowrap px-4 py-3">
+                      Appointment ↕
+                    </th>
+                    <th className="whitespace-nowrap px-4 py-3">Client ↕</th>
+                    <th className="whitespace-nowrap px-4 py-3">Product ↕</th>
+                    <th className="whitespace-nowrap px-4 py-3">Notary ↕</th>
+                    <th className="whitespace-nowrap px-4 py-3">Paid?</th>
+                    <th className="whitespace-nowrap px-4 py-3">Docs</th>
+                    <th className="whitespace-nowrap px-4 py-3">Status</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {safeOrders.map((order) => (
                     <tr key={order.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-4">
+                      <td className="whitespace-nowrap px-4 py-4">
                         <Link
                           href={`/client/dashboard/orders/${order.id}`}
                           className="font-bold text-blue-700 hover:underline"
                         >
-                          {order.file_number || order.id.slice(0, 8)}
+                          {order.control_number || order.id.slice(0, 8)}
                         </Link>
                       </td>
 
                       <td className="px-4 py-4">
                         <p className="font-semibold text-slate-900">
-                          {signer
-                            ? `${signer.first_name} ${signer.last_name}`
-                            : "No signer"}
+                          {order.borrower_name || "No signer"}
                         </p>
-                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                        <p className="mt-1 whitespace-nowrap text-xs leading-5 text-slate-500">
                           {order.signing_city || "—"},{" "}
                           {order.signing_state || "IN"}{" "}
                           {order.signing_zip || ""}
                         </p>
                       </td>
 
-                      <td className="px-4 py-4">
+                      <td className="whitespace-nowrap px-4 py-4">
                         <p className="font-semibold text-slate-900">
                           {order.signing_date || "Not scheduled"}
                         </p>
@@ -166,7 +252,7 @@ export default async function ClientOrdersPage() {
                         </p>
                       </td>
 
-                      <td className="px-4 py-4">
+                      <td className="whitespace-nowrap px-4 py-4">
                         <p className="font-semibold text-slate-900">
                           {profile.full_name || "Client"}
                         </p>
@@ -175,31 +261,35 @@ export default async function ClientOrdersPage() {
                         </p>
                       </td>
 
-                      <td className="px-4 py-4 text-slate-700">
-                        {order.lender || "Signing"}
+                      <td className="whitespace-nowrap px-4 py-4 text-slate-700">
+                        {order.signing_type || "Signing"}
                       </td>
 
-                      <td className="px-4 py-4 text-slate-700">—</td>
+                      <td className="whitespace-nowrap px-4 py-4 text-slate-700">
+                        —
+                      </td>
 
-                      <td className="px-4 py-4 text-slate-700">—</td>
+                      <td className="whitespace-nowrap px-4 py-4 text-slate-700">
+                        —
+                      </td>
 
-                      <td className="px-4 py-4">
+                      <td className="whitespace-nowrap px-4 py-4">
                         <span className="font-bold text-blue-700">0</span>
                       </td>
 
-                      <td className="px-4 py-4">
+                      <td className="whitespace-nowrap px-4 py-4">
                         <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
                           {order.status || "Needs Notary"}
                         </span>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            )}
-          </table>
-        </div>
-      </section>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }
