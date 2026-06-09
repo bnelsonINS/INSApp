@@ -643,8 +643,8 @@ export default async function AdminFinancialsPage() {
               })}
             </div>
 
-            <div className="hidden w-full max-w-full overflow-x-auto md:block">
-              <table className="w-[1200px] min-w-full text-left text-sm text-slate-800">
+            <div className="hidden w-full max-w-full overflow-hidden md:block">
+  <table className="w-full table-fixed text-left text-xs text-slate-800 lg:text-sm">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                   <tr>
                     <th className="whitespace-nowrap p-3">Control #</th>

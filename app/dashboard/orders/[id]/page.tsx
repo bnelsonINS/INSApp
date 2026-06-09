@@ -86,6 +86,8 @@ export default async function AdminOrderDetailPage({
 }) {
   const { id } = await params;
 
+  console.log("[AdminOrderDetailPage] Page loaded", { orderId: id });
+
   async function addActivityComment(formData: FormData) {
     "use server";
 
@@ -131,7 +133,19 @@ export default async function AdminOrderDetailPage({
       .getAll("title_documents")
       .filter((item): item is File => item instanceof File && item.size > 0);
 
-    if (!assignmentId || files.length === 0) return;
+    console.log("[uploadTitleDocuments] Started", {
+      assignmentId,
+      fileCount: files.length,
+      fileNames: files.map((file) => file.name),
+    });
+
+    if (!assignmentId || files.length === 0) {
+      console.log("[uploadTitleDocuments] Stopped - missing assignmentId or files", {
+        assignmentId,
+        fileCount: files.length,
+      });
+      return;
+    }
 
     const supabase = await createSupabaseServerClient();
 
@@ -154,44 +168,66 @@ export default async function AdminOrderDetailPage({
     const { data: order } = await supabase
       .from("assignments")
       .select(
-        "id, control_number, borrower_name, assigned_notary_id, notary_id, signing_date, signing_time, signing_address, signing_city, signing_state, signing_zip"
+        "id, client_id, control_number, borrower_name, assigned_notary_id, notary_id, signing_date, signing_time, signing_address, signing_city, signing_state, signing_zip"
       )
       .eq("id", assignmentId)
       .single();
 
-    if (!order) redirect("/dashboard/orders");
+    if (!order) {
+      console.log("[uploadTitleDocuments] Order not found", { assignmentId });
+      redirect("/dashboard/orders");
+    }
+
+    console.log("[uploadTitleDocuments] Order found", {
+      assignmentId,
+      clientId: order.client_id,
+      controlNumber: order.control_number,
+    });
 
     const uploadedNames: string[] = [];
     let latestFilePath: string | null = null;
 
     for (const file of files) {
       const cleanName = safeFileName(file.name || "title-document.pdf");
-      const filePath = `title-documents/${assignmentId}/${Date.now()}-${cleanName}`;
+      const filePath = `${order.client_id}/${assignmentId}/${Date.now()}-${cleanName}`;
+
+      console.log("[uploadTitleDocuments] Uploading file", {
+        bucket: "client-order-documents",
+        assignmentId,
+        fileName: file.name,
+        filePath,
+        fileType: file.type,
+        fileSize: file.size,
+      });
 
       const { error: uploadError } = await supabase.storage
-        .from("assignment-documents")
+        .from("client-order-documents")
         .upload(filePath, file, {
           cacheControl: "3600",
           upsert: false,
           contentType: file.type || "application/octet-stream",
         });
 
-      if (uploadError) {
-        await supabase.from("assignment_activity").insert({
-          assignment_id: assignmentId,
-          action: "Title Documents Upload Failed",
-          details: uploadError.message,
-        });
-
-        continue;
-      }
-
       uploadedNames.push(file.name);
       latestFilePath = filePath;
+
+      const { data: insertedOrderDocument, error: insertOrderDocumentError } =
+        await supabase
+          .from("order_documents")
+          .insert({
+            order_id: assignmentId,
+            client_id: order.client_id,
+            file_name: file.name,
+            file_path: filePath,
+            file_type: file.type || "application/octet-stream",
+            file_size: file.size,
+          })
+          .select("id, order_id, client_id, file_name, file_path")
+          .single();
     }
 
     if (latestFilePath) {
-      await supabase
+      const { error: assignmentUpdateError } = await supabase
         .from("assignments")
         .update({
           documents_url: latestFilePath,
@@ -281,11 +317,24 @@ Please log in to your notary dashboard to review the documents.
     redirect("/login");
   }
 
-  const { data: order } = await supabase
+  const { data: order, error: orderError } = await supabase
     .from("assignments")
     .select("*")
     .eq("id", id)
     .single();
+
+  console.log("[AdminOrderDetailPage] Assignment query result", {
+    orderId: id,
+    hasOrder: Boolean(order),
+    orderError: orderError
+      ? {
+          message: orderError.message,
+          details: orderError.details,
+          hint: orderError.hint,
+          code: orderError.code,
+        }
+      : null,
+  });
 
   if (!order) redirect("/dashboard/orders");
 
@@ -321,36 +370,69 @@ Please log in to your notary dashboard to review the documents.
     })
   );
 
-  const { data: titleDocumentFiles } = await supabase.storage
-    .from("assignment-documents")
-    .list(`title-documents/${id}`, {
-      limit: 100,
-      offset: 0,
-      sortBy: { column: "created_at", order: "desc" },
-    });
+  console.log("[AdminOrderDetailPage] Fetching title documents", {
+    table: "order_documents",
+    orderId: id,
+    bucket: "client-order-documents",
+  });
+
+  const { data: orderDocuments, error: orderDocumentsError } = await supabase
+    .from("order_documents")
+    .select("id, order_id, client_id, file_name, file_path, file_type, file_size, uploaded_at, created_at")
+    .eq("order_id", id)
+    .order("created_at", { ascending: false });
+
+  console.log("[AdminOrderDetailPage] order_documents query result", {
+    orderId: id,
+    count: orderDocuments?.length ?? 0,
+    rows: orderDocuments ?? [],
+    error: orderDocumentsError
+      ? {
+          message: orderDocumentsError.message,
+          details: orderDocumentsError.details,
+          hint: orderDocumentsError.hint,
+          code: orderDocumentsError.code,
+        }
+      : null,
+  });
 
   let titleDocumentsWithUrls = await Promise.all(
-    (titleDocumentFiles ?? [])
-      .filter((file) => file.name !== ".emptyFolderPlaceholder")
-      .map(async (file) => {
-        const filePath = `title-documents/${id}/${file.name}`;
+  (orderDocuments ?? []).map(async (doc) => {
+    const { data, error } = await supabase.storage
+      .from("client-order-documents")
+      .createSignedUrl(doc.file_path, 60 * 60);
 
-        const { data } = await supabase.storage
-          .from("assignment-documents")
-          .createSignedUrl(filePath, 60 * 60);
+    return {
+      name: doc.file_name || doc.file_path?.split("/").pop() || "title-document",
+      displayName:
+        doc.file_name ||
+        cleanDisplayName(doc.file_path?.split("/").pop() || "title-document"),
+      createdAt: doc.uploaded_at ?? doc.created_at ?? order.created_at ?? null,
+      updatedAt: null,
+      size: doc.file_size,
+      signedUrl: data?.signedUrl ?? null,
+    };
+  })
+);
 
-        return {
-          name: file.name,
-          displayName: cleanDisplayName(file.name),
-          createdAt: file.created_at ?? order.created_at ?? null,
-          updatedAt: file.updated_at ?? null,
-          size: file.metadata?.size,
-          signedUrl: data?.signedUrl ?? null,
-        };
-      })
-  );
+  console.log("[AdminOrderDetailPage] Title documents ready for render", {
+    orderId: id,
+    count: titleDocumentsWithUrls.length,
+    docs: titleDocumentsWithUrls.map((doc) => ({
+      name: doc.name,
+      displayName: doc.displayName,
+      hasSignedUrl: Boolean(doc.signedUrl),
+      createdAt: doc.createdAt,
+      size: doc.size,
+    })),
+  });
 
   if (order.documents_url) {
+    console.log("[AdminOrderDetailPage] Checking fallback order.documents_url", {
+      orderId: id,
+      documentsUrl: order.documents_url,
+    });
+
     let fallbackTitleDocumentPath = String(order.documents_url);
 
     if (fallbackTitleDocumentPath.includes("/assignment-documents/")) {
@@ -366,8 +448,8 @@ Please log in to your notary dashboard to review the documents.
     );
 
     if (!alreadyListed) {
-      const { data } = await supabase.storage
-        .from("assignment-documents")
+      const { data, error } = await supabase.storage
+        .from("client-order-documents")
         .createSignedUrl(fallbackTitleDocumentPath, 60 * 60);
 
       titleDocumentsWithUrls = [
@@ -383,6 +465,18 @@ Please log in to your notary dashboard to review the documents.
       ];
     }
   }
+
+  console.log("[AdminOrderDetailPage] Final title documents after fallback", {
+    orderId: id,
+    count: titleDocumentsWithUrls.length,
+    docs: titleDocumentsWithUrls.map((doc) => ({
+      name: doc.name,
+      displayName: doc.displayName,
+      hasSignedUrl: Boolean(doc.signedUrl),
+      createdAt: doc.createdAt,
+      size: doc.size,
+    })),
+  });
 
   const signingDate = formatDate(order.signing_date);
   const signingTime = formatTime(order.signing_time);

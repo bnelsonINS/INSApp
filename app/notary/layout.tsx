@@ -79,8 +79,8 @@ export default async function NotaryLayout({
               <Image
                 src={profile.logo_url}
                 alt="Company logo"
-                width={60}
-                height={60}
+                width={110}
+                height={110}
                 className="rounded-xl border border-slate-200 object-contain"
               />
             ) : (

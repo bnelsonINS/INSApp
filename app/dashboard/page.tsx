@@ -97,6 +97,52 @@ function credentialStatusLabel(status: string | null) {
     .join(" ");
 }
 
+function getActionRequiredInfo(order: DashboardOrder) {
+  const normalized = (order.status ?? "").toLowerCase();
+
+  if (normalized === "new request") {
+    return {
+      label: "Needs Assignment",
+      reason:
+        "This order is new and has not moved into the assignment workflow yet.",
+      nextAction: "Review the order details and assign a qualified notary.",
+      badgeClass: "bg-blue-100 text-blue-800 ring-blue-200",
+      accentClass: "border-l-blue-500",
+    };
+  }
+
+  if (normalized === "late") {
+    return {
+      label: "Late",
+      reason:
+        "This order is marked Late and needs immediate admin follow-up.",
+      nextAction:
+        "Contact the notary, confirm the signing status, and update the order.",
+      badgeClass: "bg-red-100 text-red-800 ring-red-200",
+      accentClass: "border-l-red-500",
+    };
+  }
+
+  if (normalized === "signing complete") {
+    return {
+      label: "Ready for Review",
+      reason: "The signing is complete, but the file has not been closed.",
+      nextAction:
+        "Review scanbacks, verify shipping/tracking, then close the order.",
+      badgeClass: "bg-orange-100 text-orange-800 ring-orange-200",
+      accentClass: "border-l-orange-500",
+    };
+  }
+
+  return {
+    label: "Review Needed",
+    reason: "This order is in the action queue and needs admin review.",
+    nextAction: "Open the order and confirm the next required step.",
+    badgeClass: "bg-slate-100 text-slate-700 ring-slate-200",
+    accentClass: "border-l-slate-400",
+  };
+}
+
 export default async function DashboardPage() {
   const supabase = await createSupabaseServerClient();
 
@@ -365,10 +411,10 @@ export default async function DashboardPage() {
         <div className="flex flex-col justify-between gap-3 border-b border-slate-200 bg-slate-50 p-5 md:flex-row md:items-center">
           <div>
             <h2 className="text-xl font-bold text-slate-900">
-              Needs Attention
+              Action Required
             </h2>
             <p className="text-sm text-amber-700">
-              New, late, or signing-complete orders that need action.
+              Orders needing admin review, assignment, follow-up, or closure.
             </p>
           </div>
 
@@ -385,11 +431,12 @@ export default async function DashboardPage() {
             Nothing needs attention right now.
           </div>
         ) : (
-          <div className="divide-y">
+          <div className="divide-y divide-slate-200">
             {needsAttention.map((order) => {
               const titleFee = getTitleFee(order);
               const notaryFee = getNotaryFee(order);
               const profit = titleFee - notaryFee;
+              const actionInfo = getActionRequiredInfo(order);
 
               return (
                 <Link
@@ -397,48 +444,88 @@ export default async function DashboardPage() {
                   href={`/dashboard/orders/${order.id}`}
                   className="block p-5 transition hover:bg-slate-50"
                 >
-                  <div className="grid gap-4 lg:grid-cols-[1.5fr_2fr_auto] lg:items-center">
-                    <div>
-                      <p className="font-bold text-slate-950">
-                        {order.borrower_name ?? "Unnamed Order"}
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        Control # {order.control_number ?? "—"}
-                      </p>
+                  <div
+                    className={`rounded-2xl border border-slate-200 border-l-4 bg-white p-4 shadow-sm ${actionInfo.accentClass}`}
+                  >
+                    <div className="grid gap-5 xl:grid-cols-[1.2fr_1.6fr_1fr_auto] xl:items-center">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-bold text-slate-950">
+                            {order.borrower_name ?? "Unnamed Order"}
+                          </p>
+
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${actionInfo.badgeClass}`}
+                          >
+                            {actionInfo.label}
+                          </span>
+                        </div>
+
+                        <p className="mt-1 text-sm text-slate-500">
+                          Control # {order.control_number ?? "—"}
+                        </p>
+
+                        <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          Current Status
+                        </p>
+                        <span
+                          className={`mt-1 inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${statusBadge(
+                            order.status
+                          )}`}
+                        >
+                          {order.status ?? "Unknown"}
+                        </span>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                          Why this is showing
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-slate-800">
+                          {actionInfo.reason}
+                        </p>
+
+                        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                          Next admin action
+                        </p>
+                        <p className="mt-1 text-sm text-slate-700">
+                          {actionInfo.nextAction}
+                        </p>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                        <div className="rounded-xl bg-slate-50 p-3">
+                          <p className="text-xs font-semibold text-slate-500">
+                            Title Fee
+                          </p>
+                          <p className="font-bold text-slate-900">
+                            {formatMoney(titleFee)}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-slate-50 p-3">
+                          <p className="text-xs font-semibold text-slate-500">
+                            Notary Fee
+                          </p>
+                          <p className="font-bold text-slate-900">
+                            {formatMoney(notaryFee)}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-green-50 p-3">
+                          <p className="text-xs font-semibold text-green-700">
+                            Profit
+                          </p>
+                          <p className="font-bold text-green-950">
+                            {formatMoney(profit)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-center text-sm font-bold text-[#0B1F4D] shadow-sm transition hover:bg-slate-50">
+                        Review Order
+                      </span>
                     </div>
-
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-xl bg-slate-50 p-3">
-                        <p className="text-xs font-semibold text-slate-500">
-                          Title Fee
-                        </p>
-                        <p className="font-bold">{formatMoney(titleFee)}</p>
-                      </div>
-
-                      <div className="rounded-xl bg-slate-50 p-3">
-                        <p className="text-xs font-semibold text-slate-500">
-                          Notary Fee
-                        </p>
-                        <p className="font-bold">{formatMoney(notaryFee)}</p>
-                      </div>
-
-                      <div className="rounded-xl bg-green-50 p-3">
-                        <p className="text-xs font-semibold text-green-700">
-                          Profit
-                        </p>
-                        <p className="font-bold text-green-950">
-                          {formatMoney(profit)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <span
-                      className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${statusBadge(
-                        order.status
-                      )}`}
-                    >
-                      {order.status ?? "Unknown"}
-                    </span>
                   </div>
                 </Link>
               );

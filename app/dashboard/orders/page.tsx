@@ -424,32 +424,32 @@ export default async function OrdersPage({
               {safeOrders.map((order) => orderCard(order))}
             </div>
 
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full text-left text-sm">
+            <div className="hidden md:block">
+              <table className="w-full table-fixed text-left text-sm text-slate-900">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="p-3">Control #</th>
-                    <th className="p-3">Signing</th>
-                    <th className="p-3">Borrower</th>
-                    <th className="p-3">Location</th>
-                    <th className="p-3">Notary</th>
-                    <th className="p-3">Title Fee</th>
-                    <th className="p-3">Notary Fee</th>
-                    <th className="p-3">Profit</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3 text-right">Actions</th>
+                    <th className="w-[9%] px-3 py-3">Control #</th>
+                    <th className="w-[15%] px-3 py-3">Signing</th>
+                    <th className="w-[13%] px-3 py-3">Borrower</th>
+                    <th className="w-[18%] px-3 py-3">Location</th>
+                    <th className="w-[9%] px-3 py-3">Notary</th>
+                    <th className="w-[9%] px-3 py-3">Title Fee</th>
+                    <th className="w-[9%] px-3 py-3">Notary Fee</th>
+                    <th className="w-[8%] px-3 py-3">Profit</th>
+                    <th className="w-[14%] px-3 py-3">Status</th>
+                    <th className="w-[8%] px-3 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
 
-                <tbody>
+                <tbody className="divide-y divide-slate-200 bg-white">
                   {safeOrders.map((order) => (
-                    <tr key={order.id} className="border-t border-slate-200 transition hover:bg-slate-50">
-                      <td className="p-3 font-semibold">
+                    <tr key={order.id} className="transition hover:bg-slate-50">
+                      <td className="px-3 py-4 font-semibold text-slate-900">
                         {order.control_number ?? "—"}
                       </td>
 
-                      <td className="p-3">
-                        <div className="font-medium">
+                      <td className="px-3 py-4 align-top text-slate-900">
+                        <div className="font-medium text-slate-900">
                           {formatDate(order.signing_date)}
                         </div>
                         <div className="text-slate-500">
@@ -460,10 +460,12 @@ export default async function OrdersPage({
                         </div>
                       </td>
 
-                      <td className="p-3">{order.borrower_name ?? "—"}</td>
+                      <td className="px-3 py-4 align-top font-medium text-slate-900">
+                        <div className="break-words">{order.borrower_name ?? "—"}</div>
+                      </td>
 
-                      <td className="p-3">
-                        <div>{order.signing_address ?? "—"}</div>
+                      <td className="px-3 py-4 align-top text-slate-900">
+                        <div className="break-words font-medium text-slate-900">{order.signing_address ?? "—"}</div>
                         <div className="text-slate-500">
                           {order.signing_city ?? "—"},{" "}
                           {order.signing_state ?? "IN"}{" "}
@@ -471,7 +473,7 @@ export default async function OrdersPage({
                         </div>
                       </td>
 
-                      <td className="p-3">
+                      <td className="px-3 py-4 align-top">
                         {order.assigned_notary_id || order.notary_id ? (
                           <span className="font-medium text-slate-700">
                             Assigned
@@ -483,21 +485,21 @@ export default async function OrdersPage({
                         )}
                       </td>
 
-                      <td className="p-3 font-semibold">
+                      <td className="px-3 py-4 align-top font-semibold text-slate-900">
                         {formatMoney(getClientFee(order))}
                       </td>
 
-                      <td className="p-3 font-semibold">
+                      <td className="px-3 py-4 align-top font-semibold text-slate-900">
                         {formatMoney(order.notary_fee)}
                       </td>
 
-                      <td className="p-3 font-bold">
+                      <td className="px-3 py-4 align-top font-bold text-slate-900">
                         {formatMoney(getProfit(order))}
                       </td>
 
-                      <td className="p-3">
+                      <td className="px-3 py-4 align-top">
                         <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
+                          className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold leading-none ring-1 ${statusBadge(
                             order.status
                           )}`}
                         >
@@ -505,10 +507,10 @@ export default async function OrdersPage({
                         </span>
                       </td>
 
-                      <td className="p-3 text-right">
+                      <td className="px-3 py-4 text-right align-top">
                         <a
                           href={`/dashboard/orders/${order.id}`}
-                          className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                          className="inline-flex rounded-xl bg-[#0B1F4D] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-950"
                         >
                           View
                         </a>

@@ -439,17 +439,17 @@ export default async function NotaryCredentialsPage() {
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-2 pt-2">
+              <div className="flex flex-wrap items-center gap-2 pt-2">
                 <a
                   href={`/notary/credentials/${credential.id}/edit`}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
                 >
                   Edit
                 </a>
 
                 <a
                   href={`/notary/credentials/${credential.id}/document`}
-                  className="rounded-lg bg-[#0B1F4D] px-3 py-2 text-sm font-bold text-white transition hover:bg-blue-950"
+                  className="inline-flex h-10 items-center justify-center rounded-lg bg-[#0B1F4D] px-4 text-sm font-bold text-white transition hover:bg-blue-950"
                 >
                   Replace Document
                 </a>
@@ -457,10 +457,11 @@ export default async function NotaryCredentialsPage() {
                 <form
                   action={`/notary/credentials/${credential.id}/delete`}
                   method="post"
+                  className="m-0"
                 >
                   <button
                     type="submit"
-                    className="rounded-lg bg-red-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-red-700"
+                    className="inline-flex h-10 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-bold text-white transition hover:bg-red-700"
                   >
                     Delete
                   </button>
@@ -486,7 +487,7 @@ export default async function NotaryCredentialsPage() {
                 <th className="px-4 py-3 font-bold">Review Status</th>
                 <th className="px-4 py-3 font-bold">Credential Status</th>
                 <th className="px-4 py-3 font-bold">Document</th>
-                <th className="px-4 py-3 font-bold">Actions</th>
+                <th className="px-4 py-3 text-right font-bold">Actions</th>
               </tr>
             </thead>
 
@@ -541,17 +542,17 @@ export default async function NotaryCredentialsPage() {
                   </td>
 
                   <td className="px-4 py-4">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                       <a
                         href={`/notary/credentials/${credential.id}/edit`}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+                        className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
                       >
                         Edit
                       </a>
 
                       <a
                         href={`/notary/credentials/${credential.id}/document`}
-                        className="rounded-lg bg-[#0B1F4D] px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-950"
+                        className="inline-flex h-10 items-center justify-center rounded-lg bg-[#0B1F4D] px-4 text-xs font-bold text-white transition hover:bg-blue-950"
                       >
                         Replace
                       </a>
@@ -559,10 +560,11 @@ export default async function NotaryCredentialsPage() {
                       <form
                         action={`/notary/credentials/${credential.id}/delete`}
                         method="post"
+                        className="m-0"
                       >
                         <button
                           type="submit"
-                          className="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-700"
+                          className="inline-flex h-10 items-center justify-center rounded-lg bg-red-600 px-4 text-xs font-bold text-white transition hover:bg-red-700"
                         >
                           Delete
                         </button>
