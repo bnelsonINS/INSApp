@@ -54,6 +54,78 @@ function formatMoney(value: number | string | null | undefined) {
 }
 
 
+function calendarDatePart(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+
+  return `${year}${month}${day}T${hours}${minutes}${seconds}`;
+}
+
+function escapeCalendarText(value: string) {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\n/g, "\\n");
+}
+
+function buildCalendarData({
+  title,
+  date,
+  time,
+  location,
+  description,
+}: {
+  title: string;
+  date: string | null;
+  time: string | null;
+  location: string;
+  description: string;
+}) {
+  if (!date) return null;
+
+  const [year, month, day] = date.split("-").map(Number);
+  const [hours = 9, minutes = 0] = (time || "09:00").split(":").map(Number);
+
+  if (!year || !month || !day) return null;
+
+  const start = new Date(year, month - 1, day, hours, minutes, 0);
+  const end = new Date(start);
+  end.setHours(end.getHours() + 1);
+
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+  const googleDates = `${calendarDatePart(start)}/${calendarDatePart(end)}`;
+
+  const icsContent = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Indiana Notary Solutions//Assignment Calendar//EN",
+    "BEGIN:VEVENT",
+    `UID:${Date.now()}@indiananotarysolutions.com`,
+    `DTSTAMP:${calendarDatePart(new Date())}`,
+    `DTSTART:${calendarDatePart(start)}`,
+    `DTEND:${calendarDatePart(end)}`,
+    `SUMMARY:${escapeCalendarText(title)}`,
+    `LOCATION:${escapeCalendarText(location)}`,
+    `DESCRIPTION:${escapeCalendarText(description)}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+
+  return {
+    googleDates,
+    startIso,
+    endIso,
+    icsHref: `data:text/calendar;charset=utf-8,${encodeURIComponent(icsContent)}`,
+  };
+}
+
+
 function firstTextValue(...values: Array<string | number | null | undefined>) {
   for (const value of values) {
     if (value === null || value === undefined) continue;
@@ -576,6 +648,46 @@ Thank you for choosing Indiana Notary Solutions.
     titleCompanyEmail,
   ].filter((value) => value && value !== "—");
 
+  const signingLocation = [
+    assignment.signing_address,
+    [assignment.signing_city, assignment.signing_state ?? "IN", assignment.signing_zip]
+      .filter(Boolean)
+      .join(" "),
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const mapHref = signingLocation
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        signingLocation
+      )}`
+    : null;
+
+  const calendarTitle = `${assignment.borrower_name ?? "Signing"}${
+    assignment.control_number ? ` - ${assignment.control_number}` : ""
+  }`;
+
+  const calendarDescription = [
+    "Indiana Notary Solutions assignment",
+    assignment.signing_type ? `Type: ${assignment.signing_type}` : null,
+    assignment.borrower_name ? `Signer: ${assignment.borrower_name}` : null,
+    assignment.borrower_phone ? `Phone: ${assignment.borrower_phone}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const calendarData = buildCalendarData({
+    title: calendarTitle,
+    date: assignment.signing_date,
+    time: assignment.signing_time,
+    location: signingLocation,
+    description: calendarDescription,
+  });
+
+  const encodedCalendarTitle = encodeURIComponent(calendarTitle);
+  const encodedCalendarLocation = encodeURIComponent(signingLocation);
+  const encodedCalendarDescription = encodeURIComponent(calendarDescription);
+
   const progressSteps = [
     "Not Confirmed",
     "Confirmed",
@@ -668,9 +780,56 @@ Thank you for choosing Indiana Notary Solutions.
 </div>
 
     <div>
-      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-        Appointment
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Appointment
+        </p>
+
+        {calendarData && (
+          <details className="relative">
+            <summary className="cursor-pointer list-none text-sm font-bold text-[#f20511] transition hover:text-blue-700 hover:underline [&::-webkit-details-marker]:hidden">
+              Add to Calendar
+            </summary>
+
+            <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+              <a
+                href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodedCalendarTitle}&dates=${calendarData.googleDates}&details=${encodedCalendarDescription}&location=${encodedCalendarLocation}`}
+                target="_blank"
+                rel="noreferrer"
+                className="block px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-[#0B1F4D]"
+              >
+                Google
+              </a>
+
+              <a
+                href={`https://outlook.office.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodedCalendarTitle}&startdt=${encodeURIComponent(calendarData.startIso)}&enddt=${encodeURIComponent(calendarData.endIso)}&body=${encodedCalendarDescription}&location=${encodedCalendarLocation}`}
+                target="_blank"
+                rel="noreferrer"
+                className="block px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-[#0B1F4D]"
+              >
+                Microsoft 365
+              </a>
+
+              <a
+                href={`https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodedCalendarTitle}&startdt=${encodeURIComponent(calendarData.startIso)}&enddt=${encodeURIComponent(calendarData.endIso)}&body=${encodedCalendarDescription}&location=${encodedCalendarLocation}`}
+                target="_blank"
+                rel="noreferrer"
+                className="block px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-[#0B1F4D]"
+              >
+                Outlook.com
+              </a>
+
+              <a
+                href={calendarData.icsHref}
+                download="ins-signing.ics"
+                className="block px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-[#0B1F4D]"
+              >
+                Apple / Outlook
+              </a>
+            </div>
+          </details>
+        )}
+      </div>
 
       <p className="mt-1 text-lg font-medium text-slate-700">
         {signingDate}
@@ -682,9 +841,22 @@ Thank you for choosing Indiana Notary Solutions.
     </div>
 
     <div>
-      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-        Signing Location
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Signing Location
+        </p>
+
+        {mapHref && (
+          <a
+            href={mapHref}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm font-bold text-[#f20511] transition hover:text-blue-700 hover:underline"
+          >
+            Show Map
+          </a>
+        )}
+      </div>
 
       <p className="mt-1 text-lg font-medium text-slate-700">
         {assignment.signing_address ?? "—"}
