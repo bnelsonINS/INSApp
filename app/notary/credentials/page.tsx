@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../src/lib/supabase-server";
+import UploadSubmitButton from "../../components/UploadSubmitButton";
 
 const credentialTypes = [
   "Background Check",
@@ -353,14 +354,17 @@ export default async function NotaryCredentialsPage() {
             type="file"
             accept=".pdf,.jpg,.jpeg,.png"
             required
-            className="w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-[#0B1F4D] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white hover:bg-slate-100"
+            className="w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-900 file:mr-4 file:rounded-lg file:border-0 file:bg-[#0B1F4D] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white hover:bg-slate-50 hover:file:bg-blue-950"
           />
         </label>
 
         <div className="flex justify-end">
-          <button className="w-full rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 sm:w-auto">
+          <UploadSubmitButton
+            loadingText="Uploading credential..."
+            className="w-full rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 sm:w-auto"
+          >
             Upload Credential
-          </button>
+          </UploadSubmitButton>
         </div>
       </form>
 

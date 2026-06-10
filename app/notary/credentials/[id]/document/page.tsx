@@ -29,7 +29,9 @@ export default async function ReplaceDocumentPage({
   return (
     <main className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Replace Document</h1>
+        <h1 className="mt-2 text-3xl font-bold text-black">
+  Replace Document
+</h1>
         <p className="text-slate-600">
           Replace the uploaded document for {credential.credential_type}.
         </p>
