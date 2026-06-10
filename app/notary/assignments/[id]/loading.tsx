@@ -15,11 +15,18 @@ export default function Loading() {
         </p>
       </div>
 
-      <div className="mt-6 flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-12 shadow-sm">
-        <span className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-[#0B1F4D]" />
+      <div className="mt-6 flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-12 shadow-sm transition-opacity animate-pulse">
+        <span
+          className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-[#0B1F4D]"
+          aria-hidden="true"
+        />
 
         <p className="mt-4 text-sm font-semibold text-slate-600">
           Loading order details...
+        </p>
+
+        <p className="mt-2 text-xs text-slate-500">
+          This should only take a moment.
         </p>
       </div>
     </main>

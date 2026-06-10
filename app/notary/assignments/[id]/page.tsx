@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../../../../src/lib/supabase-admin";
 import ConfirmAppointmentBox from "./ConfirmAppointmentBox";
 import CloseDetailsButton from "./CloseDetailsButton";
 import SubmitButton from "../../../components/SubmitButton";
+import Link from "next/link";
 
 
 export const dynamic = "force-dynamic";
@@ -732,8 +733,17 @@ Thank you for choosing Indiana Notary Solutions.
             </h1>
 
             <p className="mt-2 text-blue-100/90">
-              {assignment.signing_type ?? "Signing"} • {signingDate}{" "}
-              {signingTime && `at ${signingTime}`}
+              {clientProfile?.id ? (
+                <Link
+                  href={`/notary/clients/${clientProfile.id}`}
+                  className="font-semibold text-red-400 underline decoration-red-400 underline-offset-4 transition hover:text-red-300"
+                >
+                  {titleCompanyName}
+                </Link>
+              ) : (
+                <span>{titleCompanyName}</span>
+              )}{" "}
+              • {signingDate} {signingTime && `at ${signingTime}`}
             </p>
           </div>
 
@@ -946,9 +956,21 @@ Thank you for choosing Indiana Notary Solutions.
 
               <div className="grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-4">
                 <p className="font-bold text-slate-400">Client</p>
-                <p className="min-w-0 break-words font-medium text-slate-800">
-                  {titleCompanyName}
-                </p>
+
+                <div className="min-w-0 break-words font-medium">
+                  {clientProfile?.id ? (
+                    <Link
+                      href={`/notary/clients/${clientProfile.id}`}
+                      className="text-red-600 underline decoration-red-600 underline-offset-2 transition hover:text-red-700"
+                    >
+                      {titleCompanyName}
+                    </Link>
+                  ) : (
+                    <p className="break-words text-slate-800">
+                      {titleCompanyName}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-4">

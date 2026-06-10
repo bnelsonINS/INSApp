@@ -7,6 +7,31 @@ function makeControlNumber(fileNumber: string) {
   return `CL-${Date.now()}`;
 }
 
+function safeParsePropertyAddresses(value: FormDataEntryValue | null) {
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(String(value));
+
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((address) => ({
+        street: String(address.street || "").trim(),
+        address2: String(address.address2 || "").trim(),
+        city: String(address.city || "").trim(),
+        state: String(address.state || "").trim(),
+        zip: String(address.zip || "").trim(),
+      }))
+      .filter(
+        (address) =>
+          address.street || address.address2 || address.city || address.zip
+      );
+  } catch {
+    return [];
+  }
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createSupabaseServerClient();
 
@@ -46,6 +71,10 @@ export async function POST(request: NextRequest) {
   const signerPhone = String(formData.get("signer_phone") || "").trim();
   const signerEmail = String(formData.get("signer_email") || "").trim();
 
+  const propertyAddresses = safeParsePropertyAddresses(
+    formData.get("property_addresses")
+  );
+
   if (!signingAddress || !signingCity || !signingState || !signingZip) {
     redirect("/client/dashboard/orders/new?error=missing-location");
   }
@@ -75,6 +104,8 @@ export async function POST(request: NextRequest) {
     signing_city: signingCity,
     signing_state: signingState,
     signing_zip: signingZip,
+
+    property_addresses: propertyAddresses,
 
     special_instructions: specialInstructions || null,
     borrower_phone: signerPhone || null,

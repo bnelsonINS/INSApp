@@ -346,6 +346,12 @@ Please log in to your notary dashboard to review the documents.
     .eq("is_active", true)
     .order("email");
 
+  const { data: clientProfile } = await supabase
+    .from("profiles")
+    .select("id, company_name, full_name")
+    .eq("id", order.client_id)
+    .single();
+
   const { data: activity } = await supabase
     .from("assignment_activity")
     .select("*")
@@ -485,7 +491,7 @@ Please log in to your notary dashboard to review the documents.
   const assignedNotaryId = order.assigned_notary_id ?? order.notary_id ?? null;
 
   const assignedNotary = notaries?.find(
-    (notary) => notary.id === assignedNotaryId
+    (notary: { id: string }) => notary.id === assignedNotaryId
   );
 
   const titleCompanyFee = order.client_fee ?? order.fee ?? null;
@@ -562,7 +568,16 @@ Please log in to your notary dashboard to review the documents.
             </h1>
 
             <p className="mt-2 text-sm text-blue-100/90">
-              {order.signing_type ?? "Signing"} • {signingDate}{" "}
+              <a
+                href={`/dashboard/clients/${order.client_id}`}
+                className="font-semibold text-red-300 underline underline-offset-4 transition hover:text-red-200"
+              >
+                {clientProfile?.company_name ||
+                  clientProfile?.full_name ||
+                  "Title Company"}
+              </a>
+              {" • "}
+              {signingDate}{" "}
               {signingTime && `at ${signingTime}`}
             </p>
           </div>

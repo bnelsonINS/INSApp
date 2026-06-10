@@ -35,6 +35,7 @@ export default async function ClientProfilePage() {
       phone,
       client_role,
       default_signing_instructions,
+      client_terms,
       email_notifications,
       logo_url
     `
@@ -105,6 +106,7 @@ export default async function ClientProfilePage() {
       default_signing_instructions: String(
         formData.get("default_signing_instructions") || ""
       ).trim(),
+      client_terms: String(formData.get("client_terms") || "").trim(),
       email_notifications: formData.get("email_notifications") === "on",
     };
 
@@ -135,17 +137,13 @@ export default async function ClientProfilePage() {
           </h1>
 
           <p className="mt-3 max-w-3xl text-sm text-blue-100/90">
-            Manage your company details, client contact information, billing
-            email, and default signing instructions.
+            Manage your company details, billing information, client terms,
+            email preferences, and default signing instructions.
           </p>
         </div>
       </section>
 
-      <form
-        action={updateClientProfile}
-        //encType="multipart/form-data"
-        className="space-y-6"
-      >
+      <form action={updateClientProfile} className="space-y-6">
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-slate-900">Company Logo</h2>
 
@@ -279,6 +277,33 @@ export default async function ClientProfilePage() {
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-bold text-slate-900">Client Terms of Service</h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Add client-specific terms, billing rules, cancellation policies, or
+            document requirements.
+          </p>
+
+          <textarea
+            name="client_terms"
+            rows={6}
+            defaultValue={profile.client_terms || ""}
+            placeholder={`Example:
+
+• Scanbacks required prior to shipment.
+• Borrower cancellations within 2 hours may incur a trip fee.
+• Documents must be printed duplex when applicable.
+• Funding conditions must be confirmed before scheduling.`}
+            className={`${inputClass} resize-y`}
+          />
+
+          <p className="mt-2 text-xs text-slate-500">
+            These terms are saved to the client profile and can be referenced
+            when creating future orders.
+          </p>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold text-slate-900">
             Default Signing Instructions
           </h2>
@@ -308,13 +333,13 @@ export default async function ClientProfilePage() {
         </section>
 
         <div className="flex justify-end">
-  <SubmitButton
-  pendingText="Saving profile..."
-  className="w-full rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 sm:w-auto"
->
-  Save Profile
-</SubmitButton>
-</div>
+          <SubmitButton
+            pendingText="Saving profile..."
+            className="w-full rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 sm:w-auto"
+          >
+            Save Profile
+          </SubmitButton>
+        </div>
       </form>
     </div>
   );
