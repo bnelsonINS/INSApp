@@ -15,6 +15,8 @@ type DashboardOrder = {
   created_at: string;
   assigned_at: string | null;
   assigned_notary_id: string | null;
+  signing_date: string | null;
+  signing_time: string | null;
 };
 
 type CredentialReviewRow = {
@@ -34,6 +36,17 @@ type ProfileRow = {
   id: string;
   full_name: string | null;
   email: string | null;
+};
+
+type AdminAttentionNotice = {
+  id: string;
+  order: DashboardOrder;
+  label: string;
+  description: string;
+  timing: string;
+  badgeClass: string;
+  sortPriority: number;
+  sortDate: number;
 };
 
 function formatMoney(value: number | string | null | undefined) {
@@ -67,8 +80,8 @@ function formatDateTime(value: string | null | undefined) {
 function formatTimeSince(value: string | null | undefined) {
   if (!value) return "Unknown";
 
-  const assignedDate = new Date(value);
-  const diffMs = Date.now() - assignedDate.getTime();
+  const date = new Date(value);
+  const diffMs = Date.now() - date.getTime();
 
   if (Number.isNaN(diffMs) || diffMs < 0) return "Unknown";
 
@@ -80,6 +93,101 @@ function formatTimeSince(value: string | null | undefined) {
   if (minutes <= 0) return `${hours}h ago`;
 
   return `${hours}h ${minutes}m ago`;
+}
+
+function getSigningDateTime(order: DashboardOrder) {
+  if (!order.signing_date || !order.signing_time) return null;
+
+  const datePart = order.signing_date.includes("T")
+    ? order.signing_date.split("T")[0]
+    : order.signing_date;
+
+  const timePart = order.signing_time.slice(0, 5);
+  const signingDateTime = new Date(`${datePart}T${timePart}:00`);
+
+  if (Number.isNaN(signingDateTime.getTime())) return null;
+
+  return signingDateTime;
+}
+
+function formatTimePast(value: Date | null) {
+  if (!value) return "Unknown";
+
+  const diffMs = Date.now() - value.getTime();
+
+  if (Number.isNaN(diffMs) || diffMs < 0) return "Not past signing time yet";
+
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours <= 0) return `${minutes}m past signing time`;
+  if (minutes <= 0) return `${hours}h past signing time`;
+
+  return `${hours}h ${minutes}m past signing time`;
+}
+
+function isSigningNotStarted(order: DashboardOrder, now: Date) {
+  const signingDateTime = getSigningDateTime(order);
+  if (!signingDateTime) return false;
+
+  const fiveMinutesAfterSigning = signingDateTime.getTime() + 5 * 60 * 1000;
+  const normalizedStatus = (order.status ?? "").toLowerCase();
+
+  const alreadyStartedStatuses = [
+    "in progress",
+    "signing complete",
+    "closed",
+    "cancelled",
+    "canceled",
+    "late",
+  ];
+
+  return (
+    Boolean(order.assigned_notary_id) &&
+    now.getTime() >= fiveMinutesAfterSigning &&
+    !alreadyStartedStatuses.includes(normalizedStatus)
+  );
+}
+
+function isScanbacksOverdue(order: DashboardOrder, now: Date) {
+  const signingDateTime = getSigningDateTime(order);
+  if (!signingDateTime) return false;
+
+  const twoHoursAfterSigning = signingDateTime.getTime() + 2 * 60 * 60 * 1000;
+  const normalizedStatus = (order.status ?? "").toLowerCase();
+
+  const scanbacksDoneStatuses = [
+    "signing complete",
+    "closed",
+    "cancelled",
+    "canceled",
+  ];
+
+  return (
+    Boolean(order.assigned_notary_id) &&
+    now.getTime() >= twoHoursAfterSigning &&
+    normalizedStatus === "in progress" &&
+    !scanbacksDoneStatuses.includes(normalizedStatus)
+  );
+}
+
+function formatTimePastScanbacks(value: Date | null) {
+  if (!value) return "Unknown";
+
+  const twoHoursAfterSigning = new Date(value.getTime() + 2 * 60 * 60 * 1000);
+  const diffMs = Date.now() - twoHoursAfterSigning.getTime();
+
+  if (Number.isNaN(diffMs) || diffMs < 0) return "Not overdue yet";
+
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours <= 0) return `${minutes}m overdue`;
+  if (minutes <= 0) return `${hours}h overdue`;
+
+  return `${hours}h ${minutes}m overdue`;
 }
 
 function getTitleFee(order: DashboardOrder) {
@@ -129,52 +237,6 @@ function credentialStatusLabel(status: string | null) {
     .join(" ");
 }
 
-function getActionRequiredInfo(order: DashboardOrder) {
-  const normalized = (order.status ?? "").toLowerCase();
-
-  if (normalized === "new request") {
-    return {
-      label: "Needs Assignment",
-      reason:
-        "This order is new and has not moved into the assignment workflow yet.",
-      nextAction: "Review the order details and assign a qualified notary.",
-      badgeClass: "bg-blue-100 text-blue-800 ring-blue-200",
-      accentClass: "border-l-blue-500",
-    };
-  }
-
-  if (normalized === "late") {
-    return {
-      label: "Late",
-      reason:
-        "This order is marked Late and needs immediate admin follow-up.",
-      nextAction:
-        "Contact the notary, confirm the signing status, and update the order.",
-      badgeClass: "bg-red-100 text-red-800 ring-red-200",
-      accentClass: "border-l-red-500",
-    };
-  }
-
-  if (normalized === "signing complete") {
-    return {
-      label: "Ready for Review",
-      reason: "The signing is complete, but the file has not been closed.",
-      nextAction:
-        "Review scanbacks, verify shipping/tracking, then close the order.",
-      badgeClass: "bg-orange-100 text-orange-800 ring-orange-200",
-      accentClass: "border-l-orange-500",
-    };
-  }
-
-  return {
-    label: "Review Needed",
-    reason: "This order is in the action queue and needs admin review.",
-    nextAction: "Open the order and confirm the next required step.",
-    badgeClass: "bg-slate-100 text-slate-700 ring-slate-200",
-    accentClass: "border-l-slate-400",
-  };
-}
-
 export default async function DashboardPage() {
   const supabase = await createSupabaseServerClient();
 
@@ -183,7 +245,7 @@ export default async function DashboardPage() {
   const currentMonth = now.getMonth();
   const currentQuarter = getQuarter(now);
   const confirmationOverdueCutoff = new Date(
-    now.getTime() - 2 * 60 * 60 * 1000
+    now.getTime() - 2 * 60 * 60 * 1000,
   ).toISOString();
 
   const { count: totalOrders } = await supabase
@@ -214,13 +276,13 @@ export default async function DashboardPage() {
   const { data: financialOrders } = await supabase
     .from("assignments")
     .select(
-      "id, control_number, borrower_name, status, client_fee, fee, notary_fee, created_at, assigned_at, assigned_notary_id"
+      "id, control_number, borrower_name, status, client_fee, fee, notary_fee, created_at, assigned_at, assigned_notary_id, signing_date, signing_time",
     );
 
   const { data: credentialRows } = await supabase
     .from("notary_credentials")
     .select(
-      "id, user_id, credential_type, provider, credential_number, amount, issue_date, expiration_date, status, admin_notes"
+      "id, user_id, credential_type, provider, credential_number, amount, issue_date, expiration_date, status, admin_notes",
     )
     .eq("status", "pending_review");
 
@@ -230,8 +292,8 @@ export default async function DashboardPage() {
     new Set(
       credentialReviews
         .map((row) => row.user_id)
-        .filter((id): id is string => Boolean(id))
-    )
+        .filter((id): id is string => Boolean(id)),
+    ),
   );
 
   const { data: credentialProfiles } = credentialUserIds.length
@@ -250,7 +312,7 @@ export default async function DashboardPage() {
         Boolean(order.assigned_notary_id) &&
         Boolean(order.assigned_at) &&
         new Date(order.assigned_at as string).toISOString() <=
-          confirmationOverdueCutoff
+          confirmationOverdueCutoff,
     )
     .sort((a, b) => {
       const aTime = new Date(a.assigned_at ?? "").getTime();
@@ -262,8 +324,8 @@ export default async function DashboardPage() {
     new Set(
       confirmationOverdueOrders
         .map((order) => order.assigned_notary_id)
-        .filter((id): id is string => Boolean(id))
-    )
+        .filter((id): id is string => Boolean(id)),
+    ),
   );
 
   const { data: confirmationNotaryProfiles } = confirmationNotaryIds.length
@@ -277,14 +339,14 @@ export default async function DashboardPage() {
     ((confirmationNotaryProfiles ?? []) as ProfileRow[]).map((profile) => [
       profile.id,
       profile,
-    ])
+    ]),
   );
 
   const profileMap = new Map(
     ((credentialProfiles ?? []) as ProfileRow[]).map((profile) => [
       profile.id,
       profile,
-    ])
+    ]),
   );
 
   const monthOrders = ordersForFinancials.filter((order) => {
@@ -300,20 +362,20 @@ export default async function DashboardPage() {
   });
 
   const currentQuarterOrders = yearOrders.filter(
-    (order) => getQuarter(new Date(order.created_at)) === currentQuarter
+    (order) => getQuarter(new Date(order.created_at)) === currentQuarter,
   );
 
   const q1Orders = yearOrders.filter(
-    (order) => getQuarter(new Date(order.created_at)) === 1
+    (order) => getQuarter(new Date(order.created_at)) === 1,
   );
   const q2Orders = yearOrders.filter(
-    (order) => getQuarter(new Date(order.created_at)) === 2
+    (order) => getQuarter(new Date(order.created_at)) === 2,
   );
   const q3Orders = yearOrders.filter(
-    (order) => getQuarter(new Date(order.created_at)) === 3
+    (order) => getQuarter(new Date(order.created_at)) === 3,
   );
   const q4Orders = yearOrders.filter(
-    (order) => getQuarter(new Date(order.created_at)) === 4
+    (order) => getQuarter(new Date(order.created_at)) === 4,
   );
 
   const billablesMTD = sumTitleFees(monthOrders);
@@ -328,11 +390,109 @@ export default async function DashboardPage() {
   const profitCurrentQuarter =
     billablesCurrentQuarter - sumNotaryFees(currentQuarterOrders);
 
-  const needsAttention = ordersForFinancials
-    .filter((order) =>
-      ["New Request", "Late", "Signing Complete"].includes(order.status ?? "")
-    )
-    .slice(0, 6);
+  const confirmationOverdueNotices: AdminAttentionNotice[] =
+    confirmationOverdueOrders.map((order) => ({
+      id: `confirmation-${order.id}`,
+      order,
+      label: "Confirmation Overdue",
+      description: "Notary has not confirmed appointment",
+      timing: `Assigned ${formatTimeSince(order.assigned_at)}`,
+      badgeClass: "bg-red-100 text-red-800 ring-red-200",
+      sortPriority: 1,
+      sortDate: new Date(order.assigned_at ?? order.created_at).getTime(),
+    }));
+
+  const needsAssignmentNotices: AdminAttentionNotice[] = ordersForFinancials
+    .filter((order) => order.status === "New Request")
+    .map((order) => ({
+      id: `needs-assignment-${order.id}`,
+      order,
+      label: "Needs Assignment",
+      description: "Order needs a notary assigned",
+      timing: `Created ${formatTimeSince(order.created_at)}`,
+      badgeClass: "bg-blue-100 text-blue-800 ring-blue-200",
+      sortPriority: 2,
+      sortDate: new Date(order.created_at).getTime(),
+    }));
+
+  const lateNotices: AdminAttentionNotice[] = ordersForFinancials
+    .filter((order) => order.status === "Late")
+    .map((order) => ({
+      id: `late-${order.id}`,
+      order,
+      label: "Late",
+      description: "Order is marked late and needs follow-up",
+      timing: `Created ${formatTimeSince(order.created_at)}`,
+      badgeClass: "bg-red-100 text-red-800 ring-red-200",
+      sortPriority: 3,
+      sortDate: new Date(order.created_at).getTime(),
+    }));
+
+  const signingNotStartedNotices: AdminAttentionNotice[] = ordersForFinancials
+    .filter((order) => isSigningNotStarted(order, now))
+    .map((order) => {
+      const signingDateTime = getSigningDateTime(order);
+
+      return {
+        id: `signing-not-started-${order.id}`,
+        order,
+        label: "Signing Not Started",
+        description: "Notary has not marked the order In Progress",
+        timing: formatTimePast(signingDateTime),
+        badgeClass: "bg-amber-100 text-amber-800 ring-amber-200",
+        sortPriority: 3,
+        sortDate:
+          signingDateTime?.getTime() ?? new Date(order.created_at).getTime(),
+      };
+    });
+
+  const scanbacksOverdueNotices: AdminAttentionNotice[] = ordersForFinancials
+    .filter((order) => isScanbacksOverdue(order, now))
+    .map((order) => {
+      const signingDateTime = getSigningDateTime(order);
+
+      return {
+        id: `scanbacks-overdue-${order.id}`,
+        order,
+        label: "Scanbacks Overdue",
+        description: "Scanbacks have not been uploaded",
+        timing: formatTimePastScanbacks(signingDateTime),
+        badgeClass: "bg-red-100 text-red-800 ring-red-200",
+        sortPriority: 4,
+        sortDate:
+          signingDateTime?.getTime() ?? new Date(order.created_at).getTime(),
+      };
+    });
+
+  const readyForReviewNotices: AdminAttentionNotice[] = ordersForFinancials
+    .filter((order) => order.status === "Signing Complete")
+    .map((order) => ({
+      id: `ready-review-${order.id}`,
+      order,
+      label: "Ready for Review",
+      description: "Signing is complete and needs admin QA",
+      timing: `Updated status: ${order.status}`,
+      badgeClass: "bg-orange-100 text-orange-800 ring-orange-200",
+      sortPriority: 5,
+      sortDate: new Date(order.created_at).getTime(),
+    }));
+
+  const adminAttentionNotices = [
+    ...confirmationOverdueNotices,
+    ...needsAssignmentNotices,
+    ...lateNotices,
+    ...signingNotStartedNotices,
+    ...scanbacksOverdueNotices,
+    ...readyForReviewNotices,
+  ]
+    .sort((a, b) => {
+      if (a.sortPriority !== b.sortPriority) {
+        return a.sortPriority - b.sortPriority;
+      }
+
+      return a.sortDate - b.sortDate;
+    })
+    .slice(0, 10);
 
   const quarters = [
     { label: "Q1", orders: q1Orders },
@@ -389,10 +549,12 @@ export default async function DashboardPage() {
 
         <div className="rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm">
           <p className="text-sm font-semibold text-red-700">
-            Confirmation Alerts
+            Operational Alerts
           </p>
           <p className="mt-2 text-4xl font-bold text-red-800">
-            {confirmationOverdueOrders.length}
+            {confirmationOverdueOrders.length +
+              signingNotStartedNotices.length +
+              scanbacksOverdueNotices.length}
           </p>
         </div>
 
@@ -413,131 +575,79 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-red-200 bg-white shadow-sm">
-        <div className="flex flex-col justify-between gap-3 border-b border-red-200 bg-red-50 p-5 md:flex-row md:items-center">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col justify-between gap-3 border-b border-slate-200 bg-slate-50 p-5 md:flex-row md:items-center">
           <div>
-            <h2 className="text-xl font-bold text-red-950">
-              Assignment Attention Needed
+            <h2 className="text-xl font-bold text-slate-900">
+              Admin Attention Needed
             </h2>
             <p className="text-sm text-red-700">
-              Notaries assigned more than 2 hours ago who have not confirmed
-              the appointment.
+              Operational notices that need admin review, assignment, follow-up,
+              or closure.
             </p>
           </div>
 
           <Link
             href="/dashboard/orders"
-            className="rounded-xl bg-red-700 px-4 py-2 text-center text-sm font-bold text-white shadow-sm transition hover:bg-red-800"
+            className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
           >
             View Orders
           </Link>
         </div>
 
-        {!confirmationOverdueOrders.length ? (
+        {!adminAttentionNotices.length ? (
           <div className="p-8 text-sm text-slate-500">
-            No overdue confirmations right now.
+            Nothing needs attention right now.
           </div>
         ) : (
-          <div className="divide-y divide-slate-200">
-            {confirmationOverdueOrders.slice(0, 6).map((order) => {
-              const notary = order.assigned_notary_id
-                ? confirmationNotaryMap.get(order.assigned_notary_id)
+          <div className="divide-y">
+            {adminAttentionNotices.map((notice) => {
+              const notary = notice.order.assigned_notary_id
+                ? confirmationNotaryMap.get(notice.order.assigned_notary_id)
                 : null;
 
               return (
                 <Link
-                  key={order.id}
-                  href={`/dashboard/orders/${order.id}`}
-                  className="block p-5 transition hover:bg-red-50/50"
+                  key={notice.id}
+                  href={`/dashboard/orders/${notice.order.id}`}
+                  className="block p-5 transition hover:bg-slate-50"
                 >
-                  <div className="rounded-2xl border border-red-200 border-l-4 border-l-red-600 bg-white p-4 shadow-sm">
-                    <div className="grid gap-5 xl:grid-cols-[1.2fr_1.4fr_1fr_auto] xl:items-center">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-bold text-slate-950">
-                            {order.borrower_name ?? "Unnamed Order"}
-                          </p>
-
-                          <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-800 ring-1 ring-red-200">
-                            Confirmation Overdue
-                          </span>
-                        </div>
-
-                        <p className="mt-1 text-sm text-slate-500">
-                          Control # {order.control_number ?? "—"}
-                        </p>
-
-                        <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Current Status
-                        </p>
-                        <span
-                          className={`mt-1 inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${statusBadge(
-                            order.status
-                          )}`}
-                        >
-                          {order.status ?? "Unknown"}
-                        </span>
-                      </div>
-
-                      <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
-                        <p className="text-xs font-bold uppercase tracking-wide text-red-700">
-                          Why this is showing
-                        </p>
-                        <p className="mt-1 text-sm font-medium text-red-950">
-                          The notary was assigned more than 2 hours ago and has
-                          not confirmed the appointment.
-                        </p>
-
-                        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-red-700">
-                          Next admin action
-                        </p>
-                        <p className="mt-1 text-sm text-red-900">
-                          Contact the notary, confirm they received the order,
-                          or reassign if needed.
-                        </p>
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-xs font-semibold text-slate-500">
-                            Assigned Notary
-                          </p>
-                          <p className="font-bold text-slate-900">
-                            {notary?.full_name ?? "Unknown Notary"}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {notary?.email ?? "No email found"}
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-xs font-semibold text-slate-500">
-                            Assigned
-                          </p>
-                          <p className="font-bold text-slate-900">
-                            {formatTimeSince(order.assigned_at)}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {formatDateTime(order.assigned_at)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <span className="rounded-xl border border-red-300 bg-white px-4 py-2 text-center text-sm font-bold text-red-700 shadow-sm transition hover:bg-red-50">
-                        Review Order
-                      </span>
+                  <div className="grid gap-4 lg:grid-cols-[1.2fr_1.5fr_1fr_auto] lg:items-center">
+                    <div>
+                      <p className="font-bold text-slate-950">
+                        {notice.order.borrower_name ?? "Unnamed Order"}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        Control # {notice.order.control_number ?? "—"}
+                      </p>
                     </div>
+
+                    <div>
+                      <p className="font-semibold text-slate-950">
+                        {notice.description}
+                      </p>
+                      <p className="text-sm text-slate-500">{notice.timing}</p>
+                      {notice.label === "Confirmation Overdue" ? (
+                        <p className="mt-1 text-xs text-slate-500">
+                          Notary: {notary?.full_name ?? "Unknown Notary"}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="text-sm text-slate-600">
+                      <p>Status: {notice.order.status ?? "Unknown"}</p>
+                      <p>Created: {formatDate(notice.order.created_at)}</p>
+                    </div>
+
+                    <span
+                      className={`w-fit rounded-full px-3 py-1 text-xs font-bold ring-1 ${notice.badgeClass}`}
+                    >
+                      {notice.label}
+                    </span>
                   </div>
                 </Link>
               );
             })}
-
-            {confirmationOverdueOrders.length > 6 ? (
-              <div className="bg-slate-50 p-5 text-center text-sm font-semibold text-slate-600">
-                Showing 6 of {confirmationOverdueOrders.length} overdue
-                confirmations. Use View Orders to review the rest.
-              </div>
-            ) : null}
           </div>
         )}
       </section>
@@ -617,133 +727,6 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col justify-between gap-3 border-b border-slate-200 bg-slate-50 p-5 md:flex-row md:items-center">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">
-              Action Required
-            </h2>
-            <p className="text-sm text-amber-700">
-              Orders needing admin review, assignment, follow-up, or closure.
-            </p>
-          </div>
-
-          <Link
-            href="/dashboard/orders"
-            className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-          >
-            View Orders
-          </Link>
-        </div>
-
-        {!needsAttention.length ? (
-          <div className="p-8 text-sm text-slate-500">
-            Nothing needs attention right now.
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-200">
-            {needsAttention.map((order) => {
-              const titleFee = getTitleFee(order);
-              const notaryFee = getNotaryFee(order);
-              const profit = titleFee - notaryFee;
-              const actionInfo = getActionRequiredInfo(order);
-
-              return (
-                <Link
-                  key={order.id}
-                  href={`/dashboard/orders/${order.id}`}
-                  className="block p-5 transition hover:bg-slate-50"
-                >
-                  <div
-                    className={`rounded-2xl border border-slate-200 border-l-4 bg-white p-4 shadow-sm ${actionInfo.accentClass}`}
-                  >
-                    <div className="grid gap-5 xl:grid-cols-[1.2fr_1.6fr_1fr_auto] xl:items-center">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-bold text-slate-950">
-                            {order.borrower_name ?? "Unnamed Order"}
-                          </p>
-
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${actionInfo.badgeClass}`}
-                          >
-                            {actionInfo.label}
-                          </span>
-                        </div>
-
-                        <p className="mt-1 text-sm text-slate-500">
-                          Control # {order.control_number ?? "—"}
-                        </p>
-
-                        <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Current Status
-                        </p>
-                        <span
-                          className={`mt-1 inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${statusBadge(
-                            order.status
-                          )}`}
-                        >
-                          {order.status ?? "Unknown"}
-                        </span>
-                      </div>
-
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                          Why this is showing
-                        </p>
-                        <p className="mt-1 text-sm font-medium text-slate-800">
-                          {actionInfo.reason}
-                        </p>
-
-                        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500">
-                          Next admin action
-                        </p>
-                        <p className="mt-1 text-sm text-slate-700">
-                          {actionInfo.nextAction}
-                        </p>
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-xs font-semibold text-slate-500">
-                            Title Fee
-                          </p>
-                          <p className="font-bold text-slate-900">
-                            {formatMoney(titleFee)}
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-xs font-semibold text-slate-500">
-                            Notary Fee
-                          </p>
-                          <p className="font-bold text-slate-900">
-                            {formatMoney(notaryFee)}
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl bg-green-50 p-3">
-                          <p className="text-xs font-semibold text-green-700">
-                            Profit
-                          </p>
-                          <p className="font-bold text-green-950">
-                            {formatMoney(profit)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <span className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-center text-sm font-bold text-[#0B1F4D] shadow-sm transition hover:bg-slate-50">
-                        Review Order
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div>
           <h2 className="text-xl font-bold text-slate-950">Financials</h2>
@@ -764,9 +747,7 @@ export default async function DashboardPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <p className="text-sm font-semibold text-slate-500">
-              Payables MTD
-            </p>
+            <p className="text-sm font-semibold text-slate-500">Payables MTD</p>
             <p className="mt-2 text-3xl font-bold text-[#0B1F4D]">
               {formatMoney(payablesMTD)}
             </p>
@@ -798,9 +779,7 @@ export default async function DashboardPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <p className="text-sm font-semibold text-slate-500">
-              Payables YTD
-            </p>
+            <p className="text-sm font-semibold text-slate-500">Payables YTD</p>
             <p className="mt-2 text-3xl font-bold text-[#0B1F4D]">
               {formatMoney(payablesYTD)}
             </p>
