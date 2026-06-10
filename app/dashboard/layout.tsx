@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../src/lib/supabase-server";
 import LogoutButton from "../components/logout-button";
 import DashboardMobileMenu from "./dashboard-mobile-menu";
+import NavLinkWithSpinner from "../components/NavLinkWithSpinner";
 
 export default async function DashboardLayout({
   children,
@@ -61,14 +61,10 @@ export default async function DashboardLayout({
           <div className="rounded-2xl bg-slate-50 p-3">
             <nav className="space-y-2">
               {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="group flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-white hover:text-[#0B1F4D] hover:shadow-sm"
-                >
-                  <span>{item.label}</span>
-                </Link>
-              ))}
+  <NavLinkWithSpinner key={item.href} href={item.href}>
+    {item.label}
+  </NavLinkWithSpinner>
+))}
             </nav>
 
             <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">

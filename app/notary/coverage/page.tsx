@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import UploadSubmitButton from "../../components/UploadSubmitButton";
 import { createSupabaseServerClient } from "../../../src/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
@@ -232,7 +233,12 @@ export default async function CoveragePage() {
             className={inputClass}
           />
 
-          <button className={buttonClass}>Save</button>
+          <UploadSubmitButton
+            loadingText="Saving..."
+            className={buttonClass}
+          >
+            Save
+          </UploadSubmitButton>
         </form>
       </section>
 
@@ -272,7 +278,12 @@ export default async function CoveragePage() {
             ))}
           </select>
 
-          <button className={buttonClass}>Add County</button>
+          <UploadSubmitButton
+            loadingText="Adding county..."
+            className={buttonClass}
+          >
+            Add County
+          </UploadSubmitButton>
         </form>
 
         <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -292,9 +303,12 @@ export default async function CoveragePage() {
                 action={`/notary/coverage/counties/${item.id}/delete`}
                 method="post"
               >
-                <button className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700">
-                  {item.county} ×
-                </button>
+                <UploadSubmitButton
+  loadingText="Removing..."
+  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+>
+  {item.county} ×
+</UploadSubmitButton>
               </form>
             ))}
 
@@ -337,7 +351,12 @@ export default async function CoveragePage() {
             className={`${inputClass} md:w-80`}
           />
 
-          <button className={buttonClass}>Add ZIP Code</button>
+          <UploadSubmitButton
+            loadingText="Adding ZIP code..."
+            className={buttonClass}
+          >
+            Add ZIP Code
+          </UploadSubmitButton>
         </form>
 
         <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -357,9 +376,12 @@ export default async function CoveragePage() {
                 action={`/notary/coverage/zips/${item.id}/delete`}
                 method="post"
               >
-                <button className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700">
-                  {item.zip_code} ×
-                </button>
+                <UploadSubmitButton
+  loadingText="Removing..."
+  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+>
+  {item.zip_code} ×
+</UploadSubmitButton>
               </form>
             ))}
 

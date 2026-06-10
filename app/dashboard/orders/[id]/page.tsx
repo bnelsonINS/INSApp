@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "../../../../src/lib/supabase-server";
+import SubmitButton from "../../../components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -498,6 +499,48 @@ Please log in to your notary dashboard to review the documents.
       ? Number(titleCompanyFee) - Number(notaryFee)
       : null;
 
+  const activityItems = activity ?? [];
+  const visibleActivity = activityItems.slice(0, 3);
+  const hiddenActivity = activityItems.slice(3);
+  const hasHiddenActivity = hiddenActivity.length > 0;
+
+  function renderActivityItem(item: any) {
+    const details = String(item.details ?? "");
+    const [name, ...messageParts] = details.split("\n");
+    const message = messageParts.join("\n");
+
+    return (
+      <div
+        key={item.id}
+        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+      >
+        <div className="flex flex-col justify-between gap-2 md:flex-row md:items-center">
+          <p className="font-bold text-slate-900">
+            {item.action ?? "Activity"}
+          </p>
+          <p className="text-xs text-slate-500">
+            {formatActivityDate(item.created_at)}
+          </p>
+        </div>
+
+        {message ? (
+          <>
+            <p className="mt-2 text-sm font-semibold text-slate-600">
+              {name}
+            </p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+              {message}
+            </p>
+          </>
+        ) : (
+          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+            {details || "—"}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <main className="min-h-screen space-y-6 bg-slate-50 p-4 sm:p-6">
       <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] p-6 text-white shadow-sm">
@@ -803,62 +846,42 @@ Please log in to your notary dashboard to review the documents.
                 required
               />
 
-              <button className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950">
+              <SubmitButton pendingText="Adding note..." className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950">
                 Add Comment
-              </button>
+              </SubmitButton>
             </form>
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-900">Activity</h2>
-
-            <div className="mt-4 space-y-3">
-              {!activity?.length ? (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                  No activity yet.
-                </div>
-              ) : (
-                activity.map((item) => {
-                  const details = String(item.details ?? "");
-                  const [name, ...messageParts] = details.split("\n");
-                  const message = messageParts.join("\n");
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-                    >
-                      <div className="flex flex-col justify-between gap-2 md:flex-row md:items-center">
-                        <p className="font-bold text-slate-900">
-                          {item.action ?? "Activity"}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {formatActivityDate(item.created_at)}
-                        </p>
-                      </div>
-
-                      {message ? (
-                        <>
-                          <p className="mt-2 text-sm font-semibold text-slate-600">
-                            {name}
-                          </p>
-                          <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
-                            {message}
-                          </p>
-                        </>
-                      ) : (
-                        <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-                          {details || "—"}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
           </section>
         </section>
       </div>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-900">Activity</h2>
+
+        <div className="mt-4 space-y-3">
+          {!activityItems.length ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+              No activity yet.
+            </div>
+          ) : (
+            <>
+              {visibleActivity.map((item) => renderActivityItem(item))}
+
+              {hasHiddenActivity && (
+                <details className="group space-y-3">
+                  <summary className="cursor-pointer list-none text-sm font-bold text-[#0B1F4D] hover:underline">
+                    <span className="group-open:hidden">View All</span>
+                    <span className="hidden group-open:inline">Show Less</span>
+                  </summary>
+
+                  <div className="space-y-3">
+                    {hiddenActivity.map((item) => renderActivityItem(item))}
+                  </div>
+                </details>
+              )}
+            </>
+          )}
+        </div>
+      </section>
     </main>
   );
 }

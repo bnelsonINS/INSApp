@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "../../../../../src/lib/supabase-server";
 import { supabaseAdmin } from "../../../../../src/lib/supabase-admin";
 import ApproveCloseButton from "./ApproveCloseButton";
 import UploadSubmitButton from "../../../../components/UploadSubmitButton";
+import SubmitButton from "../../../../components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -54,6 +56,14 @@ type ReturnedDocument = {
   file_path: string;
   created_at: string | null;
   signedUrl: string | null;
+};
+
+type ActivityItem = {
+  id: string;
+  action: string | null;
+  actor_name: string | null;
+  details: string | null;
+  created_at: string | null;
 };
 
 function formatDate(date: string | null) {
@@ -148,8 +158,7 @@ function statusBadge(status: string | null) {
   if (normalized === "confirmed") return "bg-blue-100 text-blue-800";
   if (normalized === "in progress") return "bg-purple-100 text-purple-800";
   if (normalized === "late") return "bg-red-100 text-red-800";
-  if (normalized === "signing complete")
-    return "bg-orange-100 text-orange-800";
+  if (normalized === "signing complete") return "bg-orange-100 text-orange-800";
   if (normalized === "closed") return "bg-green-100 text-green-800";
   if (normalized === "cancelled") return "bg-red-100 text-red-800";
 
@@ -245,7 +254,7 @@ export default async function ClientOrderDetailPage({
       client_fee,
       notary_fee,
       created_at
-    `
+    `,
     )
     .eq("id", id)
     .eq("client_id", user.id)
@@ -265,8 +274,11 @@ export default async function ClientOrderDetailPage({
   }
 
   const order = assignment as Assignment;
-const steps = progressSteps(order.status);
-const trackingUrl = getTrackingUrl(order.shipping_carrier, order.tracking_number);
+  const steps = progressSteps(order.status);
+  const trackingUrl = getTrackingUrl(
+    order.shipping_carrier,
+    order.tracking_number,
+  );
 
   const assignedNotaryId = order.assigned_notary_id || order.notary_id;
 
@@ -307,7 +319,7 @@ const trackingUrl = getTrackingUrl(order.shipping_carrier, order.tracking_number
         ...document,
         signedUrl: data?.signedUrl ?? null,
       };
-    })
+    }),
   );
 
   const { data: returnedDocuments, error: returnedDocumentsError } =
@@ -320,7 +332,7 @@ const trackingUrl = getTrackingUrl(order.shipping_carrier, order.tracking_number
   if (returnedDocumentsError) {
     console.error(
       "Client returned documents load error:",
-      returnedDocumentsError
+      returnedDocumentsError,
     );
   }
 
@@ -334,23 +346,81 @@ const trackingUrl = getTrackingUrl(order.shipping_carrier, order.tracking_number
         ...document,
         signedUrl: data?.signedUrl ?? null,
       };
-    })
+    }),
   );
 
+  const { data: activity, error: activityError } = await supabaseAdmin
+    .from("assignment_activity")
+    .select("id, action, actor_name, details, created_at")
+    .eq("assignment_id", order.id)
+    .order("created_at", { ascending: false });
+
+  if (activityError) {
+    console.error("Client order activity load error:", activityError);
+  }
+
+  const activityItems = (activity ?? []) as ActivityItem[];
+  const visibleActivityItems = activityItems.slice(0, 3);
+  const hiddenActivityItems = activityItems.slice(3);
+  const hasHiddenActivityItems = hiddenActivityItems.length > 0;
+
+  async function addOrderNote(formData: FormData) {
+    "use server";
+
+    const assignmentId = String(formData.get("assignment_id") ?? "");
+    const comment = String(formData.get("comment") ?? "").trim();
+
+    if (!assignmentId || !comment) return;
+
+    const supabase = await createSupabaseServerClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) redirect("/login");
+
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select("id, client_id")
+      .eq("id", assignmentId)
+      .eq("client_id", user.id)
+      .single();
+
+    if (!assignment) redirect("/client/dashboard/orders");
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .single();
+
+    const actorName = profile?.full_name || profile?.email || "Client";
+
+    await supabase.from("assignment_activity").insert({
+      assignment_id: assignmentId,
+      action: "Client comment",
+      actor_name: actorName,
+      details: comment,
+    });
+
+    revalidatePath(`/client/dashboard/orders/${assignmentId}`);
+  }
+
   async function approveAndCloseOrder() {
-  "use server";
+    "use server";
 
-  await supabaseAdmin
-    .from("assignments")
-    .update({
-      status: "Closed",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", order.id)
-    .eq("client_id", user!.id);
+    await supabaseAdmin
+      .from("assignments")
+      .update({
+        status: "Closed",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", order.id)
+      .eq("client_id", user!.id);
 
-  redirect(`/client/dashboard/orders/${order.id}`);
-}
+    redirect(`/client/dashboard/orders/${order.id}`);
+  }
 
   return (
     <div className="space-y-6">
@@ -380,20 +450,20 @@ const trackingUrl = getTrackingUrl(order.shipping_carrier, order.tracking_number
           </div>
 
           <div className="flex flex-col items-start gap-3 md:items-end">
-  <span
-    className={`inline-flex w-fit rounded-full px-4 py-2 text-sm font-bold ${statusBadge(
-      order.status
-    )}`}
-  >
-    {order.status || "New Request"}
-  </span>
+            <span
+              className={`inline-flex w-fit rounded-full px-4 py-2 text-sm font-bold ${statusBadge(
+                order.status,
+              )}`}
+            >
+              {order.status || "New Request"}
+            </span>
 
-  {order.status?.toLowerCase() === "signing complete" && (
-    <form action={approveAndCloseOrder}>
-      <ApproveCloseButton />
-    </form>
-  )}
-</div>
+            {order.status?.toLowerCase() === "signing complete" && (
+              <form action={approveAndCloseOrder}>
+                <ApproveCloseButton />
+              </form>
+            )}
+          </div>
         </div>
       </section>
 
@@ -505,6 +575,53 @@ const trackingUrl = getTrackingUrl(order.shipping_carrier, order.tracking_number
               )}
             </div>
           </section>
+
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-950">
+              Shipping / Tracking
+            </h2>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-sm font-bold text-slate-500">Carrier</p>
+                <p className="mt-1 font-semibold text-slate-950">
+                  {order.shipping_carrier || "—"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-sm font-bold text-slate-500">
+                  Tracking Number
+                </p>
+
+                {trackingUrl && order.tracking_number ? (
+                  <a
+                    href={trackingUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 block break-all font-semibold text-blue-700 underline hover:text-blue-900"
+                  >
+                    {order.tracking_number}
+                  </a>
+                ) : (
+                  <p className="mt-1 break-all font-semibold text-slate-950">
+                    {order.tracking_number || "—"}
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-sm font-bold text-slate-500">
+                  Est. Drop Date
+                </p>
+                <p className="mt-1 font-semibold text-slate-950">
+                  {formatDate(
+                    order.drop_date || getEstimatedDropDate(order.signing_date),
+                  )}
+                </p>
+              </div>
+            </div>
+          </section>
         </aside>
 
         <main className="space-y-6">
@@ -540,11 +657,11 @@ const trackingUrl = getTrackingUrl(order.shipping_carrier, order.tracking_number
               </label>
 
               <input
-  type="file"
-  name="document"
-  required
-  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-  className="
+                type="file"
+                name="document"
+                required
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                className="
     mt-3 w-full rounded-xl border border-slate-300 bg-white p-3
     text-sm font-medium text-slate-900
     file:mr-4 file:rounded-lg file:border-0
@@ -552,7 +669,7 @@ const trackingUrl = getTrackingUrl(order.shipping_carrier, order.tracking_number
     file:text-sm file:font-bold file:text-white
     hover:file:bg-blue-950
   "
-/>
+              />
 
               <p className="mt-2 text-xs text-slate-500">
                 Upload closing packages, scanbacks, title docs, or supporting
@@ -674,102 +791,159 @@ const trackingUrl = getTrackingUrl(order.shipping_carrier, order.tracking_number
             )}
           </section>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-950">
-              Shipping / Tracking
-            </h2>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm font-bold text-slate-500">Carrier</p>
-                <p className="mt-1 font-semibold text-slate-950">
-                  {order.shipping_carrier || "—"}
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-slate-50 p-4">
-  <p className="text-sm font-bold text-slate-500">
-    Tracking Number
-  </p>
-
-  {trackingUrl && order.tracking_number ? (
-    <a
-      href={trackingUrl}
-      target="_blank"
-      rel="noreferrer"
-      className="mt-1 block break-all font-semibold text-blue-700 underline hover:text-blue-900"
-    >
-      {order.tracking_number}
-    </a>
-  ) : (
-    <p className="mt-1 break-all font-semibold text-slate-950">
-      {order.tracking_number || "—"}
-    </p>
-  )}
-</div>
-
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm font-bold text-slate-500">Est. Drop Date</p>
-                <p className="mt-1 font-semibold text-slate-950">
-                  {formatDate(order.drop_date || getEstimatedDropDate(order.signing_date))}
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-950">Activity</h2>
-
-            <div className="mt-5 rounded-2xl bg-slate-50 p-4">
-              <p className="text-sm font-semibold text-slate-950">
-                Order created
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                {new Date(order.created_at).toLocaleString()}
-              </p>
-            </div>
-
-            {assignedNotaryId && (
-              <div className="mt-3 rounded-2xl bg-blue-50 p-4">
-                <p className="text-sm font-semibold text-blue-950">
-                  Notary assigned
-                </p>
-                <p className="mt-1 text-xs text-blue-700">
-                  {notaryName}
-                  {order.assigned_at
-                    ? ` · ${new Date(order.assigned_at).toLocaleString()}`
-                    : ""}
-                </p>
-              </div>
-            )}
-
-            {documentsWithUrls.length > 0 && (
-              <div className="mt-3 rounded-2xl bg-blue-50 p-4">
-                <p className="text-sm font-semibold text-blue-950">
-                  {documentsWithUrls.length} title document
-                  {documentsWithUrls.length === 1 ? "" : "s"} uploaded
-                </p>
-                <p className="mt-1 text-xs text-blue-700">
-                  Most recent upload:{" "}
-                  {formatDateTime(documentsWithUrls[0].uploaded_at)}
-                </p>
-              </div>
-            )}
-
-            {returnedDocumentsWithUrls.length > 0 && (
-              <div className="mt-3 rounded-2xl bg-green-50 p-4">
-                <p className="text-sm font-semibold text-green-950">
-                  {returnedDocumentsWithUrls.length} returned document
-                  {returnedDocumentsWithUrls.length === 1 ? "" : "s"} uploaded
-                </p>
-                <p className="mt-1 text-xs text-green-700">
-                  Most recent return:{" "}
-                  {formatDateTime(returnedDocumentsWithUrls[0].created_at)}
-                </p>
-              </div>
-            )}
-          </section>
         </main>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-950">Order Notes</h2>
+
+        <p className="mt-1 text-sm text-slate-500">
+          Add a note for this order. Notes from the client, notary, and admin
+          will appear below.
+        </p>
+
+        <form action={addOrderNote} className="mt-5 space-y-3">
+          <input type="hidden" name="assignment_id" value={order.id} />
+
+          <textarea
+            name="comment"
+            required
+            rows={4}
+            placeholder="Type your note..."
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+          />
+
+          <SubmitButton
+            pendingText="Adding note..."
+            className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+          >
+            Add Note
+          </SubmitButton>
+        </form>
+
+        {!activityItems.length ? (
+          <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+            <p className="font-bold text-slate-800">No notes yet</p>
+            <p className="mt-2 text-sm text-slate-500">
+              Notes added by the client, notary, or admin will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-5 space-y-3">
+            {visibleActivityItems.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+              >
+                <p className="font-bold text-slate-950">
+                  {item.action || "Order note"}
+                </p>
+
+                {item.actor_name && (
+                  <p className="mt-1 text-sm font-medium text-slate-700">
+                    {item.actor_name}
+                  </p>
+                )}
+
+                <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-slate-600">
+                  {item.details || "—"}
+                </p>
+
+                <p className="mt-3 text-xs font-medium text-slate-400">
+                  {formatDateTime(item.created_at)}
+                </p>
+              </div>
+            ))}
+
+            {hasHiddenActivityItems && (
+              <details className="group space-y-3">
+                <summary className="cursor-pointer list-none text-sm font-bold text-[#0B1F4D] hover:underline">
+                  <span className="group-open:hidden">View All</span>
+                  <span className="hidden group-open:inline">Show Less</span>
+                </summary>
+
+                <div className="space-y-3">
+                  {hiddenActivityItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                    >
+                      <p className="font-bold text-slate-950">
+                        {item.action || "Order note"}
+                      </p>
+
+                      {item.actor_name && (
+                        <p className="mt-1 text-sm font-medium text-slate-700">
+                          {item.actor_name}
+                        </p>
+                      )}
+
+                      <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-slate-600">
+                        {item.details || "—"}
+                      </p>
+
+                      <p className="mt-3 text-xs font-medium text-slate-400">
+                        {formatDateTime(item.created_at)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-950">Activity</h2>
+
+        <div className="mt-5 rounded-2xl bg-slate-50 p-4">
+          <p className="text-sm font-semibold text-slate-950">Order created</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {new Date(order.created_at).toLocaleString()}
+          </p>
+        </div>
+
+        {assignedNotaryId && (
+          <div className="mt-3 rounded-2xl bg-blue-50 p-4">
+            <p className="text-sm font-semibold text-blue-950">
+              Notary assigned
+            </p>
+            <p className="mt-1 text-xs text-blue-700">
+              {notaryName}
+              {order.assigned_at
+                ? ` · ${new Date(order.assigned_at).toLocaleString()}`
+                : ""}
+            </p>
+          </div>
+        )}
+
+        {documentsWithUrls.length > 0 && (
+          <div className="mt-3 rounded-2xl bg-blue-50 p-4">
+            <p className="text-sm font-semibold text-blue-950">
+              {documentsWithUrls.length} title document
+              {documentsWithUrls.length === 1 ? "" : "s"} uploaded
+            </p>
+            <p className="mt-1 text-xs text-blue-700">
+              Most recent upload:{" "}
+              {formatDateTime(documentsWithUrls[0].uploaded_at)}
+            </p>
+          </div>
+        )}
+
+        {returnedDocumentsWithUrls.length > 0 && (
+          <div className="mt-3 rounded-2xl bg-green-50 p-4">
+            <p className="text-sm font-semibold text-green-950">
+              {returnedDocumentsWithUrls.length} returned document
+              {returnedDocumentsWithUrls.length === 1 ? "" : "s"} uploaded
+            </p>
+            <p className="mt-1 text-xs text-green-700">
+              Most recent return:{" "}
+              {formatDateTime(returnedDocumentsWithUrls[0].created_at)}
+            </p>
+          </div>
+        )}
       </section>
     </div>
   );

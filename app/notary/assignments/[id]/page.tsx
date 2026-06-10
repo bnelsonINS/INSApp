@@ -4,6 +4,8 @@ import { createSupabaseServerClient } from "../../../../src/lib/supabase-server"
 import { supabaseAdmin } from "../../../../src/lib/supabase-admin";
 import ConfirmAppointmentBox from "./ConfirmAppointmentBox";
 import CloseDetailsButton from "./CloseDetailsButton";
+import SubmitButton from "../../../components/SubmitButton";
+
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -362,6 +364,7 @@ export default async function AssignmentDetailPage({
     }
 
     revalidatePath(`/notary/assignments/${assignmentId}`);
+    redirect(`/notary/assignments/${assignmentId}#upload-documents`);
   }
 
   async function markScanbacksComplete(formData: FormData) {
@@ -1042,43 +1045,46 @@ Thank you for choosing Indiana Notary Solutions.
             {showUploadDocuments && (
               <>
                 <form
-                  id="returned-documents-upload-form"
-                  action={uploadReturnedDocuments}
-                  className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5"
-                >
-                  <input
-                    type="hidden"
-                    name="assignment_id"
-                    value={assignment.id}
-                  />
+  id="returned-documents-upload-form"
+  action={uploadReturnedDocuments}
+  className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5"
+>
+  <input type="hidden" name="assignment_id" value={assignment.id} />
 
-                  <label className="block text-sm font-bold text-slate-700">
-                    Upload signed documents
-                  </label>
+  <label className="block text-sm font-bold text-slate-700">
+    Upload signed documents
+  </label>
 
-                  <input
-                    type="file"
-                    name="returned_documents"
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    multiple
-                    required
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
-                  />
+  <input
+    type="file"
+    name="returned_documents"
+    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+    multiple
+    required
+    className="
+      mt-2 w-full rounded-xl border border-slate-300 bg-white p-3
+      text-sm font-medium text-slate-900 shadow-sm outline-none
+      file:mr-4 file:rounded-lg file:border-0
+      file:bg-[#0B1F4D] file:px-4 file:py-2
+      file:text-sm file:font-bold file:text-white
+      hover:file:bg-blue-950
+      focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100
+    "
+  />
 
-                  <p className="mt-2 text-xs text-slate-500">
-                    Upload the signed package, scanbacks, or completed
-                    documents.
-                  </p>
-                </form>
+  <p className="mt-2 text-xs text-slate-500">
+    Upload the signed package, scanbacks, or completed documents.
+  </p>
 
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <button
-                    type="submit"
-                    form="returned-documents-upload-form"
-                    className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-                  >
-                    Upload Completed Documents
-                  </button>
+  <SubmitButton
+    pendingText="Uploading documents..."
+    className="mt-4 rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+  >
+    Upload Completed Documents
+  </SubmitButton>
+</form>
+
+<div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
 
                   {canMarkScanbacksComplete && (
                     <details className="group">
@@ -1134,9 +1140,13 @@ Thank you for choosing Indiana Notary Solutions.
 
                               <select
                                 name="shipping_carrier"
-                                defaultValue="FedEx"
+                                defaultValue=""
+                                required
                                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                               >
+                                <option value="" disabled>
+                                  Select a Shipping Service
+                                </option>
                                 <option value="FedEx">FedEx</option>
                                 <option value="UPS">UPS</option>
                                 <option value="USPS">USPS</option>
@@ -1153,6 +1163,7 @@ Thank you for choosing Indiana Notary Solutions.
                               <input
                                 name="tracking_number"
                                 type="text"
+                                required
                                 placeholder="Enter tracking number"
                                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                               />
@@ -1166,19 +1177,29 @@ Thank you for choosing Indiana Notary Solutions.
                               <textarea
                                 name="completion_notes"
                                 rows={4}
+                                required
                                 placeholder="Example: Funds collected. Documents signed successfully."
                                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                               />
                             </div>
 
-                            <label className="flex items-center gap-2 text-sm text-slate-700">
-                              <input
-                                type="checkbox"
-                                name="notify_client"
-                                defaultChecked
-                              />
-                              Notify Client
-                            </label>
+                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+  <input
+    type="hidden"
+    name="notify_client"
+    value="on"
+  />
+
+  <input
+    type="checkbox"
+    checked
+    readOnly
+    aria-readonly="true"
+    className="h-4 w-4 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+  />
+
+  <span>Notify Client</span>
+</label>
 
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
                               <p className="font-semibold text-slate-900">
@@ -1213,12 +1234,12 @@ Thank you for choosing Indiana Notary Solutions.
                             <div className="flex justify-end gap-3 border-t pt-5">
                               <CloseDetailsButton />
 
-                              <button
-                                type="submit"
-                                className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-                              >
-                                Save
-                              </button>
+                              <SubmitButton
+  pendingText="Updating status..."
+  className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+>
+  Save
+</SubmitButton>
                             </div>
                           </form>
                         </div>
@@ -1292,12 +1313,12 @@ Thank you for choosing Indiana Notary Solutions.
                 className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
               />
 
-              <button
-                type="submit"
-                className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-              >
-                Add Note
-              </button>
+              <SubmitButton
+  pendingText="Adding note..."
+  className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+>
+  Add Note
+</SubmitButton>
             </form>
           </section>
 
@@ -1313,7 +1334,7 @@ Thank you for choosing Indiana Notary Solutions.
           </div>
         ) : (
           <div className="mt-4 space-y-3">
-            {activity.map((item) => (
+            {activity.slice(0, 3).map((item) => (
               <div
                 key={item.id}
                 className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm"
@@ -1337,6 +1358,42 @@ Thank you for choosing Indiana Notary Solutions.
                 </p>
               </div>
             ))}
+
+            {activity.length > 3 && (
+              <details className="group space-y-3">
+                <summary className="cursor-pointer list-none text-sm font-bold text-[#f20511] transition hover:text-blue-700 hover:underline [&::-webkit-details-marker]:hidden">
+                  <span className="group-open:hidden">View All</span>
+                  <span className="hidden group-open:inline">Show Less</span>
+                </summary>
+
+                <div className="space-y-3">
+                  {activity.slice(3).map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm"
+                    >
+                      <p className="text-base font-bold text-slate-900">
+                        {item.action}
+                      </p>
+
+                      {item.actor_name && (
+                        <p className="mt-1 text-sm font-medium text-slate-700">
+                          {item.actor_name}
+                        </p>
+                      )}
+
+                      <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-slate-600">
+                        {item.details ?? "—"}
+                      </p>
+
+                      <p className="mt-3 text-xs font-medium text-slate-400">
+                        {formatActivityDate(item.created_at)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
         )}
       </section>

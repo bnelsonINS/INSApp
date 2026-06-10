@@ -1,6 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import NavLinkWithSpinner from "../components/NavLinkWithSpinner";import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../src/lib/supabase-server";
 import LogoutButton from "../components/logout-button";
 import NotaryMobileMenu from "./notary-mobile-menu";
@@ -117,16 +116,16 @@ export default async function NotaryLayout({
 
               <nav className="mt-3 space-y-1">
                 {navItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    data-tour={item.tour}
-                    className="group flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-white hover:text-[#0B1F4D] hover:shadow-sm"
-                  >
-                    <span>{item.label}</span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-slate-300 opacity-0 transition group-hover:opacity-100" />
-                  </Link>
-                ))}
+  <div key={item.href} data-tour={item.tour}>
+    <NavLinkWithSpinner href={item.href}>
+      <div className="flex w-full items-center justify-between">
+        <span>{item.label}</span>
+
+        <span className="h-1.5 w-1.5 rounded-full bg-slate-300 opacity-0 transition group-hover:opacity-100" />
+      </div>
+    </NavLinkWithSpinner>
+  </div>
+))}
               </nav>
             </div>
 

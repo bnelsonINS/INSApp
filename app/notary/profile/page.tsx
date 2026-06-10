@@ -2,6 +2,7 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../src/lib/supabase-server";
 import LanguageSelector from "./language-selector";
+import UploadSubmitButton from "../../components/UploadSubmitButton";
 
 const inputClass =
   "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100";
@@ -509,10 +510,13 @@ export default async function NotaryProfilePage() {
         </section>
 
         <div className="flex justify-end pb-10">
-          <button className="w-full rounded-xl bg-[#0B1F4D] px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-blue-950 sm:w-auto">
-            Save Profile
-          </button>
-        </div>
+  <UploadSubmitButton
+    loadingText="Saving profile..."
+    className="w-full rounded-xl bg-[#0B1F4D] px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-blue-950 sm:w-auto"
+  >
+    Save Profile
+  </UploadSubmitButton>
+</div>
       </form>
     </main>
   );

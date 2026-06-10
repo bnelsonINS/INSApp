@@ -1,3 +1,4 @@
+import UploadSubmitButton from "../../../../components/UploadSubmitButton";
 export default function NewClientOrderPage() {
   const inputClass =
     "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100";
@@ -276,17 +277,24 @@ export default function NewClientOrderPage() {
             </div>
 
             <label className="flex gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-medium text-slate-700">
-              <input
-                name="send_confirmation"
-                type="checkbox"
-                defaultChecked
-                className="mt-1 h-4 w-4 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
-              />
+  <input
+    type="hidden"
+    name="send_confirmation"
+    value="on"
+  />
 
-              <span>
-                Send a confirmation and provide basic access to order details.
-              </span>
-            </label>
+  <input
+    type="checkbox"
+    defaultChecked
+    disabled
+    aria-readonly="true"
+    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#0B1F4D]"
+  />
+
+  <span>
+    Send a confirmation and provide basic access to order details.
+  </span>
+</label>
 
             <button
               type="button"
@@ -309,12 +317,12 @@ export default function NewClientOrderPage() {
               </p>
             </div>
 
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
-            >
-              Create Order
-            </button>
+            <UploadSubmitButton
+  loadingText="Creating order..."
+  className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+>
+  Create Order
+</UploadSubmitButton>
           </div>
         </section>
       </form>

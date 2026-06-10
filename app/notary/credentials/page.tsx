@@ -463,12 +463,12 @@ export default async function NotaryCredentialsPage() {
                   method="post"
                   className="m-0"
                 >
-                  <button
-                    type="submit"
+                  <UploadSubmitButton
+                    loadingText="Deleting..."
                     className="inline-flex h-10 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-bold text-white transition hover:bg-red-700"
                   >
                     Delete
-                  </button>
+                  </UploadSubmitButton>
                 </form>
               </div>
             </div>
@@ -566,12 +566,12 @@ export default async function NotaryCredentialsPage() {
                         method="post"
                         className="m-0"
                       >
-                        <button
-                          type="submit"
+                        <UploadSubmitButton
+                          loadingText="Deleting..."
                           className="inline-flex h-10 items-center justify-center rounded-lg bg-red-600 px-4 text-xs font-bold text-white transition hover:bg-red-700"
                         >
                           Delete
-                        </button>
+                        </UploadSubmitButton>
                       </form>
                     </div>
                   </td>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import UploadSubmitButton from "../../../../components/UploadSubmitButton";
 import { createSupabaseServerClient } from "../../../../../src/lib/supabase-server";
 
 const credentialTypes = [
@@ -138,12 +139,12 @@ export default async function EditCredentialPage({
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <button
-            type="submit"
+          <UploadSubmitButton
+            loadingText="Saving changes..."
             className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
           >
             Save Changes
-          </button>
+          </UploadSubmitButton>
 
           <Link
             href="/notary/credentials"
