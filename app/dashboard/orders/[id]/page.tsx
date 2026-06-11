@@ -607,6 +607,17 @@ Please log in to your notary dashboard to review the documents.
   </button>
 </form>
 
+{!assignedNotaryId && (
+  <a
+    href={`/dashboard/orders/${id}/find-notary`}
+    className="rounded-xl bg-white px-5 py-3 text-center text-sm font-bold text-[#0B1F4D] transition hover:bg-blue-50"
+  >
+    Find a Notary
+  </a>
+)}
+
+
+
           </div>
         </div>
       </section>
