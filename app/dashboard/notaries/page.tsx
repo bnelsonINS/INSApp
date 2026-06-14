@@ -1,7 +1,3 @@
 export default async function DashboardNotariesPage() {
-  return (
-    <main>
-      Notaries
-    </main>
-  );
+  return <main>Notaries</main>;
 }
