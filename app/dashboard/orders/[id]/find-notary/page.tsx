@@ -41,6 +41,81 @@ function formatTime(time: string | null) {
   });
 }
 
+function getCurrentMonthStart() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-01`;
+}
+
+function getScoreBadge(score: number) {
+  if (score >= 95) {
+    return {
+      label: "Elite",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    };
+  }
+
+  if (score >= 90) {
+    return {
+      label: "Preferred",
+      className: "border-blue-200 bg-blue-50 text-blue-700",
+    };
+  }
+
+  if (score >= 80) {
+    return {
+      label: "Standard",
+      className: "border-yellow-200 bg-yellow-50 text-yellow-700",
+    };
+  }
+
+  if (score >= 70) {
+    return {
+      label: "Watch List",
+      className: "border-orange-200 bg-orange-50 text-orange-700",
+    };
+  }
+
+  return {
+    label: "Restricted",
+    className: "border-red-200 bg-red-50 text-red-700",
+  };
+}
+
+function getScoreWarning(score: number) {
+  if (score < 60) {
+    return {
+      label: "Suspension workflow",
+      className: "border-red-200 bg-red-50 text-red-700",
+    };
+  }
+
+  if (score < 70) {
+    return {
+      label: "No automatic offers",
+      className: "border-red-200 bg-red-50 text-red-700",
+    };
+  }
+
+  if (score < 80) {
+    return {
+      label: "Admin review required",
+      className: "border-orange-200 bg-orange-50 text-orange-700",
+    };
+  }
+
+  if (score < 90) {
+    return {
+      label: "Warning",
+      className: "border-yellow-200 bg-yellow-50 text-yellow-700",
+    };
+  }
+
+  return null;
+}
+
 export default async function FindNotaryPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = await createSupabaseServerClient();
@@ -121,9 +196,7 @@ export default async function FindNotaryPage({ params }: PageProps) {
       : 0;
 
   const nextRound = highestRound + 1;
-
-  const currentQuarter = Math.floor(new Date().getMonth() / 3) + 1;
-  const currentYear = new Date().getFullYear();
+  const currentMonthStart = getCurrentMonthStart();
 
   const { data: notaries } = await supabase
     .from("profiles")
@@ -151,7 +224,7 @@ export default async function FindNotaryPage({ params }: PageProps) {
   const [
     { data: countyCoverage },
     { data: zipCoverage },
-    { data: scores },
+    { data: monthlyScores },
     { data: metrics },
   ] = await Promise.all([
     supabase
@@ -165,10 +238,9 @@ export default async function FindNotaryPage({ params }: PageProps) {
       .in("user_id", safeIds),
 
     supabase
-      .from("notary_quarterly_scores")
-      .select("notary_id, current_score")
-      .eq("quarter", currentQuarter)
-      .eq("year", currentYear)
+      .from("notary_monthly_scores")
+      .select("notary_id, current_score, month_start")
+      .eq("month_start", currentMonthStart)
       .in("notary_id", safeIds),
 
     supabase
@@ -178,7 +250,10 @@ export default async function FindNotaryPage({ params }: PageProps) {
   ]);
 
   const scoreByNotaryId = new Map(
-    (scores || []).map((score) => [score.notary_id, score.current_score])
+    (monthlyScores || []).map((score) => [
+      score.notary_id,
+      score.current_score ?? 100,
+    ])
   );
 
   const jobZip = (assignment.signing_zip || "").trim();
@@ -198,18 +273,13 @@ export default async function FindNotaryPage({ params }: PageProps) {
       const countyMatches =
         countyCoverage?.some(
           (c) =>
-            c.user_id === notary.id &&
-            normalizeCounty(c.county) === jobCounty
+            c.user_id === notary.id && normalizeCounty(c.county) === jobCounty
         ) ?? false;
 
       const score = scoreByNotaryId.get(notary.id) ?? 100;
-
+      const badge = getScoreBadge(score);
+      const warning = getScoreWarning(score);
       const metric = metrics?.find((m) => m.notary_id === notary.id);
-
-      const matchReasons = [
-        zipMatches ? "ZIP" : null,
-        countyMatches ? "County" : null,
-      ].filter(Boolean) as string[];
 
       const latestOffer = existingOffers?.find(
         (offer) => offer.notary_id === notary.id
@@ -219,9 +289,11 @@ export default async function FindNotaryPage({ params }: PageProps) {
         ...notary,
         zipMatches,
         countyMatches,
-        matchReasons,
-        matchStrength: matchReasons.length,
+        matchStrength: Number(zipMatches) + Number(countyMatches),
         score,
+        badge,
+        warning,
+        canReceiveAutomaticOffer: score >= 70,
         lifetimeClosings: metric?.total_assignments_completed ?? 0,
         responseRate: metric?.response_rate ?? 0,
         latestOffer,
@@ -229,34 +301,45 @@ export default async function FindNotaryPage({ params }: PageProps) {
     })
     .filter((candidate) => candidate.matchStrength > 0)
     .sort((a, b) => {
+      if (b.canReceiveAutomaticOffer !== a.canReceiveAutomaticOffer) {
+        return (
+          Number(b.canReceiveAutomaticOffer) -
+          Number(a.canReceiveAutomaticOffer)
+        );
+      }
+
       if (b.score !== a.score) return b.score - a.score;
+
       if (b.matchStrength !== a.matchStrength) {
         return b.matchStrength - a.matchStrength;
       }
+
       if (b.lifetimeClosings !== a.lifetimeClosings) {
         return b.lifetimeClosings - a.lifetimeClosings;
       }
+
       return b.responseRate - a.responseRate;
     });
 
   return (
-    <main className="min-h-screen bg-slate-50 p-6">
+    <main className="min-h-screen bg-slate-50 p-4 sm:p-6">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-sm font-semibold text-slate-500">
             Assignment Workspace
           </p>
-          <h1 className="mt-1 text-3xl font-bold text-slate-900">
+          <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">
             Find a Notary
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Select qualified candidates and send assignment offers by round.
+            Candidates are sorted by score, coverage match, lifetime closings,
+            and response rate.
           </p>
         </div>
 
         <Link
           href={`/dashboard/orders/${assignment.id}`}
-          className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-100"
+          className="inline-flex w-full justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-100 sm:w-auto"
         >
           Back to Order
         </Link>
@@ -265,7 +348,6 @@ export default async function FindNotaryPage({ params }: PageProps) {
       {hasAssignedNotary ? (
         <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900">
           <p className="font-bold">This signing has already been assigned.</p>
-
           <p className="mt-1">
             Assigned to{" "}
             <span className="font-bold">
@@ -274,30 +356,21 @@ export default async function FindNotaryPage({ params }: PageProps) {
             {assignedNotary?.email ? <span> ({assignedNotary.email})</span> : null}
             .
           </p>
-
-          <Link
-            href={`/dashboard/orders/${assignment.id}`}
-            className="mt-3 inline-flex rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800"
-          >
-            View Order
-          </Link>
         </div>
       ) : acceptedOffers.length > 0 ? (
         <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900">
           <p className="font-bold">
-            {acceptedOffers.length} notary response
-            {acceptedOffers.length === 1 ? "" : "s"} accepted.
+            {acceptedOffers.length} accepted notary response
+            {acceptedOffers.length === 1 ? "" : "s"}.
           </p>
-
           <p className="mt-1">
-            Review the offer history below and assign the notary you want. New
-            rounds are still allowed until a notary is assigned.
+            Review the offer history below and assign the notary you want.
           </p>
         </div>
       ) : null}
 
-      <section className="rounded-2xl bg-[#0B1F4D] p-6 text-white shadow-sm">
-        <div className="grid gap-6 lg:grid-cols-4">
+      <section className="rounded-2xl bg-[#0B1F4D] p-5 text-white shadow-sm sm:p-6">
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           <div>
             <p className="text-xs font-semibold uppercase text-blue-100">
               Control Number
@@ -349,17 +422,15 @@ export default async function FindNotaryPage({ params }: PageProps) {
         action={`/dashboard/orders/${assignment.id}/find-notary/send-offers`}
         method="POST"
       >
-        <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  Candidate Results
-                </h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  {candidates.length} matching notary candidate(s) found.
-                </p>
-              </div>
+        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_380px]">
+          <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+            <div className="mb-5">
+              <h2 className="text-xl font-bold text-slate-900">
+                Candidate Results
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                {candidates.length} matching notary candidate(s) found.
+              </p>
             </div>
 
             {candidates.length === 0 ? (
@@ -373,97 +444,133 @@ export default async function FindNotaryPage({ params }: PageProps) {
                 </p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-100 text-xs uppercase text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3">Select</th>
-                      <th className="px-4 py-3">Notary</th>
-                      <th className="px-4 py-3">Score</th>
-                      <th className="px-4 py-3">Match</th>
-                      <th className="px-4 py-3">Lifetime</th>
-                      <th className="px-4 py-3">Response</th>
-                      <th className="px-4 py-3">Offer</th>
-                    </tr>
-                  </thead>
+              <div className="space-y-4">
+                {candidates.map((candidate) => (
+                  <div
+                    key={candidate.id}
+                    className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${
+                      hasAssignedNotary || !candidate.canReceiveAutomaticOffer
+                        ? "opacity-60"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex gap-3">
+                        <input
+                          type="checkbox"
+                          name="notary_ids"
+                          value={candidate.id}
+                          disabled={
+                            hasAssignedNotary ||
+                            !candidate.canReceiveAutomaticOffer
+                          }
+                          className="mt-1 h-4 w-4 rounded border-slate-300 disabled:cursor-not-allowed"
+                        />
 
-                  <tbody className="divide-y divide-slate-200 bg-white">
-                    {candidates.map((candidate) => (
-                      <tr
-                        key={candidate.id}
-                        className={hasAssignedNotary ? "opacity-60" : ""}
-                      >
-                        <td className="px-4 py-4">
-                          <input
-                            type="checkbox"
-                            name="notary_ids"
-                            value={candidate.id}
-                            disabled={hasAssignedNotary}
-                            className="h-4 w-4 rounded border-slate-300 disabled:cursor-not-allowed"
-                          />
-                        </td>
-
-                        <td className="px-4 py-4">
-                          <p className="font-bold text-slate-900">
+                        <div>
+                          <p className="text-base font-bold text-slate-900">
                             {candidate.full_name ?? "Unnamed Notary"}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="break-all text-sm text-slate-500">
+                            {candidate.email}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-500">
                             Home ZIP: {candidate.home_zip ?? "Not set"} •
                             Radius:{" "}
                             {candidate.travel_radius_miles ?? "Not set"} mi
                           </p>
-                        </td>
+                        </div>
+                      </div>
 
-                        <td className="px-4 py-4">
-                          <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
-                            {candidate.score}%
+                      <div className="flex flex-wrap gap-2">
+                        <span className="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-800">
+                          {candidate.score}%
+                        </span>
+
+                        <span
+                          className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-xs font-bold ${candidate.badge.className}`}
+                        >
+                          {candidate.badge.label}
+                        </span>
+
+                        {candidate.warning ? (
+                          <span
+                            className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-xs font-bold ${candidate.warning.className}`}
+                          >
+                            {candidate.warning.label}
                           </span>
-                        </td>
+                        ) : (
+                          <span className="inline-flex whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                            Clear
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                        <td className="px-4 py-4">
-                          <div className="flex flex-wrap gap-2">
-                            {candidate.matchStrength > 1 && (
-                              <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-700">
-                                ⭐ Multiple
-                              </span>
-                            )}
-                            {candidate.zipMatches && (
-                              <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-700">
-                                ZIP
-                              </span>
-                            )}
-                            {candidate.countyMatches && (
-                              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
-                                County
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-4 font-semibold text-slate-700">
-                          {candidate.lifetimeClosings}
-                        </td>
-
-                        <td className="px-4 py-4 font-semibold text-slate-700">
-                          {candidate.responseRate}%
-                        </td>
-
-                        <td className="px-4 py-4">
-                          {candidate.latestOffer ? (
-                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-                              Round {candidate.latestOffer.round_number}{" "}
-                              {candidate.latestOffer.status}
-                            </span>
-                          ) : (
-                            <span className="text-xs font-semibold text-slate-400">
-                              Not sent
+                    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-xs font-semibold uppercase text-slate-500">
+                          Coverage
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {candidate.matchStrength > 1 && (
+                            <span className="rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-bold text-yellow-700">
+                              Multiple
                             </span>
                           )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          {candidate.zipMatches && (
+                            <span className="rounded-full bg-purple-100 px-2.5 py-1 text-xs font-bold text-purple-700">
+                              ZIP
+                            </span>
+                          )}
+                          {candidate.countyMatches && (
+                            <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-700">
+                              County
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-xs font-semibold uppercase text-slate-500">
+                          Fee
+                        </p>
+                        <p className="mt-1 font-bold text-slate-900">
+                          {formatMoney(assignment.notary_fee)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-xs font-semibold uppercase text-slate-500">
+                          Lifetime
+                        </p>
+                        <p className="mt-1 font-bold text-slate-900">
+                          {candidate.lifetimeClosings}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-xs font-semibold uppercase text-slate-500">
+                          Response
+                        </p>
+                        <p className="mt-1 font-bold text-slate-900">
+                          {candidate.responseRate}%
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-xs font-semibold uppercase text-slate-500">
+                          Offer
+                        </p>
+                        <p className="mt-1 font-bold text-slate-900">
+                          {candidate.latestOffer
+                            ? `Round ${candidate.latestOffer.round_number} ${candidate.latestOffer.status}`
+                            : "Not sent"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </section>
@@ -475,14 +582,14 @@ export default async function FindNotaryPage({ params }: PageProps) {
               </h2>
 
               <div className="mt-4 space-y-3 text-sm">
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4">
                   <span className="text-slate-500">Current Fee</span>
                   <span className="font-semibold text-slate-900">
                     {formatMoney(assignment.notary_fee)}
                   </span>
                 </div>
 
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4">
                   <span className="text-slate-500">Status</span>
                   <span className="font-semibold text-slate-900">
                     {hasAssignedNotary
@@ -491,21 +598,32 @@ export default async function FindNotaryPage({ params }: PageProps) {
                   </span>
                 </div>
 
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4">
                   <span className="text-slate-500">Candidates</span>
                   <span className="font-semibold text-slate-900">
                     {candidates.length}
                   </span>
                 </div>
 
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4">
+                  <span className="text-slate-500">Eligible</span>
+                  <span className="font-semibold text-slate-900">
+                    {
+                      candidates.filter(
+                        (candidate) => candidate.canReceiveAutomaticOffer
+                      ).length
+                    }
+                  </span>
+                </div>
+
+                <div className="flex justify-between gap-4">
                   <span className="text-slate-500">Accepted Responses</span>
                   <span className="font-semibold text-slate-900">
                     {acceptedOffers.length}
                   </span>
                 </div>
 
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4">
                   <span className="text-slate-500">Next Round</span>
                   <span className="font-semibold text-slate-900">
                     {hasAssignedNotary ? "Disabled" : `Round ${nextRound}`}
@@ -515,9 +633,29 @@ export default async function FindNotaryPage({ params }: PageProps) {
             </section>
 
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900">
-                Send Offers
-              </h2>
+              <h2 className="text-lg font-bold text-slate-900">Score Rules</h2>
+
+              <div className="mt-4 space-y-2 text-sm">
+                <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 font-semibold text-emerald-700">
+                  95–100: Elite
+                </p>
+                <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 font-semibold text-blue-700">
+                  90–94: Preferred
+                </p>
+                <p className="rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 font-semibold text-yellow-700">
+                  80–89: Standard
+                </p>
+                <p className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 font-semibold text-orange-700">
+                  70–79: Watch List
+                </p>
+                <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-700">
+                  Below 70: Restricted
+                </p>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900">Send Offers</h2>
 
               {hasAssignedNotary ? (
                 <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
@@ -527,8 +665,7 @@ export default async function FindNotaryPage({ params }: PageProps) {
               ) : (
                 <>
                   <p className="mt-2 text-sm text-slate-600">
-                    Select one or more available notaries from the candidate
-                    list, then send the next round of offers.
+                    Notaries below 70 are blocked from automatic offer rounds.
                   </p>
 
                   <button
@@ -544,7 +681,7 @@ export default async function FindNotaryPage({ params }: PageProps) {
         </div>
       </form>
 
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <h2 className="text-xl font-bold text-slate-900">Offer History</h2>
 
         {!existingOffers || existingOffers.length === 0 ? (
@@ -552,94 +689,78 @@ export default async function FindNotaryPage({ params }: PageProps) {
             No offers have been sent for this assignment.
           </div>
         ) : (
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-100 text-xs uppercase text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">Round</th>
-                  <th className="px-4 py-3">Notary</th>
-                  <th className="px-4 py-3">Score</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Fee</th>
-                  <th className="px-4 py-3">Sent</th>
-                  <th className="px-4 py-3">Action</th>
-                </tr>
-              </thead>
+          <div className="mt-4 space-y-3">
+            {existingOffers.map((offer) => {
+              const offerNotary = notaryById.get(offer.notary_id);
+              const offerScore = scoreByNotaryId.get(offer.notary_id) ?? 100;
+              const offerBadge = getScoreBadge(offerScore);
 
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {existingOffers.map((offer) => {
-                  const offerNotary = notaryById.get(offer.notary_id);
-                  const offerScore = scoreByNotaryId.get(offer.notary_id);
+              return (
+                <div
+                  key={offer.id}
+                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="font-bold text-slate-900">
+                        Round {offer.round_number} •{" "}
+                        {offerNotary?.full_name ?? "Unknown Notary"}
+                      </p>
+                      <p className="break-all text-sm text-slate-500">
+                        {offerNotary?.email ?? offer.notary_id}
+                      </p>
+                    </div>
 
-                  return (
-                    <tr key={offer.id}>
-                      <td className="px-4 py-4 font-bold text-slate-900">
-                        Round {offer.round_number}
-                      </td>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-800">
+                        {offerScore}%
+                      </span>
 
-                      <td className="px-4 py-4">
-                        <p className="font-semibold text-slate-900">
-                          {offerNotary?.full_name ?? "Unknown Notary"}
-                        </p>
-                        <p className="text-xs text-slate-600">
-                          {offerNotary?.email ?? offer.notary_id}
-                        </p>
-                      </td>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-bold ${offerBadge.className}`}
+                      >
+                        {offerBadge.label}
+                      </span>
 
-                      <td className="px-4 py-4">
-                        {offerScore !== undefined && offerScore !== null ? (
-                          <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
-                            {offerScore}%
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-                            Not scored
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-4 py-4 font-semibold text-slate-900">
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
                         {offer.status}
-                      </td>
+                      </span>
 
-                      <td className="px-4 py-4 font-semibold text-slate-900">
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
                         {formatMoney(offer.offered_fee)}
-                      </td>
+                      </span>
+                    </div>
+                  </div>
 
-                      <td className="px-4 py-4 font-semibold text-slate-700">
-                        {offer.sent_at
-                          ? new Date(offer.sent_at).toLocaleString()
-                          : "Not set"}
-                      </td>
+                  <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+                    <p className="font-semibold text-slate-600">
+                      Sent:{" "}
+                      {offer.sent_at
+                        ? new Date(offer.sent_at).toLocaleString()
+                        : "Not set"}
+                    </p>
 
-                      <td className="px-4 py-4">
-                        {!hasAssignedNotary && offer.status === "accepted" ? (
-                          <form
-                            action={`/dashboard/orders/${assignment.id}/find-notary/assign-offer/${offer.id}`}
-                            method="POST"
-                          >
-                            <button
-                              type="submit"
-                              className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
-                            >
-                              Assign
-                            </button>
-                          </form>
-                        ) : offer.status === "assigned" ? (
-                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
-                            Assigned
-                          </span>
-                        ) : (
-                          <span className="text-xs font-semibold text-slate-500">
-                            —
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                    {!hasAssignedNotary && offer.status === "accepted" ? (
+                      <form
+                        action={`/dashboard/orders/${assignment.id}/find-notary/assign-offer/${offer.id}`}
+                        method="POST"
+                      >
+                        <button
+                          type="submit"
+                          className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 sm:w-auto"
+                        >
+                          Assign
+                        </button>
+                      </form>
+                    ) : offer.status === "assigned" ? (
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                        Assigned
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
