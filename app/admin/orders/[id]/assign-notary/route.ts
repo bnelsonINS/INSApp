@@ -1,20 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/src/lib/supabase-server";
 
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   const supabase = await createSupabaseServerClient();
 
   const formData = await request.formData();
   const notaryId = String(formData.get("notary_id") || "");
 
   if (!notaryId) {
-    return NextResponse.json(
-      { error: "Missing notary_id" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Missing notary_id" }, { status: 400 });
   }
 
   const {
@@ -42,7 +41,7 @@ export async function POST(
       status: "assigned",
       assigned_at: new Date().toISOString(),
     })
-    .eq("id", params.id);
+    .eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
