@@ -51,7 +51,7 @@ export default function NotariesPage() {
                   "Revenue tracking",
                   "Mileage tracking",
                   "Tax-ready reporting",
-                  "Universal Order Import™",
+                  "Universal Order Import",
                   "Manual order entry",
                   "Business analytics",
                 ].map((item) => <p key={item} className="rounded-2xl bg-white/10 p-4 font-bold">✓ {item}</p>)}

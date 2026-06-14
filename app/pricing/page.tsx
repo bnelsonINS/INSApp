@@ -7,8 +7,8 @@ export default function PricingPage() {
       <section className="px-4 py-20 sm:px-6 lg:px-8">
         <SectionIntro
           eyebrow="Pricing"
-          title="Simple pricing built around the way INS will be used."
-          body="Title company pricing is handled through demo conversations. INS Professional Suite is planned as one affordable notary add-on."
+          title="Simple pricing. Start free and upgrade only if you need more."
+          body="The INS platform is free for notaries. INS Professional is an optional $10/month add-on designed for notaries who want advanced business tools."
         />
 
         <div className="mx-auto mt-12 grid max-w-5xl gap-6 lg:grid-cols-2">
