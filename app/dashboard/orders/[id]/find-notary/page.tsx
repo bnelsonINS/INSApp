@@ -84,6 +84,16 @@ export default async function FindNotaryPage({ params }: PageProps) {
 
   if (!assignment) redirect("/dashboard/orders");
 
+  const hasAssignedNotary = Boolean(assignment.assigned_notary_id);
+
+  const { data: assignedNotary } = assignment.assigned_notary_id
+    ? await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .eq("id", assignment.assigned_notary_id)
+        .single()
+    : { data: null };
+
   const { data: existingOffers } = await supabase
     .from("assignment_offers")
     .select(
@@ -102,16 +112,15 @@ export default async function FindNotaryPage({ params }: PageProps) {
     .order("round_number", { ascending: true })
     .order("sent_at", { ascending: false });
 
+  const acceptedOffers =
+    existingOffers?.filter((offer) => offer.status === "accepted") ?? [];
+
   const highestRound =
     existingOffers && existingOffers.length > 0
       ? Math.max(...existingOffers.map((offer) => offer.round_number || 0))
       : 0;
 
   const nextRound = highestRound + 1;
-
-  const alreadyOfferedNotaryIds = new Set(
-    (existingOffers || []).map((offer) => offer.notary_id)
-  );
 
   const currentQuarter = Math.floor(new Date().getMonth() / 3) + 1;
   const currentYear = new Date().getFullYear();
@@ -132,6 +141,8 @@ export default async function FindNotaryPage({ params }: PageProps) {
     )
     .eq("role", "notary")
     .eq("is_active", true);
+
+  const notaryById = new Map((notaries || []).map((n) => [n.id, n]));
 
   const notaryIds = (notaries || []).map((n) => n.id);
   const safeIds =
@@ -166,6 +177,10 @@ export default async function FindNotaryPage({ params }: PageProps) {
       .in("notary_id", safeIds),
   ]);
 
+  const scoreByNotaryId = new Map(
+    (scores || []).map((score) => [score.notary_id, score.current_score])
+  );
+
   const jobZip = (assignment.signing_zip || "").trim();
   const jobCounty = normalizeCounty(assignment.signing_county);
 
@@ -187,8 +202,7 @@ export default async function FindNotaryPage({ params }: PageProps) {
             normalizeCounty(c.county) === jobCounty
         ) ?? false;
 
-      const score =
-        scores?.find((s) => s.notary_id === notary.id)?.current_score ?? 100;
+      const score = scoreByNotaryId.get(notary.id) ?? 100;
 
       const metric = metrics?.find((m) => m.notary_id === notary.id);
 
@@ -211,7 +225,6 @@ export default async function FindNotaryPage({ params }: PageProps) {
         lifetimeClosings: metric?.total_assignments_completed ?? 0,
         responseRate: metric?.response_rate ?? 0,
         latestOffer,
-        alreadyOffered: alreadyOfferedNotaryIds.has(notary.id),
       };
     })
     .filter((candidate) => candidate.matchStrength > 0)
@@ -248,6 +261,40 @@ export default async function FindNotaryPage({ params }: PageProps) {
           Back to Order
         </Link>
       </div>
+
+      {hasAssignedNotary ? (
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900">
+          <p className="font-bold">This signing has already been assigned.</p>
+
+          <p className="mt-1">
+            Assigned to{" "}
+            <span className="font-bold">
+              {assignedNotary?.full_name ?? "Unknown Notary"}
+            </span>
+            {assignedNotary?.email ? <span> ({assignedNotary.email})</span> : null}
+            .
+          </p>
+
+          <Link
+            href={`/dashboard/orders/${assignment.id}`}
+            className="mt-3 inline-flex rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800"
+          >
+            View Order
+          </Link>
+        </div>
+      ) : acceptedOffers.length > 0 ? (
+        <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900">
+          <p className="font-bold">
+            {acceptedOffers.length} notary response
+            {acceptedOffers.length === 1 ? "" : "s"} accepted.
+          </p>
+
+          <p className="mt-1">
+            Review the offer history below and assign the notary you want. New
+            rounds are still allowed until a notary is assigned.
+          </p>
+        </div>
+      ) : null}
 
       <section className="rounded-2xl bg-[#0B1F4D] p-6 text-white shadow-sm">
         <div className="grid gap-6 lg:grid-cols-4">
@@ -342,14 +389,17 @@ export default async function FindNotaryPage({ params }: PageProps) {
 
                   <tbody className="divide-y divide-slate-200 bg-white">
                     {candidates.map((candidate) => (
-                      <tr key={candidate.id}>
+                      <tr
+                        key={candidate.id}
+                        className={hasAssignedNotary ? "opacity-60" : ""}
+                      >
                         <td className="px-4 py-4">
                           <input
                             type="checkbox"
                             name="notary_ids"
                             value={candidate.id}
-                            disabled={candidate.alreadyOffered}
-                            className="h-4 w-4 rounded border-slate-300"
+                            disabled={hasAssignedNotary}
+                            className="h-4 w-4 rounded border-slate-300 disabled:cursor-not-allowed"
                           />
                         </td>
 
@@ -435,7 +485,9 @@ export default async function FindNotaryPage({ params }: PageProps) {
                 <div className="flex justify-between">
                   <span className="text-slate-500">Status</span>
                   <span className="font-semibold text-slate-900">
-                    {assignment.status ?? "Unknown"}
+                    {hasAssignedNotary
+                      ? "Assigned"
+                      : assignment.status ?? "Unknown"}
                   </span>
                 </div>
 
@@ -447,9 +499,16 @@ export default async function FindNotaryPage({ params }: PageProps) {
                 </div>
 
                 <div className="flex justify-between">
+                  <span className="text-slate-500">Accepted Responses</span>
+                  <span className="font-semibold text-slate-900">
+                    {acceptedOffers.length}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
                   <span className="text-slate-500">Next Round</span>
                   <span className="font-semibold text-slate-900">
-                    Round {nextRound}
+                    {hasAssignedNotary ? "Disabled" : `Round ${nextRound}`}
                   </span>
                 </div>
               </div>
@@ -460,17 +519,26 @@ export default async function FindNotaryPage({ params }: PageProps) {
                 Send Offers
               </h2>
 
-              <p className="mt-2 text-sm text-slate-600">
-                Select one or more available notaries from the candidate list,
-                then send the next round of offers.
-              </p>
+              {hasAssignedNotary ? (
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                  This assignment already has an assigned notary. Sending more
+                  rounds is disabled.
+                </div>
+              ) : (
+                <>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Select one or more available notaries from the candidate
+                    list, then send the next round of offers.
+                  </p>
 
-              <button
-                type="submit"
-                className="mt-4 w-full rounded-xl bg-[#0B1F4D] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#12306f]"
-              >
-                Send Round {nextRound}
-              </button>
+                  <button
+                    type="submit"
+                    className="mt-4 w-full rounded-xl bg-[#0B1F4D] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#12306f]"
+                  >
+                    Send Round {nextRound}
+                  </button>
+                </>
+              )}
             </section>
           </aside>
         </div>
@@ -489,34 +557,87 @@ export default async function FindNotaryPage({ params }: PageProps) {
               <thead className="bg-slate-100 text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Round</th>
-                  <th className="px-4 py-3">Notary ID</th>
+                  <th className="px-4 py-3">Notary</th>
+                  <th className="px-4 py-3">Score</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Fee</th>
                   <th className="px-4 py-3">Sent</th>
+                  <th className="px-4 py-3">Action</th>
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-slate-200 bg-white">
-                {existingOffers.map((offer) => (
-                  <tr key={offer.id}>
-                    <td className="px-4 py-4 font-semibold">
-                      Round {offer.round_number}
-                    </td>
-                    <td className="px-4 py-4 text-slate-600">
-                      {offer.notary_id}
-                    </td>
-                    <td className="px-4 py-4 font-semibold text-slate-700">
-                      {offer.status}
-                    </td>
-                    <td className="px-4 py-4">
-                      {formatMoney(offer.offered_fee)}
-                    </td>
-                    <td className="px-4 py-4 text-slate-600">
-                      {offer.sent_at
-                        ? new Date(offer.sent_at).toLocaleString()
-                        : "Not set"}
-                    </td>
-                  </tr>
-                ))}
+                {existingOffers.map((offer) => {
+                  const offerNotary = notaryById.get(offer.notary_id);
+                  const offerScore = scoreByNotaryId.get(offer.notary_id);
+
+                  return (
+                    <tr key={offer.id}>
+                      <td className="px-4 py-4 font-bold text-slate-900">
+                        Round {offer.round_number}
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <p className="font-semibold text-slate-900">
+                          {offerNotary?.full_name ?? "Unknown Notary"}
+                        </p>
+                        <p className="text-xs text-slate-600">
+                          {offerNotary?.email ?? offer.notary_id}
+                        </p>
+                      </td>
+
+                      <td className="px-4 py-4">
+                        {offerScore !== undefined && offerScore !== null ? (
+                          <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
+                            {offerScore}%
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                            Not scored
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4 font-semibold text-slate-900">
+                        {offer.status}
+                      </td>
+
+                      <td className="px-4 py-4 font-semibold text-slate-900">
+                        {formatMoney(offer.offered_fee)}
+                      </td>
+
+                      <td className="px-4 py-4 font-semibold text-slate-700">
+                        {offer.sent_at
+                          ? new Date(offer.sent_at).toLocaleString()
+                          : "Not set"}
+                      </td>
+
+                      <td className="px-4 py-4">
+                        {!hasAssignedNotary && offer.status === "accepted" ? (
+                          <form
+                            action={`/dashboard/orders/${assignment.id}/find-notary/assign-offer/${offer.id}`}
+                            method="POST"
+                          >
+                            <button
+                              type="submit"
+                              className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
+                            >
+                              Assign
+                            </button>
+                          </form>
+                        ) : offer.status === "assigned" ? (
+                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                            Assigned
+                          </span>
+                        ) : (
+                          <span className="text-xs font-semibold text-slate-500">
+                            —
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

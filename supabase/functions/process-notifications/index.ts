@@ -1,3 +1,4 @@
+// @ts-nocheck
 // supabase/functions/process-notifications/index.ts
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -147,14 +148,18 @@ serve(async () => {
 
 async function sendEmail(notification: NotificationRow, resendApiKey: string) {
   const to =
-    notification.metadata?.email ||
-    notification.metadata?.recipient_email;
+    notification.metadata?.email || notification.metadata?.recipient_email;
 
   if (!to) {
     throw new Error("Missing recipient email in notification metadata.");
   }
 
   const message = buildNotificationMessage(notification);
+
+  if (!message) {
+    throw new Error("Missing email message body.");
+  }
+
   const htmlMessage = buildEmailHtml(message);
 
   const emailResponse = await fetch("https://api.resend.com/emails", {
