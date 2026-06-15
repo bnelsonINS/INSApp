@@ -327,7 +327,11 @@ export async function POST(
 
     await supabase.from("assignment_offer_events").insert(eventsToInsert);
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin;
+    const baseUrl = (
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : request.nextUrl.origin)
+).replace(/\/$/, "");
 
     const notificationsToInsert = insertedOffers
       .map((offer) => {

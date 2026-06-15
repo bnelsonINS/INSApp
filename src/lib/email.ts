@@ -9,6 +9,16 @@ const fromEmail =
 const logoUrl =
   "https://img1.wsimg.com/isteam/ip/5d0c76c0-7737-4179-b443-5371edbb7539/blob.png/:/rs=w:100,h:100,cg:true,m/cr=w:100,h:100/qt=q:95";
 
+function getBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000")
+  ).replace(/\/$/, "");
+}
+
 export async function sendNotaryWelcomeEmail({
   to,
   fullName,
@@ -16,7 +26,7 @@ export async function sendNotaryWelcomeEmail({
   to: string;
   fullName: string;
 }) {
-  const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/notary/dashboard`;
+  const dashboardUrl = `${getBaseUrl()}/notary/dashboard`;
 
   return resend.emails.send({
     from: fromEmail,
@@ -89,7 +99,7 @@ export async function sendClientWelcomeEmail({
   fullName: string;
   businessName?: string;
 }) {
-  const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/client/dashboard`;
+  const dashboardUrl = `${getBaseUrl()}/client/dashboard`;
 
   return resend.emails.send({
     from: fromEmail,
