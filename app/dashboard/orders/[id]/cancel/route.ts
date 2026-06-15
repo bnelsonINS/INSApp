@@ -1,6 +1,37 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "../../../../../src/lib/supabase-server";
 
+function formatDate(value: string | null | undefined) {
+  if (!value) return "Not listed";
+
+  const date = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatTime(value: string | null | undefined) {
+  if (!value) return "Not listed";
+
+  const [hours, minutes] = value.split(":");
+
+  if (!hours || !minutes) return value;
+
+  const date = new Date();
+  date.setHours(Number(hours), Number(minutes), 0, 0);
+
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
@@ -27,7 +58,11 @@ export async function POST(
     .eq("id", user.id)
     .single();
 
-  if (!adminProfile || adminProfile.role !== "admin" || !adminProfile.is_active) {
+  if (
+    !adminProfile ||
+    adminProfile.role !== "admin" ||
+    !adminProfile.is_active
+  ) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
@@ -53,6 +88,7 @@ export async function POST(
     .from("assignments")
     .update({
       status: "Cancelled",
+      updated_at: new Date().toISOString(),
     })
     .eq("id", id);
 
@@ -89,8 +125,12 @@ Order Details
 
 Order Number: Order-${orderNumber}
 Borrower Name: ${order.borrower_name || "Not listed"}
-Signing Date: ${order.signing_date || "Not listed"}
-Signing Time: ${order.signing_time || "Not listed"}
+Signing Date: ${formatDate(order.signing_date)}
+Signing Time: ${formatTime(order.signing_time)}
+
+No action is needed from you on this cancelled order.
+
+Indiana Notary Solutions
 `.trim();
 
       await supabase.from("notification_queue").insert({

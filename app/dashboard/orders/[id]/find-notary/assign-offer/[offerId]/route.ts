@@ -45,11 +45,12 @@ function formatTime(value: string | null | undefined) {
   });
 }
 
-function buildOrderLink(request: NextRequest, assignmentId: string) {
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
+function buildOrderLink(assignmentId: string) {
+  const appUrl = (
     process.env.NEXT_PUBLIC_SITE_URL ||
-    request.nextUrl.origin;
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://ins-app.vercel.app"
+  ).replace(/\/$/, "");
 
   return `${appUrl}/notary/orders/${assignmentId}`;
 }
@@ -141,8 +142,10 @@ export async function POST(
     .from("assignments")
     .update({
       assigned_notary_id: offer.notary_id,
+      notary_id: offer.notary_id,
       status: "assigned",
       assigned_at: now,
+      updated_at: now,
     })
     .eq("id", id);
 
@@ -178,7 +181,7 @@ export async function POST(
 
   if (newNotary?.email) {
     const orderNumber = assignment.control_number || id;
-    const orderLink = buildOrderLink(request, id);
+    const orderLink = buildOrderLink(id);
 
     const { data: signers } = await supabase
       .from("assignment_signers")
@@ -209,7 +212,7 @@ You have been assigned to Order-${orderNumber}.
 Order Details
 
 Order Number: Order-${orderNumber}
-Status: ${assignment.status || "Not listed"}
+Status: assigned
 Signing Type: ${assignment.signing_type || "Not listed"}
 Signing Date: ${formatDate(assignment.signing_date)}
 Signing Time: ${formatTime(assignment.signing_time)}
@@ -231,10 +234,9 @@ Special Instructions
 
 ${assignment.special_instructions || "No special instructions listed."}
 
-View the full order here:
-${orderLink}
+Please log in to your Indiana Notary Solutions dashboard to review the full assignment details.
 
-Please log in to your Indiana Notary Solutions dashboard to review the assignment details.
+Indiana Notary Solutions
 `.trim();
 
     await supabase.from("notification_queue").insert({
@@ -249,6 +251,7 @@ Please log in to your Indiana Notary Solutions dashboard to review the assignmen
         assignment_id: id,
         control_number: orderNumber,
         order_link: orderLink,
+        cta_label: "View Assignment",
       },
       attempts: 0,
     });

@@ -50,11 +50,12 @@ function formatTime(value: string | null | undefined) {
   });
 }
 
-function buildOrderLink(request: Request, assignmentId: string) {
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
+function buildOrderLink(assignmentId: string) {
+  const appUrl = (
     process.env.NEXT_PUBLIC_SITE_URL ||
-    new URL(request.url).origin;
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://ins-app.vercel.app"
+  ).replace(/\/$/, "");
 
   return `${appUrl}/notary/orders/${assignmentId}`;
 }
@@ -215,7 +216,7 @@ export async function POST(
 
   if (shouldNotifyNewNotary && newNotary) {
     const orderNumber = existingOrder.control_number || id;
-    const orderLink = buildOrderLink(request, id);
+    const orderLink = buildOrderLink(id);
 
     const { data: signers } = await supabase
       .from("assignment_signers")
@@ -268,7 +269,9 @@ Special Instructions
 
 ${existingOrder.special_instructions || "No special instructions listed."}
 
-View the full order here:
+Please log in to your Indiana Notary Solutions dashboard to review the full assignment details.
+
+Order link:
 ${orderLink}
 
 Please log in to your Indiana Notary Solutions dashboard to review the assignment details.

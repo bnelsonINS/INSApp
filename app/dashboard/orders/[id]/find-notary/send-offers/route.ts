@@ -22,6 +22,15 @@ function getScoreStatus(score: number) {
   return "Restricted";
 }
 
+function getBaseUrl(request: NextRequest) {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://ins-app.vercel.app" ||
+    request.nextUrl.origin
+  ).replace(/\/$/, "");
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -58,7 +67,10 @@ export async function POST(
 
   if (selectedNotaryIds.length === 0) {
     return NextResponse.redirect(
-      new URL(`/dashboard/orders/${id}/find-notary?error=no-notaries`, request.url)
+      new URL(
+        `/dashboard/orders/${id}/find-notary?error=no-notaries`,
+        request.url
+      )
     );
   }
 
@@ -191,16 +203,6 @@ export async function POST(
             normalizeCounty(county.county) === jobCounty
         ) ?? false;
 
-      /*
-        Real mileage is not available here yet.
-
-        Temporary distance rank:
-        1 = exact ZIP coverage
-        2 = county coverage
-        3 = selected manually but no coverage match
-
-        Once you store latitude/longitude, replace this with real distance miles.
-      */
       const distanceRank = zipMatches ? 1 : countyMatches ? 2 : 3;
 
       return {
@@ -216,18 +218,11 @@ export async function POST(
       };
     })
     .sort((a, b) => {
-      if (a.distanceRank !== b.distanceRank) {
-        return a.distanceRank - b.distanceRank;
-      }
-
-      if (b.score !== a.score) {
-        return b.score - a.score;
-      }
-
+      if (a.distanceRank !== b.distanceRank) return a.distanceRank - b.distanceRank;
+      if (b.score !== a.score) return b.score - a.score;
       if (b.lifetimeClosings !== a.lifetimeClosings) {
         return b.lifetimeClosings - a.lifetimeClosings;
       }
-
       return b.responseRate - a.responseRate;
     });
 
@@ -294,7 +289,10 @@ export async function POST(
     console.error("Send offers error:", offerError);
 
     return NextResponse.redirect(
-      new URL(`/dashboard/orders/${id}/find-notary?error=send-failed`, request.url)
+      new URL(
+        `/dashboard/orders/${id}/find-notary?error=send-failed`,
+        request.url
+      )
     );
   }
 
@@ -327,11 +325,7 @@ export async function POST(
 
     await supabase.from("assignment_offer_events").insert(eventsToInsert);
 
-    const baseUrl = (
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : request.nextUrl.origin)
-).replace(/\/$/, "");
+    const baseUrl = getBaseUrl(request);
 
     const notificationsToInsert = insertedOffers
       .map((offer) => {
@@ -368,8 +362,7 @@ export async function POST(
             "en-US"
           )}`,
           "",
-          "Review this offer here:",
-          offerUrl,
+          "Please use the button below to review and respond to this signing offer.",
           "",
           "You will be able to accept, decline, or counter from that page.",
           "",
@@ -395,6 +388,7 @@ export async function POST(
             offered_fee: assignment.notary_fee,
             control_number: assignment.control_number,
             offer_url: offerUrl,
+            cta_label: "Review Signing Offer",
             score_at_offer: notary.score,
             score_status_at_offer: notary.scoreStatus,
             distance_rank_at_offer: notary.distanceRank,
@@ -422,6 +416,9 @@ export async function POST(
   }
 
   return NextResponse.redirect(
-    new URL(`/dashboard/orders/${id}/find-notary?success=offers-sent`, request.url)
+    new URL(
+      `/dashboard/orders/${id}/find-notary?success=offers-sent`,
+      request.url
+    )
   );
 }

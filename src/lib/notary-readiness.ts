@@ -38,6 +38,14 @@ type CredentialRow = {
   status: string | null;
 };
 
+function getBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://ins-app.vercel.app"
+  ).replace(/\/$/, "");
+}
+
 function hasValue(value: string | null) {
   return Boolean(value && value.trim().length > 0);
 }
@@ -144,21 +152,23 @@ export async function checkAndSubmitNotaryForReview(
     .select("id, email, full_name")
     .eq("role", "admin")
     .eq("is_active", true)
-    .returns<Array<{ id: string; email: string | null; full_name: string | null }>>();
+    .returns<
+      Array<{ id: string; email: string | null; full_name: string | null }>
+    >();
 
   const notaryName = getNotaryName(notaryProfile, userProfile);
+  const reviewUrl = `${getBaseUrl()}/dashboard/users/${userId}`;
 
   const notifications =
-  admins
-    ?.filter((admin) => admin.email)
-    .map((admin) => ({
-      user_id: admin.id,
-      channel: "email",
-      type: "notary_ready_for_review",
-
-      subject: "Notary Ready For Review",
-
-      message: `Hello Admin,
+    admins
+      ?.filter((admin) => admin.email)
+      .map((admin) => ({
+        user_id: admin.id,
+        channel: "email",
+        type: "notary_ready_for_review",
+        status: "pending",
+        subject: "Notary Ready For Review",
+        message: `Hello Admin,
 
 ${notaryName} has completed their profile and credential submission.
 
@@ -167,21 +177,21 @@ Notary Details
 Name: ${notaryName}
 Email: ${userProfile.email ?? "-"}
 
-Review:
-Dashboard > Users > ${notaryName}
+Please review this notary in the admin dashboard.
 `,
+        metadata: {
+          email: admin.email,
+          admin_name: admin.full_name,
+          notary_user_id: userId,
+          notary_name: notaryName,
+          notary_email: userProfile.email,
+          review_url: reviewUrl,
+          cta_label: "Review Notary",
+        },
+        attempts: 0,
+      })) || [];
 
-      metadata: {
-        email: admin.email,
-        admin_name: admin.full_name,
-        notary_user_id: userId,
-        notary_name: notaryName,
-        notary_email: userProfile.email,
-        review_url: `/dashboard/users/${userId}`,
-      },
-    })) || [];
-
-if (notifications.length > 0) {
-  await supabase.from("notification_queue").insert(notifications);
-}
+  if (notifications.length > 0) {
+    await supabase.from("notification_queue").insert(notifications);
+  }
 }
