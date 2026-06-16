@@ -23,7 +23,11 @@ function getScoreStatus(score: number) {
 }
 
 function getBaseUrl() {
-  return "https://ins-app.vercel.app";
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://indiananotarysolutions.com"
+  ).replace(/\/$/, "");
 }
 
 export async function POST(

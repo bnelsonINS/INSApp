@@ -40,10 +40,12 @@ function buildOrderLink(assignmentId: string) {
   const appUrl = (
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
-    "https://ins-app.vercel.app"
+    "https://indiananotarysolutions.com"
   ).replace(/\/$/, "");
 
-  return `${appUrl}/notary/orders/${assignmentId}`;
+  const redirectTarget = `/notary/assignments/${assignmentId}`;
+
+  return `${appUrl}/login?redirectTo=${encodeURIComponent(redirectTarget)}`;
 }
 
 function normalizePhone(phone: string | null | undefined) {

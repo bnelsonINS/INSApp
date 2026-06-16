@@ -27,7 +27,7 @@ export async function POST(
   }
 
   if (offer.notary_id !== user.id) {
-    return NextResponse.redirect(new URL("/notary/orders", request.url));
+    return NextResponse.redirect(new URL("/notary/assignments", request.url));
   }
 
   const isExpired =

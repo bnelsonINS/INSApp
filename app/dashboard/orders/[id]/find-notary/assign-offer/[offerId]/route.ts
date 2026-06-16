@@ -45,12 +45,20 @@ function formatTime(value: string | null | undefined) {
   });
 }
 
-function buildOrderLink(assignmentId: string) {
-  const appUrl = "https://ins-app.vercel.app";
+function getBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://indiananotarysolutions.com"
+  ).replace(/\/$/, "");
+}
 
-  return `${appUrl}/login?redirectTo=${encodeURIComponent(
-  `/notary/assignments/${assignmentId}`
-)}`;
+function buildOrderLink(assignmentId: string) {
+  const redirectTarget = `/notary/assignments/${assignmentId}`;
+
+  return `${getBaseUrl()}/login?redirectTo=${encodeURIComponent(
+    redirectTarget
+  )}`;
 }
 
 export async function POST(

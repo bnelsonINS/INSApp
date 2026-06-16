@@ -13,6 +13,20 @@ export default async function LoginPage({
   const error = params?.error;
   const redirectTo = params?.redirectTo;
 
+  const safeRedirectTo =
+    redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")
+      ? redirectTo
+      : "";
+
+  const initialSupabase = await createSupabaseServerClient();
+  const {
+    data: { user: existingUser },
+  } = await initialSupabase.auth.getUser();
+
+  if (existingUser && safeRedirectTo) {
+    redirect(safeRedirectTo);
+  }
+
   async function signIn(formData: FormData) {
     "use server";
 
@@ -120,7 +134,7 @@ export default async function LoginPage({
             )}
 
             <form action={signIn} className="mt-8 space-y-5">
-              <input type="hidden" name="redirectTo" value={redirectTo || ""} />
+              <input type="hidden" name="redirectTo" value={safeRedirectTo} />
 
               <div>
                 <label className="text-sm font-semibold text-slate-700">

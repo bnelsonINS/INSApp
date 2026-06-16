@@ -13,7 +13,7 @@ function getBaseUrl() {
   return (
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
-    "https://ins-app.vercel.app"
+    "https://indiananotarysolutions.com"
   ).replace(/\/$/, "");
 }
 
