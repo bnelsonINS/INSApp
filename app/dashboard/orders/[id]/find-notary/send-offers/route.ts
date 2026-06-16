@@ -22,12 +22,13 @@ function getScoreStatus(score: number) {
   return "Restricted";
 }
 
-function getBaseUrl(request: NextRequest) {
+function getBaseUrl() {
   return (
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
-    "https://ins-app.vercel.app" ||
-    request.nextUrl.origin
+    (process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "https://ins-app.vercel.app")
   ).replace(/\/$/, "");
 }
 
@@ -67,17 +68,13 @@ export async function POST(
 
   if (selectedNotaryIds.length === 0) {
     return NextResponse.redirect(
-      new URL(
-        `/dashboard/orders/${id}/find-notary?error=no-notaries`,
-        request.url
-      )
+      new URL(`/dashboard/orders/${id}/find-notary?error=no-notaries`, request.url)
     );
   }
 
   const { data: assignment } = await supabase
     .from("assignments")
-    .select(
-      `
+    .select(`
       id,
       control_number,
       borrower_name,
@@ -90,8 +87,7 @@ export async function POST(
       signing_county,
       notary_fee,
       assigned_notary_id
-    `
-    )
+    `)
     .eq("id", id)
     .single();
 
@@ -101,17 +97,13 @@ export async function POST(
 
   if (assignment.assigned_notary_id) {
     return NextResponse.redirect(
-      new URL(
-        `/dashboard/orders/${id}/find-notary?error=already-assigned`,
-        request.url
-      )
+      new URL(`/dashboard/orders/${id}/find-notary?error=already-assigned`, request.url)
     );
   }
 
   const { data: notaries } = await supabase
     .from("profiles")
-    .select(
-      `
+    .select(`
       id,
       full_name,
       email,
@@ -120,8 +112,7 @@ export async function POST(
       approval_status,
       is_active,
       role
-    `
-    )
+    `)
     .in("id", selectedNotaryIds)
     .eq("role", "notary")
     .eq("is_active", true);
@@ -130,10 +121,7 @@ export async function POST(
 
   if (validNotaries.length === 0) {
     return NextResponse.redirect(
-      new URL(
-        `/dashboard/orders/${id}/find-notary?error=no-valid-notaries`,
-        request.url
-      )
+      new URL(`/dashboard/orders/${id}/find-notary?error=no-valid-notaries`, request.url)
     );
   }
 
@@ -232,10 +220,7 @@ export async function POST(
 
   if (restrictedNotaries.length > 0 && !allowLowScoreOverride) {
     return NextResponse.redirect(
-      new URL(
-        `/dashboard/orders/${id}/find-notary?error=restricted-notary`,
-        request.url
-      )
+      new URL(`/dashboard/orders/${id}/find-notary?error=restricted-notary`, request.url)
     );
   }
 
@@ -289,10 +274,7 @@ export async function POST(
     console.error("Send offers error:", offerError);
 
     return NextResponse.redirect(
-      new URL(
-        `/dashboard/orders/${id}/find-notary?error=send-failed`,
-        request.url
-      )
+      new URL(`/dashboard/orders/${id}/find-notary?error=send-failed`, request.url)
     );
   }
 
@@ -325,7 +307,7 @@ export async function POST(
 
     await supabase.from("assignment_offer_events").insert(eventsToInsert);
 
-    const baseUrl = getBaseUrl(request);
+    const baseUrl = getBaseUrl();
 
     const notificationsToInsert = insertedOffers
       .map((offer) => {
@@ -350,17 +332,11 @@ export async function POST(
           `Signing Time: ${assignment.signing_time ?? "Not scheduled"}`,
           `Location: ${assignment.signing_address ?? ""}, ${
             assignment.signing_city ?? ""
-          }, ${assignment.signing_state ?? ""} ${
-            assignment.signing_zip ?? ""
-          }`,
+          }, ${assignment.signing_state ?? ""} ${assignment.signing_zip ?? ""}`,
           `County: ${assignment.signing_county ?? "Not provided"}`,
-          `Fee: ${
-            assignment.notary_fee ? `$${assignment.notary_fee}` : "Not set"
-          }`,
+          `Fee: ${assignment.notary_fee ? `$${assignment.notary_fee}` : "Not set"}`,
           "",
-          `This offer expires at: ${new Date(expiresAt).toLocaleString(
-            "en-US"
-          )}`,
+          `This offer expires at: ${new Date(expiresAt).toLocaleString("en-US")}`,
           "",
           "Please use the button below to review and respond to this signing offer.",
           "",
@@ -416,9 +392,6 @@ export async function POST(
   }
 
   return NextResponse.redirect(
-    new URL(
-      `/dashboard/orders/${id}/find-notary?success=offers-sent`,
-      request.url
-    )
+    new URL(`/dashboard/orders/${id}/find-notary?success=offers-sent`, request.url)
   );
 }
