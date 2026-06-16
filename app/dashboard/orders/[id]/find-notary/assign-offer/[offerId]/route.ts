@@ -46,13 +46,9 @@ function formatTime(value: string | null | undefined) {
 }
 
 function buildOrderLink(assignmentId: string) {
-  const appUrl = (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "https://ins-app.vercel.app"
-  ).replace(/\/$/, "");
+  const appUrl = "https://ins-app.vercel.app";
 
-  return `${appUrl}/notary/orders/${assignmentId}`;
+  return `${appUrl}/notary/assignments/${assignmentId}`;
 }
 
 export async function POST(
