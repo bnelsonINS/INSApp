@@ -7,16 +7,18 @@ import { createSupabaseServerClient } from "../../src/lib/supabase-server";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string }>;
+  searchParams?: Promise<{ error?: string; redirectTo?: string }>;
 }) {
   const params = await searchParams;
   const error = params?.error;
+  const redirectTo = params?.redirectTo;
 
   async function signIn(formData: FormData) {
     "use server";
 
     const email = String(formData.get("email") || "");
     const password = String(formData.get("password") || "");
+    const redirectTarget = String(formData.get("redirectTo") || "");
 
     const supabase = await createSupabaseServerClient();
 
@@ -25,7 +27,15 @@ export default async function LoginPage({
       password,
     });
 
-    if (error) redirect("/login?error=Invalid email or password");
+    if (error) {
+      redirect(
+        `/login?error=Invalid email or password${
+          redirectTarget
+            ? `&redirectTo=${encodeURIComponent(redirectTarget)}`
+            : ""
+        }`
+      );
+    }
 
     const {
       data: { user },
@@ -38,6 +48,14 @@ export default async function LoginPage({
       .select("role")
       .eq("id", user.id)
       .single();
+
+    if (
+      redirectTarget &&
+      redirectTarget.startsWith("/") &&
+      !redirectTarget.startsWith("//")
+    ) {
+      redirect(redirectTarget);
+    }
 
     if (profile?.role === "admin") redirect("/dashboard");
     if (profile?.role === "notary") redirect("/notary/dashboard");
@@ -102,6 +120,8 @@ export default async function LoginPage({
             )}
 
             <form action={signIn} className="mt-8 space-y-5">
+              <input type="hidden" name="redirectTo" value={redirectTo || ""} />
+
               <div>
                 <label className="text-sm font-semibold text-slate-700">
                   Email address
@@ -148,9 +168,7 @@ export default async function LoginPage({
             </form>
 
             <div className="mt-8 border-t border-slate-200 pt-6 text-center">
-              <p className="text-sm text-slate-600">
-                Need an account?
-              </p>
+              <p className="text-sm text-slate-600">Need an account?</p>
 
               <Link
                 href="/signup"

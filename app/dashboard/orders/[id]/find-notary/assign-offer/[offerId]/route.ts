@@ -48,7 +48,9 @@ function formatTime(value: string | null | undefined) {
 function buildOrderLink(assignmentId: string) {
   const appUrl = "https://ins-app.vercel.app";
 
-  return `${appUrl}/notary/assignments/${assignmentId}`;
+  return `${appUrl}/login?redirectTo=${encodeURIComponent(
+  `/notary/assignments/${assignmentId}`
+)}`;
 }
 
 export async function POST(
