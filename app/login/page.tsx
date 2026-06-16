@@ -19,6 +19,7 @@ export default async function LoginPage({
       : "";
 
   const initialSupabase = await createSupabaseServerClient();
+
   const {
     data: { user: existingUser },
   } = await initialSupabase.auth.getUser();
@@ -34,6 +35,13 @@ export default async function LoginPage({
     const password = String(formData.get("password") || "");
     const redirectTarget = String(formData.get("redirectTo") || "");
 
+    const safeRedirectTarget =
+      redirectTarget &&
+      redirectTarget.startsWith("/") &&
+      !redirectTarget.startsWith("//")
+        ? redirectTarget
+        : "";
+
     const supabase = await createSupabaseServerClient();
 
     const { error } = await supabase.auth.signInWithPassword({
@@ -44,8 +52,8 @@ export default async function LoginPage({
     if (error) {
       redirect(
         `/login?error=Invalid email or password${
-          redirectTarget
-            ? `&redirectTo=${encodeURIComponent(redirectTarget)}`
+          safeRedirectTarget
+            ? `&redirectTo=${encodeURIComponent(safeRedirectTarget)}`
             : ""
         }`
       );
@@ -55,7 +63,15 @@ export default async function LoginPage({
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) redirect("/login?error=Unable to sign in");
+    if (!user) {
+      redirect(
+        `/login?error=Unable to sign in${
+          safeRedirectTarget
+            ? `&redirectTo=${encodeURIComponent(safeRedirectTarget)}`
+            : ""
+        }`
+      );
+    }
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -63,12 +79,8 @@ export default async function LoginPage({
       .eq("id", user.id)
       .single();
 
-    if (
-      redirectTarget &&
-      redirectTarget.startsWith("/") &&
-      !redirectTarget.startsWith("//")
-    ) {
-      redirect(redirectTarget);
+    if (safeRedirectTarget) {
+      redirect(safeRedirectTarget);
     }
 
     if (profile?.role === "admin") redirect("/dashboard");
