@@ -13,6 +13,10 @@ type NotificationMetadata = {
   admin_notes?: string;
   rejection_reason?: string;
   reason?: string;
+  offer_url?: string;
+  order_link?: string;
+  review_url?: string;
+  cta_label?: string;
   [key: string]: unknown;
 };
 
@@ -160,7 +164,7 @@ async function sendEmail(notification: NotificationRow, resendApiKey: string) {
     throw new Error("Missing email message body.");
   }
 
-  const htmlMessage = buildEmailHtml(message);
+  const htmlMessage = buildEmailHtml(message, notification.metadata);
 
   const emailResponse = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -256,15 +260,42 @@ async function sendSms(
   }
 }
 
-function buildEmailHtml(message: string) {
-  const escaped = escapeHtml(message);
+function getCtaUrl(metadata: NotificationMetadata | null) {
+  if (!metadata) return null;
 
-  const linked = escaped.replace(
-    /(https?:\/\/[^\s<]+)/g,
-    '<a href="$1" style="color:#0f766e;">$1</a>'
+  return (
+    metadata.offer_url ||
+    metadata.order_link ||
+    metadata.review_url ||
+    null
   );
+}
 
-  const htmlBody = linked.replaceAll("\n", "<br />");
+function getCtaLabel(metadata: NotificationMetadata | null) {
+  if (!metadata) return "Open Details";
+
+  return metadata.cta_label || "Open Details";
+}
+
+function buildEmailHtml(
+  message: string,
+  metadata: NotificationMetadata | null
+) {
+  const escaped = escapeHtml(message);
+  const htmlBody = escaped.replaceAll("\n", "<br />");
+
+  const ctaUrl = getCtaUrl(metadata);
+  const ctaLabel = getCtaLabel(metadata);
+
+  const buttonHtml = ctaUrl
+    ? `
+      <div style="margin:28px 0 8px;">
+        <a href="${escapeHtml(String(ctaUrl))}" style="background:#0f172a;color:#ffffff;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:bold;display:inline-block;">
+          ${escapeHtml(String(ctaLabel))}
+        </a>
+      </div>
+    `
+    : "";
 
   return `
     <div style="margin:0;padding:0;background:#f8fafc;">
@@ -275,6 +306,7 @@ function buildEmailHtml(message: string) {
           </h1>
           <div style="font-size:15px;">
             ${htmlBody}
+            ${buttonHtml}
           </div>
         </div>
       </div>
