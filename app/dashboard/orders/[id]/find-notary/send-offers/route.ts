@@ -23,13 +23,7 @@ function getScoreStatus(score: number) {
 }
 
 function getBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "https://ins-app.vercel.app")
-  ).replace(/\/$/, "");
+  return "https://ins-app.vercel.app";
 }
 
 export async function POST(
