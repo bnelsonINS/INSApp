@@ -47,8 +47,6 @@ export async function POST(request: NextRequest) {
         password,
         email_confirm: true,
         user_metadata: {
-          first_name: firstName,
-          last_name: lastName,
           full_name: fullName,
           company_name: businessName || null,
           role,
@@ -69,12 +67,8 @@ export async function POST(request: NextRequest) {
       id: authData.user.id,
       email,
       role,
-
-      first_name: firstName,
-      last_name: lastName,
       full_name: fullName,
       company_name: businessName || null,
-
       is_active: true,
       approval_status: "approved",
     });
