@@ -100,9 +100,9 @@ export default function NotaryPrivacyPage() {
             <p className="font-bold">Important</p>
 
             <p className="mt-2 leading-6">
-              This Privacy Policy is a working draft and should be reviewed by
+              {/* This Privacy Policy is a working draft and should be reviewed by
               legal counsel before being used as your final published privacy
-              policy.
+              policy. */}
             </p>
           </section>
         </div>
