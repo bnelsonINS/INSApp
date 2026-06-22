@@ -58,6 +58,22 @@ export async function POST(request: Request) {
     redirect("/dashboard/orders/new");
   }
 
+  let signingCounty: string | null = null;
+
+  if (signingZip) {
+    const { data: zipCodeRow, error: zipCodeError } = await supabase
+      .from("zip_codes")
+      .select("county")
+      .eq("zip_code", signingZip)
+      .maybeSingle();
+
+    if (zipCodeError) {
+      console.error("ZIP county lookup error:", zipCodeError);
+    }
+
+    signingCounty = zipCodeRow?.county || null;
+  }
+
   const { data: order, error } = await supabase
     .from("assignments")
     .insert({
@@ -74,6 +90,7 @@ export async function POST(request: Request) {
       signing_city: signingCity || null,
       signing_state: signingState || "IN",
       signing_zip: signingZip || null,
+      signing_county: signingCounty,
       fee,
       special_instructions: specialInstructions || null,
     })
