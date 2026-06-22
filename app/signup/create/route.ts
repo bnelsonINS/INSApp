@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
           first_name: firstName,
           last_name: lastName,
           full_name: fullName,
-          business_name: businessName,
+          company_name: businessName || null,
           role,
         },
         app_metadata: {
@@ -66,41 +66,18 @@ export async function POST(request: NextRequest) {
     }
 
     const { error: profileError } = await supabaseAdmin.from("profiles").insert({
-  id: authData.user.id,
-  email,
-  role,
+      id: authData.user.id,
+      email,
+      role,
 
-  first_name: firstName,
-  last_name: lastName,
-  full_name: fullName,
-  business_name: businessName || null,
+      first_name: firstName,
+      last_name: lastName,
+      full_name: fullName,
+      company_name: businessName || null,
 
-  is_active: true,
-  approval_status: "approved",
-});
-
-    if (role === "notary") {
-  try {
-    await sendNotaryWelcomeEmail({
-      to: email,
-      fullName,
+      is_active: true,
+      approval_status: "approved",
     });
-  } catch (emailError) {
-    console.error("Notary welcome email failed:", emailError);
-  }
-}
-
-if (role === "client") {
-  try {
-    await sendClientWelcomeEmail({
-      to: email,
-      fullName,
-      businessName,
-    });
-  } catch (emailError) {
-    console.error("Client welcome email failed:", emailError);
-  }
-}
 
     if (profileError) {
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
@@ -109,6 +86,25 @@ if (role === "client") {
         { error: profileError.message },
         { status: 400 }
       );
+    }
+
+    try {
+      if (role === "notary") {
+        await sendNotaryWelcomeEmail({
+          to: email,
+          fullName,
+        });
+      }
+
+      if (role === "client") {
+        await sendClientWelcomeEmail({
+          to: email,
+          fullName,
+          businessName,
+        });
+      }
+    } catch (emailError) {
+      console.error("Welcome email failed:", emailError);
     }
 
     return NextResponse.json({
