@@ -476,7 +476,7 @@ export default async function NotaryCredentialsPage() {
                         href={`/notary/credentials/${credential.id}/document`}
                         className="inline-flex h-10 items-center justify-center rounded-lg bg-[#0B1F4D] px-4 text-xs font-bold text-white transition hover:bg-blue-950"
                       >
-                        Replace
+                        Replace Document
                       </a>
 
                       <form
