@@ -31,14 +31,8 @@ function getReviewStatus(status: string | null) {
 }
 
 function getReviewStatusClass(status: string | null) {
-  if (status === "approved") {
-    return "bg-green-50 text-green-700 ring-green-200";
-  }
-
-  if (status === "rejected") {
-    return "bg-red-50 text-red-700 ring-red-200";
-  }
-
+  if (status === "approved") return "bg-green-50 text-green-700 ring-green-200";
+  if (status === "rejected") return "bg-red-50 text-red-700 ring-red-200";
   return "bg-amber-50 text-amber-700 ring-amber-200";
 }
 
@@ -56,7 +50,6 @@ function isExpired(expirationDate: string | null) {
 
 function getCredentialHealth(expirationDate: string | null) {
   if (!expirationDate) return "Missing Expiration";
-
   if (isExpired(expirationDate)) return "Expired";
 
   const today = new Date();
@@ -74,13 +67,8 @@ function getCredentialHealth(expirationDate: string | null) {
 function getCredentialHealthClass(expirationDate: string | null) {
   const health = getCredentialHealth(expirationDate);
 
-  if (health === "Current") {
-    return "bg-green-50 text-green-700 ring-green-200";
-  }
-
-  if (health === "Expired") {
-    return "bg-red-50 text-red-700 ring-red-200";
-  }
+  if (health === "Current") return "bg-green-50 text-green-700 ring-green-200";
+  if (health === "Expired") return "bg-red-50 text-red-700 ring-red-200";
 
   return "bg-amber-50 text-amber-700 ring-amber-200";
 }
@@ -89,44 +77,83 @@ type Credential = {
   credential_type: string;
   status: string | null;
   expiration_date: string | null;
+  created_at?: string | null;
 };
 
-function checkCredentialReadiness(credentials: Credential[]) {
-  const results = requiredCredentialTypes.map((type) => {
-    const credential = credentials.find(
-      (item) => item.credential_type === type && item.status === "approved"
-    );
+function getRequiredCredentialStatus(type: string, credentials: Credential[]) {
+  const matchingCredentials = credentials
+    .filter((item) => item.credential_type === type)
+    .sort((a, b) => {
+      const aDate = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bDate = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bDate - aDate;
+    });
 
-    if (!credential) {
-      return {
-        type,
-        complete: false,
-        issue: "Missing or not approved",
-      };
-    }
+  const credential = matchingCredentials[0];
 
-    if (type !== "W9" && !credential.expiration_date) {
-      return {
-        type,
-        complete: false,
-        issue: "Missing expiration date",
-      };
-    }
-
-    if (type !== "W9" && isExpired(credential.expiration_date)) {
-      return {
-        type,
-        complete: false,
-        issue: "Expired",
-      };
-    }
-
+  if (!credential) {
     return {
       type,
-      complete: true,
-      issue: null,
+      complete: false,
+      label: "Needs Attention",
+      issue: "Missing",
+      className: "bg-amber-50 text-amber-700 ring-amber-200",
     };
-  });
+  }
+
+  if (credential.status === "rejected") {
+    return {
+      type,
+      complete: false,
+      label: "Rejected",
+      issue: "Rejected by admin",
+      className: "bg-red-50 text-red-700 ring-red-200",
+    };
+  }
+
+  if (credential.status !== "approved") {
+    return {
+      type,
+      complete: false,
+      label: "In Review",
+      issue: "Pending admin review",
+      className: "bg-amber-50 text-amber-700 ring-amber-200",
+    };
+  }
+
+  if (type !== "W9" && !credential.expiration_date) {
+    return {
+      type,
+      complete: false,
+      label: "Needs Attention",
+      issue: "Missing expiration date",
+      className: "bg-amber-50 text-amber-700 ring-amber-200",
+    };
+  }
+
+  if (type !== "W9" && isExpired(credential.expiration_date)) {
+    return {
+      type,
+      complete: false,
+      label: "Expired",
+      issue: "Expired",
+      className: "bg-red-50 text-red-700 ring-red-200",
+    };
+  }
+
+  return {
+    type,
+    complete: true,
+    label: "Complete",
+    issue: "Approved and current",
+    className: "bg-green-50 text-green-700 ring-green-200",
+  };
+}
+
+function checkCredentialReadiness(credentials: Credential[]) {
+  const results = requiredCredentialTypes.map((type) =>
+    getRequiredCredentialStatus(type, credentials)
+  );
 
   return {
     complete: results.every((item) => item.complete),
@@ -215,7 +242,7 @@ export default async function NotaryCredentialsPage() {
             <p className="mt-1 max-w-3xl text-sm text-slate-600">
               {readiness.complete
                 ? "All required credentials are approved and current."
-                : "Some required credentials are missing, not approved, or expired."}
+                : "Some required credentials are missing, in review, rejected, expired, or need updates."}
             </p>
           </div>
 
@@ -240,19 +267,13 @@ export default async function NotaryCredentialsPage() {
                 <p className="font-semibold text-slate-950">{item.type}</p>
 
                 <span
-                  className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${
-                    item.complete
-                      ? "bg-green-50 text-green-700 ring-green-200"
-                      : "bg-amber-50 text-amber-700 ring-amber-200"
-                  }`}
+                  className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${item.className}`}
                 >
-                  {item.complete ? "Complete" : "Needs Attention"}
+                  {item.label}
                 </span>
               </div>
 
-              {!item.complete && (
-                <p className="mt-2 text-sm text-slate-600">{item.issue}</p>
-              )}
+              <p className="mt-2 text-sm text-slate-600">{item.issue}</p>
             </div>
           ))}
         </div>
@@ -376,109 +397,6 @@ export default async function NotaryCredentialsPage() {
           <p className="mt-1 text-sm text-slate-500">
             Review uploaded credentials, documents, and approval status.
           </p>
-        </div>
-
-        <div className="divide-y divide-slate-200 md:hidden">
-          {credentialsWithLinks.map((credential) => (
-            <div key={credential.id} className="space-y-4 p-5">
-              <div>
-                <p className="font-bold text-slate-950">
-                  {credential.credential_type}
-                </p>
-                <p className="mt-1 text-sm text-slate-600">
-                  {credential.provider || "No provider"}
-                </p>
-              </div>
-
-              <div className="grid gap-3 text-sm">
-                <div>
-                  <p className="font-semibold text-slate-500">Expiration</p>
-                  <p className="text-slate-900">
-                    {credential.expiration_date || "-"}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="font-semibold text-slate-500">
-                    Review Status
-                  </p>
-                  <span
-                    className={`mt-1 inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ${getReviewStatusClass(
-                      credential.status
-                    )}`}
-                  >
-                    {getReviewStatus(credential.status)}
-                  </span>
-                </div>
-
-                <div>
-                  <p className="font-semibold text-slate-500">
-                    Credential Status
-                  </p>
-                  <span
-                    className={`mt-1 inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ${getCredentialHealthClass(
-                      credential.expiration_date
-                    )}`}
-                  >
-                    {getCredentialHealth(credential.expiration_date)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="text-sm">
-                <p className="font-semibold text-slate-500">Document</p>
-                {credential.documentUrl ? (
-                  <a
-                    href={credential.documentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-1 inline-flex break-all font-bold text-[#0B1F4D] hover:underline"
-                  >
-                    {credential.documentName || "View Document"}
-                  </a>
-                ) : (
-                  <span className="mt-1 inline-flex text-slate-500">
-                    No document
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 pt-2">
-                <a
-                  href={`/notary/credentials/${credential.id}/edit`}
-                  className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-                >
-                  Edit
-                </a>
-
-                <a
-                  href={`/notary/credentials/${credential.id}/document`}
-                  className="inline-flex h-10 items-center justify-center rounded-lg bg-[#0B1F4D] px-4 text-sm font-bold text-white transition hover:bg-blue-950"
-                >
-                  Replace Document
-                </a>
-
-                <form
-                  action={`/notary/credentials/${credential.id}/delete`}
-                  method="post"
-                  className="m-0"
-                >
-                  <UploadSubmitButton
-                    loadingText="Deleting..."
-                    className="inline-flex h-10 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-bold text-white transition hover:bg-red-700"
-                  >
-                    Delete
-                  </UploadSubmitButton>
-                </form>
-              </div>
-            </div>
-          ))}
-
-          {!credentialsWithLinks.length && (
-            <p className="p-6 text-center text-slate-500">
-              No credentials uploaded yet.
-            </p>
-          )}
         </div>
 
         <div className="hidden overflow-x-auto md:block">
