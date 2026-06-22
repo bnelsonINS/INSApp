@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../src/lib/supabase-server";
 import UploadSubmitButton from "../../components/UploadSubmitButton";
+//comment
 
 const credentialTypes = [
   "Background Check",
