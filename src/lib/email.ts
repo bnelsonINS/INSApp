@@ -7,7 +7,7 @@ const fromEmail =
   "Indiana Notary Solutions <no-reply@indiananotarysolutions.com>";
 
 const logoUrl =
-  "https://img1.wsimg.com/isteam/ip/5d0c76c0-7737-4179-b443-5371edbb7539/blob.png/:/rs=w:180,h:180,cg:true,m/cr=w:180,h:180/qt=q:95";
+  "https://img1.wsimg.com/isteam/ip/5d0c76c0-7737-4179-b443-5371edbb7539/blob.png/:/rs=w:500,h:500,cg:true/qt=q:95";
 
 function getBaseUrl() {
   return (
@@ -28,44 +28,21 @@ function escapeHtml(value: string) {
 
 function emailHeader(subtitle: string) {
   return `
-    <div style="
-      background:linear-gradient(135deg,#08142f,#0b1f4d,#08142f);
-      padding:40px 32px;
-      text-align:center;
-    ">
-      
+    <div style="background:#ffffff;padding:36px 28px 30px;text-align:center;border-bottom:6px solid #0b1f4d;">
       <img
         src="${logoUrl}"
         alt="Indiana Notary Solutions"
-        width="170"
-        style="
-          display:block;
-          margin:0 auto 24px auto;
-          width:170px;
-          height:auto;
-          border:0;
-        "
+        width="155"
+        style="display:block;margin:0 auto 22px;width:155px;height:auto;border:0;"
       />
 
-      <h1 style="
-        color:#ffffff;
-        margin:0;
-        font-size:42px;
-        line-height:1.15;
-        font-weight:800;
-      ">
+      <h1 style="color:#0b1f4d;margin:0;font-size:34px;line-height:1.2;font-weight:800;">
         Welcome to Indiana Notary Solutions
       </h1>
 
-      <p style="
-        color:#dbeafe;
-        margin:18px 0 0;
-        font-size:20px;
-        line-height:1.5;
-      ">
+      <p style="color:#334155;margin:14px 0 0;font-size:18px;line-height:1.5;font-weight:600;">
         ${subtitle}
       </p>
-
     </div>
   `;
 }
@@ -75,7 +52,7 @@ function dashboardButton(url: string) {
     <div style="text-align:center;margin:34px 0;">
       <a 
         href="${url}" 
-        style="background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 26px;border-radius:10px;font-weight:bold;display:inline-block;"
+        style="background:#0b1f4d;color:#ffffff;text-decoration:none;padding:14px 26px;border-radius:10px;font-weight:bold;display:inline-block;"
       >
         Go To My Dashboard
       </a>
@@ -110,8 +87,8 @@ export async function sendNotaryWelcomeEmail({
 
             <p>Our platform helps connect qualified notaries with signing opportunities while giving you tools to manage your profile, credentials, coverage area, assignments, messages, and payments in one place.</p>
 
-            <div style="background:#eff6ff;border-left:5px solid #2563eb;padding:18px;border-radius:10px;margin:26px 0;">
-              <h2 style="margin-top:0;color:#1e3a8a;font-size:22px;">How It Works</h2>
+            <div style="background:#eff6ff;border-left:5px solid #0b1f4d;padding:18px;border-radius:10px;margin:26px 0;">
+              <h2 style="margin-top:0;color:#0b1f4d;font-size:22px;">How It Works</h2>
               <ol style="margin-bottom:0;padding-left:22px;">
                 <li>We receive signing requests from clients.</li>
                 <li>We match assignments with qualified notaries in the service area.</li>
@@ -184,8 +161,8 @@ export async function sendClientWelcomeEmail({
 
             <p>We help title companies, lenders, attorneys, real estate professionals, and businesses coordinate reliable notary and signing services throughout Indiana.</p>
 
-            <div style="background:#eff6ff;border-left:5px solid #2563eb;padding:18px;border-radius:10px;margin:26px 0;">
-              <h2 style="margin-top:0;color:#1e3a8a;font-size:22px;">What You Can Use INS For</h2>
+            <div style="background:#eff6ff;border-left:5px solid #0b1f4d;padding:18px;border-radius:10px;margin:26px 0;">
+              <h2 style="margin-top:0;color:#0b1f4d;font-size:22px;">What You Can Use INS For</h2>
               <ul style="line-height:1.7;margin-bottom:0;padding-left:22px;">
                 <li>Request mobile notary services.</li>
                 <li>Coordinate loan signing appointments.</li>
