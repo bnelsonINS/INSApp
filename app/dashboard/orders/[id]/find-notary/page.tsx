@@ -265,10 +265,16 @@ export default async function FindNotaryPage({ params }: PageProps) {
       return approval === "approved";
     })
     .map((notary) => {
-      const zipMatches =
+      const explicitZipMatches =
         zipCoverage?.some(
           (z) => z.user_id === notary.id && z.zip_code === jobZip
         ) ?? false;
+
+      const homeZipMatches =
+        Boolean(notary.home_zip && jobZip && notary.home_zip === jobZip) &&
+        Number(notary.travel_radius_miles || 0) > 0;
+
+      const zipMatches = explicitZipMatches || homeZipMatches;
 
       const countyMatches =
         countyCoverage?.some(
@@ -288,8 +294,10 @@ export default async function FindNotaryPage({ params }: PageProps) {
       return {
         ...notary,
         zipMatches,
+        homeZipMatches,
         countyMatches,
-        matchStrength: Number(zipMatches) + Number(countyMatches),
+        matchStrength:
+          Number(zipMatches) + Number(homeZipMatches) + Number(countyMatches),
         score,
         badge,
         warning,
@@ -439,8 +447,8 @@ export default async function FindNotaryPage({ params }: PageProps) {
                   No matching notaries found.
                 </h3>
                 <p className="mt-2 text-sm text-slate-600">
-                  No approved active notaries currently match this order by ZIP
-                  or county.
+                  No approved active notaries currently match this order by ZIP,
+                  county, or home ZIP.
                 </p>
               </div>
             ) : (
@@ -521,6 +529,11 @@ export default async function FindNotaryPage({ params }: PageProps) {
                           {candidate.zipMatches && (
                             <span className="rounded-full bg-purple-100 px-2.5 py-1 text-xs font-bold text-purple-700">
                               ZIP
+                            </span>
+                          )}
+                          {candidate.homeZipMatches && (
+                            <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-bold text-indigo-700">
+                              Home ZIP
                             </span>
                           )}
                           {candidate.countyMatches && (
