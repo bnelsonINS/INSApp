@@ -66,13 +66,18 @@ export async function POST(request: NextRequest) {
     }
 
     const { error: profileError } = await supabaseAdmin.from("profiles").insert({
-      id: authData.user.id,
-      email,
-      role,
-      full_name: fullName,
-      is_active: true,
-      approval_status: "approved",
-    });
+  id: authData.user.id,
+  email,
+  role,
+
+  first_name: firstName,
+  last_name: lastName,
+  full_name: fullName,
+  business_name: businessName || null,
+
+  is_active: true,
+  approval_status: "approved",
+});
 
     if (role === "notary") {
   try {
@@ -104,17 +109,6 @@ if (role === "client") {
         { error: profileError.message },
         { status: 400 }
       );
-    }
-
-    if (role === "notary") {
-      try {
-        await sendNotaryWelcomeEmail({
-          to: email,
-          fullName,
-        });
-      } catch (emailError) {
-        console.error("Notary welcome email failed:", emailError);
-      }
     }
 
     return NextResponse.json({
