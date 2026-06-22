@@ -28,24 +28,44 @@ function escapeHtml(value: string) {
 
 function emailHeader(subtitle: string) {
   return `
-    <div style="background:#0f172a;padding:34px 28px;text-align:center;">
-      <div style="display:inline-block;background:#ffffff;border-radius:999px;padding:14px;margin-bottom:20px;box-shadow:0 10px 25px rgba(0,0,0,0.25);">
-        <img 
-          src="${logoUrl}" 
-          alt="Indiana Notary Solutions" 
-          width="120" 
-          height="120"
-          style="display:block;width:120px;height:120px;border-radius:999px;"
-        />
-      </div>
+    <div style="
+      background:linear-gradient(135deg,#08142f,#0b1f4d,#08142f);
+      padding:40px 32px;
+      text-align:center;
+    ">
+      
+      <img
+        src="${logoUrl}"
+        alt="Indiana Notary Solutions"
+        width="170"
+        style="
+          display:block;
+          margin:0 auto 24px auto;
+          width:170px;
+          height:auto;
+          border:0;
+        "
+      />
 
-      <h1 style="color:#ffffff;margin:0;font-size:32px;line-height:1.2;font-weight:800;">
+      <h1 style="
+        color:#ffffff;
+        margin:0;
+        font-size:42px;
+        line-height:1.15;
+        font-weight:800;
+      ">
         Welcome to Indiana Notary Solutions
       </h1>
 
-      <p style="color:#cbd5e1;margin:16px 0 0;font-size:17px;line-height:1.5;">
+      <p style="
+        color:#dbeafe;
+        margin:18px 0 0;
+        font-size:20px;
+        line-height:1.5;
+      ">
         ${subtitle}
       </p>
+
     </div>
   `;
 }
