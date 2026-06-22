@@ -92,8 +92,8 @@ export default function NotaryTermsPage() {
           <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
             <p className="font-bold">Important</p>
             <p className="mt-1 leading-6">
-              This page is a working draft and should be reviewed by an attorney
-              before being used as final legal terms.
+              {/* This page is a working draft and should be reviewed by an attorney
+              before being used as final legal terms. */}
             </p>
           </section>
         </div>
