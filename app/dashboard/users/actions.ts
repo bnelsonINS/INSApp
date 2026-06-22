@@ -54,22 +54,27 @@ export async function createUser(formData: FormData) {
 }
 
 export async function updateUserProfile(formData: FormData) {
-  const userId = cleanString(formData.get("user_id"));
+  const userId =
+    cleanString(formData.get("user_id")) || cleanString(formData.get("id"));
+
   const fullName = cleanString(formData.get("full_name"));
   const email = cleanString(formData.get("email")).toLowerCase();
   const role = cleanString(formData.get("role"));
-  const isActive = formData.get("is_active") === "on";
+  const approvalStatus =
+    cleanString(formData.get("approval_status")) || "ready_for_review";
 
-  if (!userId || !email || !role) {
-    throw new Error("User ID, email, and role are required.");
+  if (!userId || !role) {
+    throw new Error("User ID and role are required.");
   }
 
   const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
     userId,
     {
-      email,
       user_metadata: {
         full_name: fullName,
+      },
+      app_metadata: {
+        role,
       },
     }
   );
@@ -78,14 +83,24 @@ export async function updateUserProfile(formData: FormData) {
     throw new Error(authError.message);
   }
 
+  const updateData: {
+    full_name: string;
+    role: string;
+    approval_status: string;
+    email?: string;
+  } = {
+    full_name: fullName,
+    role,
+    approval_status: approvalStatus,
+  };
+
+  if (email) {
+    updateData.email = email;
+  }
+
   const { error: profileError } = await supabaseAdmin
     .from("profiles")
-    .update({
-      full_name: fullName,
-      email,
-      role,
-      is_active: isActive,
-    })
+    .update(updateData)
     .eq("id", userId);
 
   if (profileError) {

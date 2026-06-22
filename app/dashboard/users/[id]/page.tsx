@@ -403,6 +403,22 @@ export default async function UserDetailPage({
                   </select>
                 </label>
 
+                <label className="block">
+  <span className="text-sm font-semibold text-slate-700">
+    Approval Status
+  </span>
+
+  <select
+    name="approval_status"
+    defaultValue={user.approval_status ?? "ready_for_review"}
+    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+  >
+    <option value="ready_for_review">Ready For Review</option>
+    <option value="approved">Approved</option>
+    <option value="rejected">Rejected</option>
+  </select>
+</label>
+
                 <button className="w-full rounded-xl bg-[#0B1F4D] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950">
                   Save Profile
                 </button>
