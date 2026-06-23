@@ -46,7 +46,12 @@ export async function POST(request: Request) {
   const signingAddress = String(formData.get("signing_address") ?? "").trim();
   const signingCity = String(formData.get("signing_city") ?? "").trim();
   const signingState = String(formData.get("signing_state") ?? "IN").trim();
-  const signingZip = String(formData.get("signing_zip") ?? "").trim();
+
+  const signingZip = String(formData.get("signing_zip") ?? "")
+    .trim()
+    .replace(/\D/g, "")
+    .slice(0, 5);
+
   const feeRaw = String(formData.get("fee") ?? "").trim();
   const specialInstructions = String(
     formData.get("special_instructions") ?? ""
@@ -72,6 +77,12 @@ export async function POST(request: Request) {
     }
 
     signingCounty = zipCodeRow?.county || null;
+
+    console.log("ZIP county lookup:", {
+      signingZip,
+      signingCounty,
+      zipCodeRow,
+    });
   }
 
   const { data: order, error } = await supabase
