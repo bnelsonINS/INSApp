@@ -189,7 +189,11 @@ function nextAction(
 ) {
   const normalized = (assignment.status ?? "").toLowerCase();
 
-  if (normalized === "not confirmed") {
+  if (
+    normalized === "assigned" ||
+    normalized === "not confirmed" ||
+    normalized === "new request"
+  ) {
     return (
       <ConfirmAppointmentBox
         assignmentId={assignment.id}
