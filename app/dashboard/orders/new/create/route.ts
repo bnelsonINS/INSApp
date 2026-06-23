@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../../../src/lib/supabase-server";
+import { supabaseAdmin } from "../../../../../src/lib/supabase-admin";
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
   let signingCounty: string | null = null;
 
   if (signingZip) {
-    const { data: zipCodeRow, error: zipCodeError } = await supabase
+    const { data: zipCodeRow, error: zipCodeError } = await supabaseAdmin
       .from("zip_codes")
       .select("county")
       .eq("zip_code", signingZip)
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const { data: order, error } = await supabase
+  const { data: order, error } = await supabaseAdmin
     .from("assignments")
     .insert({
       notary_id: null,
