@@ -513,7 +513,7 @@ export default async function DashboardPage() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-sm">
           <p className="text-sm font-semibold text-slate-500">Total Orders</p>
           <p className="mt-2 text-4xl font-bold text-[#0B1F4D]">
             {totalOrders ?? 0}
