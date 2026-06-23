@@ -125,23 +125,23 @@ export async function POST(request: Request) {
     .filter((signer) => signer.name);
 
   if (signerRows.length) {
-    const { error: signerError } = await supabase
-      .from("assignment_signers")
-      .insert(signerRows);
+  const { error: signerError } = await supabaseAdmin
+    .from("assignment_signers")
+    .insert(signerRows);
 
-    if (signerError) {
-      console.error("Create signers error:", signerError);
-    }
+  if (signerError) {
+    console.error("Create signers error:", signerError);
   }
+}
 
-  await supabase.from("assignment_activity").insert({
-    assignment_id: order.id,
-    actor_id: user.id,
-    actor_name: user.email ?? "Admin",
-    actor_role: "admin",
-    action: "Order Created",
-    details: "Admin created a new incoming signing request.",
-  });
+  await supabaseAdmin.from("assignment_activity").insert({
+  assignment_id: order.id,
+  actor_id: user.id,
+  actor_name: user.email ?? "Admin",
+  actor_role: "admin",
+  action: "Order Created",
+  details: "Admin created a new incoming signing request.",
+});
 
   redirect(`/dashboard/orders/${order.id}`);
 }
