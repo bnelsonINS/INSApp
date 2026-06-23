@@ -817,24 +817,28 @@ export default async function DashboardPage() {
                   {quarter.label}
                 </p>
 
-                <div className="mt-3 space-y-1 text-sm">
+                <div className="mt-3 space-y-1 text-sm text-slate-900">
                   <p>
                     <span className="font-semibold text-slate-500">
                       Billables:
                     </span>{" "}
-                    {formatMoney(billables)}
+                    <span className="text-slate-900">{formatMoney(billables)}</span>
                   </p>
                   <p>
                     <span className="font-semibold text-slate-500">
                       Payables:
                     </span>{" "}
-                    {formatMoney(payables)}
+                    <span className="text-slate-900">
+  {formatMoney(payables)}
+</span>
                   </p>
                   <p>
                     <span className="font-semibold text-slate-500">
                       Profit:
                     </span>{" "}
-                    {formatMoney(profit)}
+                    <span className="text-slate-900">
+  {formatMoney(profit)}
+</span>
                   </p>
                 </div>
               </div>
