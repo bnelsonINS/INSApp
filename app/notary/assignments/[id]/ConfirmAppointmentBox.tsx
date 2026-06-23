@@ -42,7 +42,7 @@ export default function ConfirmAppointmentBox({
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-xl rounded-xl bg-white shadow-xl">
+          <div className="w-full max-w-xl rounded-xl bg-white text-slate-900 shadow-xl">
             <div className="flex items-center justify-between border-b p-5">
               <h2 className="text-xl font-bold">Signer Availability</h2>
 
@@ -82,7 +82,7 @@ export default function ConfirmAppointmentBox({
               </p>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg border p-3">
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-slate-900">
                   <input
                     type="radio"
                     name="action_type"
