@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "../../../../src/lib/supabase-server";
 import SubmitButton from "../../../components/SubmitButton";
+import CancelOrderButton from "./CancelOrderButton";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -864,14 +865,7 @@ const currentScoreMonth = nowForScore.getMonth() + 1;
               Edit Order
             </a>
 
-            <form action={`/dashboard/orders/${id}/cancel`} method="POST">
-              <button
-                type="submit"
-                className="rounded-xl bg-red-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-700"
-              >
-                Cancel Order
-              </button>
-            </form>
+            <CancelOrderButton orderId={id} />
 
             {!assignedNotaryId && (
               <a

@@ -32,6 +32,37 @@ function formatTime(value: string | null | undefined) {
   });
 }
 
+function buildCancelledMessage({
+  recipientName,
+  orderNumber,
+  borrowerName,
+  signingDate,
+  signingTime,
+}: {
+  recipientName: string;
+  orderNumber: string;
+  borrowerName: string | null;
+  signingDate: string | null;
+  signingTime: string | null;
+}) {
+  return `
+Hello ${recipientName || "there"},
+
+Order-${orderNumber} has been cancelled.
+
+Order Details
+
+Order Number: Order-${orderNumber}
+Borrower Name: ${borrowerName || "Not listed"}
+Signing Date: ${formatDate(signingDate)}
+Signing Time: ${formatTime(signingTime)}
+
+No action is needed on this cancelled order.
+
+Indiana Notary Solutions
+`.trim();
+}
+
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
@@ -69,7 +100,7 @@ export async function POST(
   const { data: order, error: orderError } = await supabase
     .from("assignments")
     .select(
-      "id, control_number, borrower_name, signing_date, signing_time, assigned_notary_id, notary_id, status"
+      "id, client_id, control_number, borrower_name, signing_date, signing_time, assigned_notary_id, notary_id, status"
     )
     .eq("id", id)
     .single();
@@ -116,34 +147,56 @@ export async function POST(
       .single();
 
     if (notaryProfile?.email) {
-      const message = `
-Hello ${notaryProfile.full_name || "there"},
-
-Order-${orderNumber} has been cancelled.
-
-Order Details
-
-Order Number: Order-${orderNumber}
-Borrower Name: ${order.borrower_name || "Not listed"}
-Signing Date: ${formatDate(order.signing_date)}
-Signing Time: ${formatTime(order.signing_time)}
-
-No action is needed from you on this cancelled order.
-
-Indiana Notary Solutions
-`.trim();
-
       await supabase.from("notification_queue").insert({
         user_id: assignedNotaryId,
         channel: "email",
         type: "assignment_cancelled",
         status: "pending",
         subject: `Order Cancelled - Order-${orderNumber}`,
-        message,
+        message: buildCancelledMessage({
+          recipientName: notaryProfile.full_name || "there",
+          orderNumber,
+          borrowerName: order.borrower_name,
+          signingDate: order.signing_date,
+          signingTime: order.signing_time,
+        }),
         metadata: {
           email: notaryProfile.email,
           assignment_id: id,
           control_number: orderNumber,
+          recipient_type: "notary",
+        },
+        attempts: 0,
+      });
+    }
+  }
+
+  if (order.client_id) {
+    const { data: clientProfile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", order.client_id)
+      .single();
+
+    if (clientProfile?.email) {
+      await supabase.from("notification_queue").insert({
+        user_id: order.client_id,
+        channel: "email",
+        type: "assignment_cancelled",
+        status: "pending",
+        subject: `Order Cancelled - Order-${orderNumber}`,
+        message: buildCancelledMessage({
+          recipientName: clientProfile.full_name || "there",
+          orderNumber,
+          borrowerName: order.borrower_name,
+          signingDate: order.signing_date,
+          signingTime: order.signing_time,
+        }),
+        metadata: {
+          email: clientProfile.email,
+          assignment_id: id,
+          control_number: orderNumber,
+          recipient_type: "client",
         },
         attempts: 0,
       });
