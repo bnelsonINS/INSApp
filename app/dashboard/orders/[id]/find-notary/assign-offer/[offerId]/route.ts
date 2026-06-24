@@ -19,7 +19,6 @@ function formatDate(value: string | null | undefined) {
   if (!value) return "Not listed";
 
   const date = new Date(`${value}T00:00:00`);
-
   if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleDateString("en-US", {
@@ -34,7 +33,6 @@ function formatTime(value: string | null | undefined) {
   if (!value) return "Not listed";
 
   const [hours, minutes] = value.split(":");
-
   if (!hours || !minutes) return value;
 
   const date = new Date();
@@ -54,8 +52,16 @@ function getBaseUrl() {
   ).replace(/\/$/, "");
 }
 
-function buildOrderLink(assignmentId: string) {
+function buildNotaryOrderLink(assignmentId: string) {
   const redirectTarget = `/notary/assignments/${assignmentId}`;
+
+  return `${getBaseUrl()}/login?redirectTo=${encodeURIComponent(
+    redirectTarget
+  )}`;
+}
+
+function buildClientOrderLink(assignmentId: string) {
+  const redirectTarget = `/client/dashboard/orders/${assignmentId}`;
 
   return `${getBaseUrl()}/login?redirectTo=${encodeURIComponent(
     redirectTarget
@@ -92,6 +98,7 @@ export async function POST(
     .select(
       `
       id,
+      client_id,
       assigned_notary_id,
       control_number,
       signing_type,
@@ -126,9 +133,7 @@ export async function POST(
 
   const { data: offer } = await supabaseAdmin
     .from("assignment_offers")
-    .select(
-      "id, assignment_id, notary_id, status, offered_fee, counter_fee"
-    )
+    .select("id, assignment_id, notary_id, status, offered_fee, counter_fee")
     .eq("id", offerId)
     .eq("assignment_id", id)
     .single();
@@ -152,6 +157,14 @@ export async function POST(
     .select("id, full_name, email")
     .eq("id", offer.notary_id)
     .single();
+
+  const { data: clientProfile } = assignment.client_id
+    ? await supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, email")
+        .eq("id", assignment.client_id)
+        .single()
+    : { data: null };
 
   const now = new Date().toISOString();
 
@@ -199,30 +212,31 @@ export async function POST(
     },
   });
 
+  const orderNumber = assignment.control_number || id;
+
+  const { data: signers } = await supabaseAdmin
+    .from("assignment_signers")
+    .select("name, phone, email, signer_order")
+    .eq("assignment_id", id)
+    .order("signer_order", { ascending: true });
+
+  const signerList =
+    signers && signers.length > 0
+      ? signers
+          .map((signer) => {
+            const parts = [
+              signer.name || "Unnamed signer",
+              signer.phone ? `Phone: ${signer.phone}` : null,
+              signer.email ? `Email: ${signer.email}` : null,
+            ].filter(Boolean);
+
+            return parts.join(" | ");
+          })
+          .join("\n")
+      : assignment.borrower_name || "Not listed";
+
   if (newNotary?.email) {
-    const orderNumber = assignment.control_number || id;
-    const orderLink = buildOrderLink(id);
-
-    const { data: signers } = await supabaseAdmin
-      .from("assignment_signers")
-      .select("name, phone, email, signer_order")
-      .eq("assignment_id", id)
-      .order("signer_order", { ascending: true });
-
-    const signerList =
-      signers && signers.length > 0
-        ? signers
-            .map((signer) => {
-              const parts = [
-                signer.name || "Unnamed signer",
-                signer.phone ? `Phone: ${signer.phone}` : null,
-                signer.email ? `Email: ${signer.email}` : null,
-              ].filter(Boolean);
-
-              return parts.join(" | ");
-            })
-            .join("\n")
-        : assignment.borrower_name || "Not listed";
+    const orderLink = buildNotaryOrderLink(id);
 
     const emailMessage = `
 Hello ${newNotary.full_name || "there"},
@@ -275,21 +289,77 @@ Indiana Notary Solutions
       },
       attempts: 0,
     });
+  }
 
-    try {
-      await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-notifications`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-          },
-        }
-      );
-    } catch (error) {
-      console.error("Failed to process assignment notification:", error);
-    }
+  if (clientProfile?.email) {
+    const clientOrderLink = buildClientOrderLink(id);
+
+    const clientMessage = `
+Hello ${clientProfile.full_name || "there"},
+
+A notary has been assigned to Order-${orderNumber}.
+
+Order Details
+
+Order Number: Order-${orderNumber}
+Status: assigned
+Signing Type: ${assignment.signing_type || "Not listed"}
+Signing Date: ${formatDate(assignment.signing_date)}
+Signing Time: ${formatTime(assignment.signing_time)}
+Signing Address: ${assignment.signing_address || "Not listed"}
+City/State/ZIP: ${assignment.signing_city || ""}, ${
+      assignment.signing_state || ""
+    } ${assignment.signing_zip || ""}
+
+Assigned Notary
+
+Name: ${newNotary?.full_name || "Not listed"}
+Email: ${newNotary?.email || "Not listed"}
+
+Signer Information
+
+${signerList}
+
+Special Instructions
+
+${assignment.special_instructions || "No special instructions listed."}
+
+You can log in to your Indiana Notary Solutions dashboard to review the order.
+
+Indiana Notary Solutions
+`.trim();
+
+    await supabaseAdmin.from("notification_queue").insert({
+      user_id: assignment.client_id,
+      channel: "email",
+      type: "client_assignment_assigned",
+      status: "pending",
+      subject: `Notary Assigned - Order-${orderNumber}`,
+      message: clientMessage,
+      metadata: {
+        email: clientProfile.email,
+        assignment_id: id,
+        control_number: orderNumber,
+        order_link: clientOrderLink,
+        cta_label: "View Order",
+      },
+      attempts: 0,
+    });
+  }
+
+  try {
+    await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-notifications`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      }
+    );
+  } catch (error) {
+    console.error("Failed to process assignment notification:", error);
   }
 
   return NextResponse.redirect(new URL(`/dashboard/orders/${id}`, request.url));
