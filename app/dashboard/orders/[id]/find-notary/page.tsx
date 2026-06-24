@@ -741,8 +741,14 @@ export default async function FindNotaryPage({ params }: PageProps) {
                       </span>
 
                       <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-                        {formatMoney(offer.offered_fee)}
-                      </span>
+  Offered: {formatMoney(offer.offered_fee)}
+</span>
+
+{offer.counter_fee && (
+  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
+    Counter: {formatMoney(offer.counter_fee)}
+  </span>
+)}
                     </div>
                   </div>
 
