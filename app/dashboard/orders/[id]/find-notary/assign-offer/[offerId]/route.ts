@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "../../../../../../../src/lib/supabase-server";
+import { supabaseAdmin } from "../../../../../../../src/lib/supabase-admin";
 
 function formatMoney(value: number | string | null | undefined) {
   if (value === null || value === undefined || value === "") return "Not listed";
@@ -86,7 +87,7 @@ export async function POST(
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const { data: assignment } = await supabase
+  const { data: assignment } = await supabaseAdmin
     .from("assignments")
     .select(
       `
@@ -123,20 +124,30 @@ export async function POST(
     );
   }
 
-  const { data: offer } = await supabase
+  const { data: offer } = await supabaseAdmin
     .from("assignment_offers")
-    .select("id, assignment_id, notary_id, status")
+    .select(
+      "id, assignment_id, notary_id, status, offered_fee, counter_fee"
+    )
     .eq("id", offerId)
     .eq("assignment_id", id)
     .single();
 
-  if (!offer || offer.status !== "accepted") {
+  if (
+    !offer ||
+    !["accepted", "countered"].includes(String(offer.status).toLowerCase())
+  ) {
     return NextResponse.redirect(
       new URL(`/dashboard/orders/${id}/find-notary`, request.url)
     );
   }
 
-  const { data: newNotary } = await supabase
+  const finalNotaryFee =
+    offer.status === "countered" && offer.counter_fee !== null
+      ? offer.counter_fee
+      : offer.offered_fee;
+
+  const { data: newNotary } = await supabaseAdmin
     .from("profiles")
     .select("id, full_name, email")
     .eq("id", offer.notary_id)
@@ -144,18 +155,19 @@ export async function POST(
 
   const now = new Date().toISOString();
 
-  await supabase
+  await supabaseAdmin
     .from("assignments")
     .update({
       assigned_notary_id: offer.notary_id,
       notary_id: offer.notary_id,
+      notary_fee: finalNotaryFee,
       status: "assigned",
       assigned_at: now,
       updated_at: now,
     })
     .eq("id", id);
 
-  await supabase
+  await supabaseAdmin
     .from("assignment_offers")
     .update({
       status: "assigned",
@@ -163,7 +175,7 @@ export async function POST(
     })
     .eq("id", offerId);
 
-  await supabase
+  await supabaseAdmin
     .from("assignment_offers")
     .update({
       status: "closed",
@@ -172,7 +184,7 @@ export async function POST(
     .neq("id", offerId)
     .in("status", ["sent", "accepted", "countered"]);
 
-  await supabase.from("assignment_offer_events").insert({
+  await supabaseAdmin.from("assignment_offer_events").insert({
     assignment_offer_id: offerId,
     assignment_id: id,
     notary_id: offer.notary_id,
@@ -182,6 +194,8 @@ export async function POST(
     message: "Admin assigned this notary to the signing.",
     metadata: {
       assigned_at: now,
+      final_notary_fee: finalNotaryFee,
+      original_offer_status: offer.status,
     },
   });
 
@@ -189,7 +203,7 @@ export async function POST(
     const orderNumber = assignment.control_number || id;
     const orderLink = buildOrderLink(id);
 
-    const { data: signers } = await supabase
+    const { data: signers } = await supabaseAdmin
       .from("assignment_signers")
       .select("name, phone, email, signer_order")
       .eq("assignment_id", id)
@@ -226,7 +240,7 @@ Signing Address: ${assignment.signing_address || "Not listed"}
 City/State/ZIP: ${assignment.signing_city || ""}, ${
       assignment.signing_state || ""
     } ${assignment.signing_zip || ""}
-Notary Fee: ${formatMoney(assignment.notary_fee ?? assignment.fee)}
+Notary Fee: ${formatMoney(finalNotaryFee ?? assignment.notary_fee ?? assignment.fee)}
 Documents URL: ${assignment.documents_url || "Not listed"}
 
 Signer Information
@@ -245,7 +259,7 @@ Please log in to your Indiana Notary Solutions dashboard to review the full assi
 Indiana Notary Solutions
 `.trim();
 
-    await supabase.from("notification_queue").insert({
+    await supabaseAdmin.from("notification_queue").insert({
       user_id: offer.notary_id,
       channel: "email",
       type: "assignment_assigned",
