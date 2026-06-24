@@ -66,6 +66,9 @@ export async function POST(request: NextRequest) {
   const signingDate = String(formData.get("signing_date") || "").trim();
   const signingTime = String(formData.get("signing_time") || "").trim();
 
+  const clientFeeRaw = String(formData.get("client_fee") || "").trim();
+  const clientFee = clientFeeRaw ? Number(clientFeeRaw) : null;
+
   const signerFirstName = String(formData.get("signer_first_name") || "").trim();
   const signerLastName = String(formData.get("signer_last_name") || "").trim();
   const signerPhone = String(formData.get("signer_phone") || "").trim();
@@ -111,7 +114,8 @@ export async function POST(request: NextRequest) {
     borrower_phone: signerPhone || null,
     borrower_email: signerEmail || null,
 
-    client_fee: null,
+    client_fee: clientFee,
+    fee: clientFee,
     notary_fee: null,
   });
 

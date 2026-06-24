@@ -222,13 +222,29 @@ export default function NewClientOrderPage() {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={addPropertyAddress}
-              className="text-sm font-bold text-[#0B1F4D] transition hover:text-blue-950 hover:underline"
-            >
-              + Add property address
-            </button>
+            <div>
+  <label className="mb-1 block text-sm font-semibold text-slate-700">
+    Client Fee
+  </label>
+
+  <input
+    name="client_fee"
+    type="number"
+    step="0.01"
+    min="0"
+    className={inputClass}
+    placeholder="Example: 150.00"
+    required
+  />
+</div>
+
+<button
+  type="button"
+  onClick={addPropertyAddress}
+  className="text-sm font-bold text-[#0B1F4D] transition hover:text-blue-950 hover:underline"
+>
+  + Add property address
+</button>
 
             {propertyAddresses.length > 0 && (
               <div className="space-y-5 pt-2">
