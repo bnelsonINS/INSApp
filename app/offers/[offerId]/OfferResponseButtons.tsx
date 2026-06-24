@@ -76,12 +76,11 @@ export default function OfferResponseButtons({
           id="counter_fee"
           name="counter_fee"
           type="number"
-          min="0"
+          min="1"
           step="1"
           required
-          disabled={isPending}
           placeholder="Enter counter amount"
-          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100"
+          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
         />
 
         <button
