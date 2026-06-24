@@ -118,9 +118,17 @@ export async function POST(
   const { error: updateError } = await supabase
     .from("assignments")
     .update({
-      status: "Cancelled",
-      updated_at: new Date().toISOString(),
-    })
+  status: "Cancelled",
+  assigned_notary_id: null,
+  notary_id: null,
+  notary_name: null,
+  notary_email: null,
+  notary_fee: null,
+  confirmed_at: null,
+  in_progress_at: null,
+  completed_at: null,
+  updated_at: new Date().toISOString(),
+})
     .eq("id", id);
 
   if (updateError) {
