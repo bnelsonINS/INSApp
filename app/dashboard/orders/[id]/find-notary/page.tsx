@@ -760,7 +760,8 @@ export default async function FindNotaryPage({ params }: PageProps) {
                         : "Not set"}
                     </p>
 
-                    {!hasAssignedNotary && offer.status === "accepted" ? (
+                    {!hasAssignedNotary &&
+(offer.status === "accepted" || offer.status === "countered") ? (
                       <form
                         action={`/dashboard/orders/${assignment.id}/find-notary/assign-offer/${offer.id}`}
                         method="POST"
