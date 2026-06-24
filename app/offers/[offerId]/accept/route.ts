@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "../../../../src/lib/supabase-server";
+import { supabaseAdmin } from "../../../../src/lib/supabase-admin";
 
 export async function POST(
   request: NextRequest,
@@ -14,7 +15,7 @@ export async function POST(
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: offer, error: offerError } = await supabase
+  const { data: offer, error: offerError } = await supabaseAdmin
     .from("assignment_offers")
     .select("id, assignment_id, notary_id, status, expires_at, response_token")
     .eq("id", offerId)
@@ -31,7 +32,7 @@ export async function POST(
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const { data: assignment } = await supabase
+  const { data: assignment } = await supabaseAdmin
     .from("assignments")
     .select("id, assigned_notary_id")
     .eq("id", offer.assignment_id)
@@ -52,7 +53,7 @@ export async function POST(
     );
   }
 
-  await supabase
+  await supabaseAdmin
     .from("assignment_offers")
     .update({
       status: "accepted",
@@ -60,7 +61,7 @@ export async function POST(
     })
     .eq("id", offerId);
 
-  await supabase.from("assignment_offer_events").insert({
+  await supabaseAdmin.from("assignment_offer_events").insert({
     assignment_offer_id: offerId,
     event_type: "accepted",
     notary_id: offer.notary_id,
@@ -68,6 +69,9 @@ export async function POST(
   });
 
   return NextResponse.redirect(
-    new URL(`/offers/${offerId}?token=${token ?? ""}`, request.url)
+    new URL(
+      `/offers/${offerId}?token=${token ?? ""}&response=accepted`,
+      request.url
+    )
   );
 }

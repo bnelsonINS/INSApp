@@ -12,10 +12,10 @@ export default async function NotaryOfferPage({
   searchParams,
 }: {
   params: Promise<{ offerId: string }>;
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; response?: string }>;
 }) {
   const { offerId } = await params;
-  const { token } = await searchParams;
+  const { token, response } = await searchParams;
 
   const supabase = await createSupabaseServerClient();
 
@@ -126,6 +126,15 @@ export default async function NotaryOfferPage({
             Review the details below and respond to this offer.
           </p>
         </div>
+
+        {response && (
+  <div className="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 shadow-sm">
+    <h2 className="text-lg font-bold">Response Sent</h2>
+    <p className="mt-1 text-sm">
+      Thank you. Your response has been sent to Indiana Notary Solutions.
+    </p>
+  </div>
+)}
 
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
