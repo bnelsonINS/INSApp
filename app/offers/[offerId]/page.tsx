@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "../../../src/lib/supabase-server";
+import { supabaseAdmin } from "../../../src/lib/supabase-admin";
 import OfferResponseButtons from "./OfferResponseButtons";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export default async function NotaryOfferPage({
       .single();
   }
 
-  const { data: offer, error } = await supabase
+  const { data: offer, error } = await supabaseAdmin
     .from("assignment_offers")
     .select(
       `
