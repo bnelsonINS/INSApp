@@ -179,6 +179,7 @@ export default async function FindNotaryPage({ params }: PageProps) {
       round_number,
       status,
       offered_fee,
+      counter_fee,
       sent_at,
       expires_at
     `
