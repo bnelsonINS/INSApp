@@ -206,6 +206,7 @@ export default function NewClientOrderPage() {
                   name="signing_date"
                   type="date"
                   className={inputClass}
+                  required
                 />
               </div>
 
@@ -218,6 +219,7 @@ export default function NewClientOrderPage() {
                   name="signing_time"
                   type="time"
                   className={inputClass}
+                  required
                 />
               </div>
             </div>
@@ -465,6 +467,7 @@ export default function NewClientOrderPage() {
                       }
                       className={inputClass}
                       placeholder="(555) 555-5555"
+                          required={index === 0}
                     />
                   </div>
 
@@ -482,6 +485,7 @@ export default function NewClientOrderPage() {
                       }
                       className={inputClass}
                       placeholder="signer@example.com"
+                          required={index === 0}
                     />
                   </div>
                 </div>
