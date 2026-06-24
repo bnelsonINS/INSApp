@@ -851,30 +851,34 @@ const currentScoreMonth = nowForScore.getMonth() + 1;
 
           <div className="flex flex-col gap-3 md:items-end">
             <span
-              className={`w-fit rounded-full px-4 py-2 text-sm font-bold ring-1 ring-inset ${statusBadge(
-                order.status,
-              )}`}
-            >
-              {order.status ?? "Unknown"}
-            </span>
+  className={`w-fit rounded-full px-4 py-2 text-sm font-bold ring-1 ring-inset ${statusBadge(
+    order.status,
+  )}`}
+>
+  {order.status ?? "Unknown"}
+</span>
 
-            <a
-              href={`/dashboard/orders/${id}/edit`}
-              className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-            >
-              Edit Order
-            </a>
+{order.status !== "Cancelled" && (
+  <>
+    <a
+      href={`/dashboard/orders/${id}/edit`}
+      className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+    >
+      Edit Order
+    </a>
 
-            <CancelOrderButton orderId={id} />
+    <CancelOrderButton orderId={id} />
 
-            {!assignedNotaryId && (
-              <a
-                href={`/dashboard/orders/${id}/find-notary`}
-                className="rounded-xl bg-white px-5 py-3 text-center text-sm font-bold text-[#0B1F4D] transition hover:bg-blue-50"
-              >
-                Find a Notary
-              </a>
-            )}
+    {!assignedNotaryId && (
+      <a
+        href={`/dashboard/orders/${id}/find-notary`}
+        className="rounded-xl bg-white px-5 py-3 text-center text-sm font-bold text-[#0B1F4D] transition hover:bg-blue-50"
+      >
+        Find a Notary
+      </a>
+    )}
+  </>
+)}
           </div>
         </div>
       </section>
