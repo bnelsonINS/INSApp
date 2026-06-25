@@ -107,6 +107,7 @@ export default async function NotaryOfferPage({
   const canRespond = offer.status === "sent" && !isExpired;
 
   const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : "";
+  const requestingCompany = assignment?.signing_type || "this company";
 
   return (
     <main className="min-h-screen bg-slate-50 p-6">
@@ -218,17 +219,70 @@ export default async function NotaryOfferPage({
                   </button>
                 </form>
 
-                <form
-                  action={`/notary/offers/${offer.id}/decline${tokenQuery}`}
-                  method="post"
-                >
-                  <button
-                    type="submit"
-                    className="w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700"
-                  >
+                <details className="rounded-xl border border-red-200 bg-red-50">
+                  <summary className="cursor-pointer list-none rounded-xl bg-red-600 px-4 py-3 text-center text-sm font-bold text-white hover:bg-red-700">
                     Decline Offer
-                  </button>
-                </form>
+                  </summary>
+
+                  <form
+                    action={`/notary/offers/${offer.id}/decline${tokenQuery}`}
+                    method="post"
+                    className="space-y-3 p-4"
+                  >
+                    <p className="text-sm font-bold text-slate-900">
+                      Why are you declining this offer?
+                    </p>
+
+                    <DeclineReason
+                      value="not_available"
+                      label="I am not available at that time"
+                      inputName="decline_detail_not_available"
+                    />
+
+                    <DeclineReason
+                      value="too_far"
+                      label="Location is too far away"
+                      inputName="decline_detail_too_far"
+                    />
+
+                    <DeclineReason
+                      value="pay_too_low"
+                      label="The pay is too low"
+                      inputName="decline_detail_pay_too_low"
+                    />
+
+                    <DeclineReason
+                      value="no_mobile_signings"
+                      label="I no longer do mobile signings"
+                      inputName="decline_detail_no_mobile_signings"
+                    />
+
+                    <DeclineReason
+                      value="unfamiliar_company"
+                      label={`I am unfamiliar with ${requestingCompany}`}
+                      inputName="decline_detail_unfamiliar_company"
+                    />
+
+                    <DeclineReason
+                      value="do_not_work_with_company"
+                      label={`I do not want to work with ${requestingCompany}`}
+                      inputName="decline_detail_do_not_work_with_company"
+                    />
+
+                    <DeclineReason
+                      value="other"
+                      label="Other"
+                      inputName="decline_detail_other"
+                    />
+
+                    <button
+                      type="submit"
+                      className="w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700"
+                    >
+                      Submit Decline
+                    </button>
+                  </form>
+                </details>
 
                 <form
                   action={`/notary/offers/${offer.id}/counter${tokenQuery}`}
@@ -284,6 +338,38 @@ function Info({
       <p className="mt-1 text-sm font-semibold text-slate-900">
         {value || "Not provided"}
       </p>
+    </div>
+  );
+}
+
+function DeclineReason({
+  value,
+  label,
+  inputName,
+}: {
+  value: string;
+  label: string;
+  inputName: string;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <label className="flex items-start gap-3 text-sm font-semibold text-slate-800">
+        <input
+          type="radio"
+          name="decline_reason"
+          value={value}
+          required
+          className="mt-1"
+        />
+        <span>{label}</span>
+      </label>
+
+      <textarea
+        name={inputName}
+        rows={2}
+        placeholder="Add details..."
+        className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+      />
     </div>
   );
 }
