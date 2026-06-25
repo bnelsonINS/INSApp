@@ -751,6 +751,31 @@ export default async function FindNotaryPage({ params }: PageProps) {
     Counter: {formatMoney(offer.counter_fee)}
   </span>
 )}
+
+{offer.status === "declined" && offer.decline_reason && (
+  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3">
+    <p className="text-xs font-bold uppercase tracking-wide text-red-700">
+      Decline Reason
+    </p>
+
+    <p className="mt-1 text-sm font-semibold text-slate-900">
+      {offer.decline_reason.replace(/_/g, " ")}
+    </p>
+
+    {offer.decline_notes && (
+      <>
+        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-red-700">
+          Additional Notes
+        </p>
+
+        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+          {offer.decline_notes}
+        </p>
+      </>
+    )}
+  </div>
+)}
+
                     </div>
                   </div>
 
