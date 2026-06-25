@@ -11,6 +11,25 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+
+function getBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://indiananotarysolutions.com"
+  ).replace(/\/$/, "");
+}
+
+function buildAdminOrderLink(assignmentId: string) {
+  return `${getBaseUrl()}/dashboard/orders/${assignmentId}`;
+}
+
+function buildClientOrderLink(assignmentId: string) {
+  return `${getBaseUrl()}/login?redirectTo=${encodeURIComponent(
+    `/client/dashboard/orders/${assignmentId}`,
+  )}`;
+}
+
 function formatDate(date: string | null) {
   if (!date) return "Not scheduled";
 
@@ -258,7 +277,7 @@ export default async function AssignmentDetailPage({
 
     const { data: assignment } = await supabase
       .from("assignments")
-      .select("id")
+      .select("id, client_id, control_number, borrower_name")
       .eq("id", assignmentId)
       .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
       .single();
@@ -279,6 +298,109 @@ export default async function AssignmentDetailPage({
       actor_name: actorName,
       details: comment,
     });
+
+    const orderNumber = assignment.control_number || assignmentId;
+
+    const recipientMap = new Map<
+      string,
+      { recipientType: "admin" | "client"; orderLink: string }
+    >();
+
+    const { data: admins } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("role", "admin")
+      .eq("is_active", true);
+
+    for (const admin of admins ?? []) {
+      if (admin.id !== user.id) {
+        recipientMap.set(admin.id, {
+          recipientType: "admin",
+          orderLink: buildAdminOrderLink(assignmentId),
+        });
+      }
+    }
+
+    if (assignment.client_id && assignment.client_id !== user.id) {
+      recipientMap.set(assignment.client_id, {
+        recipientType: "client",
+        orderLink: buildClientOrderLink(assignmentId),
+      });
+    }
+
+    const recipientIds = Array.from(recipientMap.keys());
+
+    if (recipientIds.length > 0) {
+      const { data: recipients } = await supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", recipientIds);
+
+      const notifications =
+        recipients
+          ?.filter((recipient) => recipient.email)
+          .map((recipient) => {
+            const info = recipientMap.get(recipient.id);
+
+            return {
+              user_id: recipient.id,
+              channel: "email",
+              type: "order_message_added",
+              status: "pending",
+              subject: `New Note Added - Order-${orderNumber}`,
+              message: `
+Hello ${recipient.full_name || "there"},
+
+A new notary note was added to Order-${orderNumber}.
+
+Order Number: Order-${orderNumber}
+Borrower Name: ${assignment.borrower_name || "Not listed"}
+From: ${actorName}
+
+Message:
+${comment}
+
+Please log in to your Indiana Notary Solutions dashboard to review and respond.
+
+Indiana Notary Solutions
+`.trim(),
+              metadata: {
+                email: recipient.email,
+                assignment_id: assignmentId,
+                control_number: orderNumber,
+                order_link: info?.orderLink,
+                cta_label: "View Order",
+                recipient_type: info?.recipientType,
+              },
+              attempts: 0,
+            };
+          }) ?? [];
+
+      if (notifications.length > 0) {
+        const { error: notificationError } = await supabaseAdmin
+          .from("notification_queue")
+          .insert(notifications);
+
+        if (notificationError) {
+          console.error("Notary note notification insert error:", notificationError);
+        }
+
+        try {
+          await fetch(
+            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-notifications`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+              },
+            },
+          );
+        } catch (error) {
+          console.error("Notary note notification processing error:", error);
+        }
+      }
+    }
 
     revalidatePath(`/notary/assignments/${assignmentId}`);
   }
