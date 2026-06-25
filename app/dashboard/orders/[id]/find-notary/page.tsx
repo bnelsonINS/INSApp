@@ -174,14 +174,16 @@ export default async function FindNotaryPage({ params }: PageProps) {
     .select(
       `
       id,
-      assignment_id,
-      notary_id,
-      round_number,
-      status,
-      offered_fee,
-      counter_fee,
-      sent_at,
-      expires_at
+  assignment_id,
+  notary_id,
+  round_number,
+  status,
+  offered_fee,
+  counter_fee,
+  decline_reason,
+  decline_notes,
+  sent_at,
+  expires_at
     `
     )
     .eq("assignment_id", assignment.id)
