@@ -107,7 +107,6 @@ export default async function NotaryOfferPage({
   const canRespond = offer.status === "sent" && !isExpired;
 
   const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : "";
-  const requestingCompany = assignment?.signing_type || "the requesting company";
 
   return (
     <main className="min-h-screen bg-slate-50 p-6">
@@ -219,111 +218,17 @@ export default async function NotaryOfferPage({
                   </button>
                 </form>
 
-                <input
-                  id="decline-offer-modal"
-                  type="checkbox"
-                  className="peer hidden"
-                />
-
-                <label
-                  htmlFor="decline-offer-modal"
-                  className="block w-full cursor-pointer rounded-lg bg-red-600 px-4 py-3 text-center text-sm font-bold text-white hover:bg-red-700"
+                <form
+                  action={`/notary/offers/${offer.id}/decline${tokenQuery}`}
+                  method="post"
                 >
-                  Decline Offer
-                </label>
-
-                <div className="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/70 p-4 peer-checked:flex">
-                  <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="text-xl font-bold text-slate-950">
-                          Decline Offer
-                        </h3>
-                        <p className="mt-1 text-sm text-slate-600">
-                          Select the reason you are declining this offer.
-                        </p>
-                      </div>
-
-                      <label
-                        htmlFor="decline-offer-modal"
-                        className="cursor-pointer rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
-                      >
-                        ✕
-                      </label>
-                    </div>
-
-                    <form
-                      action={`/notary/offers/${offer.id}/decline${tokenQuery}`}
-                      method="post"
-                      className="mt-5 space-y-3"
-                    >
-                      <DeclineReason
-                        value="not_available"
-                        label="I am not available at that time"
-                      />
-
-                      <DeclineReason
-                        value="too_far"
-                        label="The location is too far away"
-                      />
-
-                      <DeclineReason
-                        value="pay_too_low"
-                        label="The offered fee is too low"
-                      />
-
-                      <DeclineReason
-                        value="no_mobile_signings"
-                        label="I no longer perform this type of signing"
-                      />
-
-                      <DeclineReason
-                        value="unfamiliar_company"
-                        label={`I am unfamiliar with ${requestingCompany}`}
-                      />
-
-                      <DeclineReason
-                        value="prefer_not_company"
-                        label={`I prefer not to work with ${requestingCompany}`}
-                      />
-
-                      <DeclineReason value="other" label="Other" />
-
-                      <div className="pt-2">
-                        <label
-                          htmlFor="decline_notes"
-                          className="text-sm font-bold text-slate-700"
-                        >
-                          Additional Details
-                        </label>
-
-                        <textarea
-                          id="decline_notes"
-                          name="decline_notes"
-                          rows={4}
-                          placeholder="Add details..."
-                          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
-                        />
-                      </div>
-
-                      <div className="flex gap-3 pt-3">
-                        <label
-                          htmlFor="decline-offer-modal"
-                          className="flex-1 cursor-pointer rounded-lg border border-slate-300 bg-white px-4 py-3 text-center text-sm font-bold text-slate-700 hover:bg-slate-50"
-                        >
-                          Cancel
-                        </label>
-
-                        <button
-                          type="submit"
-                          className="flex-1 rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700"
-                        >
-                          Submit Decline
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
+                  <button
+                    type="submit"
+                    className="w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700"
+                  >
+                    Decline Offer
+                  </button>
+                </form>
 
                 <form
                   action={`/notary/offers/${offer.id}/counter${tokenQuery}`}
@@ -380,20 +285,5 @@ function Info({
         {value || "Not provided"}
       </p>
     </div>
-  );
-}
-
-function DeclineReason({ value, label }: { value: string; label: string }) {
-  return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-800 hover:bg-slate-100">
-      <input
-        type="radio"
-        name="decline_reason"
-        value={value}
-        required
-        className="mt-1"
-      />
-      <span>{label}</span>
-    </label>
   );
 }
