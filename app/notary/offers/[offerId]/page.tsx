@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "../../../../src/lib/supabase-server";
+import DeclineOfferModal from "./DeclineOfferModal";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -218,17 +219,13 @@ export default async function NotaryOfferPage({
                   </button>
                 </form>
 
-                <form
-                  action={`/notary/offers/${offer.id}/decline${tokenQuery}`}
-                  method="post"
-                >
-                  <button
-                    type="submit"
-                    className="w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700"
-                  >
-                    Decline Offer
-                  </button>
-                </form>
+                <DeclineOfferModal
+                  offerId={offer.id}
+                  token={token}
+                  requestingCompany={
+                    assignment?.signing_type || "the requesting company"
+                  }
+                />
 
                 <form
                   action={`/notary/offers/${offer.id}/counter${tokenQuery}`}
