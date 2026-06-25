@@ -41,6 +41,22 @@ function formatTime(time: string | null) {
   });
 }
 
+function formatDeclineReason(reason: string | null | undefined) {
+  if (!reason) return "Not provided";
+
+  const labels: Record<string, string> = {
+    not_available: "Not available at that time",
+    too_far: "Location is too far away",
+    pay_too_low: "Offered fee is too low",
+    no_mobile_signings: "No longer performs this type of signing",
+    unfamiliar_company: "Unfamiliar with the requesting company",
+    prefer_not_company: "Prefers not to work with the requesting company",
+    other: "Other",
+  };
+
+  return labels[reason] || reason.replace(/_/g, " ");
+}
+
 function getCurrentMonthStart() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
@@ -174,16 +190,16 @@ export default async function FindNotaryPage({ params }: PageProps) {
     .select(
       `
       id,
-  assignment_id,
-  notary_id,
-  round_number,
-  status,
-  offered_fee,
-  counter_fee,
-  decline_reason,
-  decline_notes,
-  sent_at,
-  expires_at
+      assignment_id,
+      notary_id,
+      round_number,
+      status,
+      offered_fee,
+      counter_fee,
+      decline_reason,
+      decline_notes,
+      sent_at,
+      expires_at
     `
     )
     .eq("assignment_id", assignment.id)
@@ -705,20 +721,22 @@ export default async function FindNotaryPage({ params }: PageProps) {
             No offers have been sent for this assignment.
           </div>
         ) : (
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 space-y-4">
             {existingOffers.map((offer) => {
               const offerNotary = notaryById.get(offer.notary_id);
               const offerScore = scoreByNotaryId.get(offer.notary_id) ?? 100;
               const offerBadge = getScoreBadge(offerScore);
+              const isDeclined =
+                offer.status === "declined" && offer.decline_reason;
 
               return (
                 <div
                   key={offer.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <p className="font-bold text-slate-900">
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+                    <div className="min-w-0">
+                      <p className="break-words font-bold text-slate-900">
                         Round {offer.round_number} •{" "}
                         {offerNotary?.full_name ?? "Unknown Notary"}
                       </p>
@@ -727,55 +745,56 @@ export default async function FindNotaryPage({ params }: PageProps) {
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-800">
-                        {offerScore}%
-                      </span>
+                    <div className="flex flex-col gap-3 xl:items-end">
+                      <div className="flex flex-wrap gap-2">
+                        <span className="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-800">
+                          {offerScore}%
+                        </span>
 
-                      <span
-                        className={`rounded-full border px-3 py-1 text-xs font-bold ${offerBadge.className}`}
-                      >
-                        {offerBadge.label}
-                      </span>
+                        <span
+                          className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-xs font-bold ${offerBadge.className}`}
+                        >
+                          {offerBadge.label}
+                        </span>
 
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-                        {offer.status}
-                      </span>
+                        <span className="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                          {offer.status}
+                        </span>
 
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-  Offered: {formatMoney(offer.offered_fee)}
-</span>
+                        <span className="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                          Offered: {formatMoney(offer.offered_fee)}
+                        </span>
 
-{offer.counter_fee && (
-  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
-    Counter: {formatMoney(offer.counter_fee)}
-  </span>
-)}
+                        {offer.counter_fee && (
+                          <span className="inline-flex whitespace-nowrap rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
+                            Counter: {formatMoney(offer.counter_fee)}
+                          </span>
+                        )}
+                      </div>
 
-{offer.status === "declined" && offer.decline_reason && (
-  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3">
-    <p className="text-xs font-bold uppercase tracking-wide text-red-700">
-      Decline Reason
-    </p>
+                      {isDeclined && (
+                        <div className="w-full rounded-xl border border-red-200 bg-red-50 p-3 text-left xl:w-[340px]">
+                          <p className="text-xs font-bold uppercase tracking-wide text-red-700">
+                            Decline Reason
+                          </p>
 
-    <p className="mt-1 text-sm font-semibold text-slate-900">
-      {offer.decline_reason.replace(/_/g, " ")}
-    </p>
+                          <p className="mt-1 text-sm font-semibold text-slate-900">
+                            {formatDeclineReason(offer.decline_reason)}
+                          </p>
 
-    {offer.decline_notes && (
-      <>
-        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-red-700">
-          Additional Notes
-        </p>
+                          {offer.decline_notes && (
+                            <>
+                              <p className="mt-3 text-xs font-bold uppercase tracking-wide text-red-700">
+                                Additional Notes
+                              </p>
 
-        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
-          {offer.decline_notes}
-        </p>
-      </>
-    )}
-  </div>
-)}
-
+                              <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">
+                                {offer.decline_notes}
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -788,7 +807,8 @@ export default async function FindNotaryPage({ params }: PageProps) {
                     </p>
 
                     {!hasAssignedNotary &&
-(offer.status === "accepted" || offer.status === "countered") ? (
+                    (offer.status === "accepted" ||
+                      offer.status === "countered") ? (
                       <form
                         action={`/dashboard/orders/${assignment.id}/find-notary/assign-offer/${offer.id}`}
                         method="POST"
