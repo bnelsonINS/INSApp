@@ -66,6 +66,24 @@ type ActivityItem = {
   created_at: string | null;
 };
 
+function getBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://indiananotarysolutions.com"
+  ).replace(/\/$/, "");
+}
+
+function buildAdminOrderLink(assignmentId: string) {
+  return `${getBaseUrl()}/dashboard/orders/${assignmentId}`;
+}
+
+function buildNotaryOrderLink(assignmentId: string) {
+  return `${getBaseUrl()}/login?redirectTo=${encodeURIComponent(
+    `/notary/assignments/${assignmentId}`,
+  )}`;
+}
+
 function formatDate(date: string | null) {
   if (!date) return "Not scheduled";
 
@@ -364,117 +382,99 @@ export default async function ClientOrderDetailPage({
   const hiddenActivityItems = activityItems.slice(3);
   const hasHiddenActivityItems = hiddenActivityItems.length > 0;
 
-  function buildAdminOrderLink(assignmentId: string) {
-  return `${getBaseUrl()}/dashboard/orders/${assignmentId}`;
-}
-
-function buildNotaryOrderLink(assignmentId: string) {
-  return `${getBaseUrl()}/login?redirectTo=${encodeURIComponent(
-    `/notary/assignments/${assignmentId}`,
-  )}`;
-}
-
-function getBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "https://indiananotarysolutions.com"
-  ).replace(/\/$/, "");
-}
-
   async function addOrderNote(formData: FormData) {
-  "use server";
+    "use server";
 
-  const assignmentId = String(formData.get("assignment_id") ?? "");
-  const comment = String(formData.get("comment") ?? "").trim();
+    const assignmentId = String(formData.get("assignment_id") ?? "");
+    const comment = String(formData.get("comment") ?? "").trim();
 
-  if (!assignmentId || !comment) return;
+    if (!assignmentId || !comment) return;
 
-  const supabase = await createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+    if (!user) redirect("/login");
 
-  const { data: assignment } = await supabase
-    .from("assignments")
-    .select(
-      "id, client_id, assigned_notary_id, notary_id, control_number, borrower_name",
-    )
-    .eq("id", assignmentId)
-    .eq("client_id", user.id)
-    .single();
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select(
+        "id, client_id, assigned_notary_id, notary_id, control_number, borrower_name",
+      )
+      .eq("id", assignmentId)
+      .eq("client_id", user.id)
+      .single();
 
-  if (!assignment) redirect("/client/dashboard/orders");
+    if (!assignment) redirect("/client/dashboard/orders");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, email")
-    .eq("id", user.id)
-    .single();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .single();
 
-  const actorName = profile?.full_name || profile?.email || "Client";
+    const actorName = profile?.full_name || profile?.email || "Client";
 
-  await supabase.from("assignment_activity").insert({
-    assignment_id: assignmentId,
-    action: "Client comment",
-    actor_name: actorName,
-    details: comment,
-  });
+    await supabase.from("assignment_activity").insert({
+      assignment_id: assignmentId,
+      action: "Client comment",
+      actor_name: actorName,
+      details: comment,
+    });
 
-  const orderNumber = assignment.control_number || assignmentId;
-  const notaryId = assignment.assigned_notary_id || assignment.notary_id;
+    const orderNumber = assignment.control_number || assignmentId;
+    const notaryId = assignment.assigned_notary_id || assignment.notary_id;
 
-  const recipientMap = new Map<
-    string,
-    { recipientType: "admin" | "notary"; orderLink: string }
-  >();
+    const recipientMap = new Map<
+      string,
+      { recipientType: "admin" | "notary"; orderLink: string }
+    >();
 
-  const { data: admins } = await supabaseAdmin
-    .from("profiles")
-    .select("id")
-    .eq("role", "admin")
-    .eq("is_active", true);
+    const { data: admins } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("role", "admin")
+      .eq("is_active", true);
 
-  for (const admin of admins ?? []) {
-    if (admin.id !== user.id) {
-      recipientMap.set(admin.id, {
-        recipientType: "admin",
-        orderLink: buildAdminOrderLink(assignmentId),
+    for (const admin of admins ?? []) {
+      if (admin.id !== user.id) {
+        recipientMap.set(admin.id, {
+          recipientType: "admin",
+          orderLink: buildAdminOrderLink(assignmentId),
+        });
+      }
+    }
+
+    if (notaryId && notaryId !== user.id) {
+      recipientMap.set(notaryId, {
+        recipientType: "notary",
+        orderLink: buildNotaryOrderLink(assignmentId),
       });
     }
-  }
 
-  if (notaryId && notaryId !== user.id) {
-    recipientMap.set(notaryId, {
-      recipientType: "notary",
-      orderLink: buildNotaryOrderLink(assignmentId),
-    });
-  }
+    const recipientIds = Array.from(recipientMap.keys());
 
-  const recipientIds = Array.from(recipientMap.keys());
+    if (recipientIds.length > 0) {
+      const { data: recipients } = await supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", recipientIds);
 
-  if (recipientIds.length > 0) {
-    const { data: recipients } = await supabaseAdmin
-      .from("profiles")
-      .select("id, full_name, email")
-      .in("id", recipientIds);
+      const notifications =
+        recipients
+          ?.filter((recipient) => recipient.email)
+          .map((recipient) => {
+            const info = recipientMap.get(recipient.id);
 
-    const notifications =
-      recipients
-        ?.filter((recipient) => recipient.email)
-        .map((recipient) => {
-          const info = recipientMap.get(recipient.id);
-
-          return {
-            user_id: recipient.id,
-            channel: "email",
-            type: "order_message_added",
-            status: "pending",
-            subject: `New Note Added - Order-${orderNumber}`,
-            message: `
+            return {
+              user_id: recipient.id,
+              channel: "email",
+              type: "order_message_added",
+              status: "pending",
+              subject: `New Note Added - Order-${orderNumber}`,
+              message: `
 Hello ${recipient.full_name || "there"},
 
 A new client note was added to Order-${orderNumber}.
@@ -490,36 +490,46 @@ Please log in to your Indiana Notary Solutions dashboard to review and respond.
 
 Indiana Notary Solutions
 `.trim(),
-            metadata: {
-              email: recipient.email,
-              assignment_id: assignmentId,
-              control_number: orderNumber,
-              order_link: info?.orderLink,
-              cta_label: "View Order",
-              recipient_type: info?.recipientType,
+              metadata: {
+                email: recipient.email,
+                assignment_id: assignmentId,
+                control_number: orderNumber,
+                order_link: info?.orderLink,
+                cta_label: "View Order",
+                recipient_type: info?.recipientType,
+              },
+              attempts: 0,
+            };
+          }) ?? [];
+
+      if (notifications.length > 0) {
+        const { error: notificationError } = await supabaseAdmin
+          .from("notification_queue")
+          .insert(notifications);
+
+        if (notificationError) {
+          console.error("Client note notification insert error:", notificationError);
+        }
+
+        try {
+          await fetch(
+            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-notifications`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+              },
             },
-            attempts: 0,
-          };
-        }) ?? [];
-
-    if (notifications.length > 0) {
-      await supabaseAdmin.from("notification_queue").insert(notifications);
-
-      await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-notifications`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-          },
-        },
-      );
+          );
+        } catch (error) {
+          console.error("Client note notification processing error:", error);
+        }
+      }
     }
-  }
 
-  revalidatePath(`/client/dashboard/orders/${assignmentId}`);
-}
+    revalidatePath(`/client/dashboard/orders/${assignmentId}`);
+  }
 
   async function approveAndCloseOrder() {
     "use server";
@@ -904,8 +914,6 @@ Indiana Notary Solutions
               </div>
             )}
           </section>
-
-
         </main>
       </section>
 
