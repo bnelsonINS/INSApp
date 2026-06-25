@@ -95,22 +95,21 @@ export default async function NotaryOfferPage({
     ? offer.assignments[0]
     : offer.assignments;
 
-  const isAssigned =
-    !!assignment?.assigned_notary_id;
+  const isAssigned = !!assignment?.assigned_notary_id;
 
   const isAssignedToThisNotary =
     assignment?.assigned_notary_id === offer.notary_id;
 
-  const isAssignedToAnotherNotary =
-    isAssigned && !isAssignedToThisNotary;
+  const isAssignedToAnotherNotary = isAssigned && !isAssignedToThisNotary;
 
   const isExpired =
     offer.expires_at && new Date(offer.expires_at).getTime() < Date.now();
 
-  const canRespond =
-    offer.status === "sent" && !isExpired && !isAssigned;
+  const canRespond = offer.status === "sent" && !isExpired && !isAssigned;
 
   const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : "";
+  const requestingCompany =
+    assignment?.signing_type || "the requesting company";
 
   return (
     <main className="min-h-screen bg-slate-50 p-6">
@@ -128,13 +127,14 @@ export default async function NotaryOfferPage({
         </div>
 
         {response && (
-  <div className="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 shadow-sm">
-    <h2 className="text-lg font-bold">Response Sent</h2>
-    <p className="mt-1 text-sm">
-      Thank you. Your response has been sent to Indiana Notary Solutions.
-    </p>
-  </div>
-)}
+          <div className="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 shadow-sm">
+            <h2 className="text-lg font-bold">Response Sent</h2>
+            <p className="mt-1 text-sm">
+              Thank you. Your response has been sent to Indiana Notary
+              Solutions.
+            </p>
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -149,11 +149,7 @@ export default async function NotaryOfferPage({
               </div>
 
               <span className="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-700">
-                {isAssigned
-                  ? "Assigned"
-                  : isExpired
-                    ? "Expired"
-                    : offer.status}
+                {isAssigned ? "Assigned" : isExpired ? "Expired" : offer.status}
               </span>
             </div>
 
@@ -226,7 +222,11 @@ export default async function NotaryOfferPage({
                       : "You have already responded to this offer."}
               </div>
             ) : (
-              <OfferResponseButtons offerId={offer.id} tokenQuery={tokenQuery} />
+              <OfferResponseButtons
+                offerId={offer.id}
+                tokenQuery={tokenQuery}
+                requestingCompany={requestingCompany}
+              />
             )}
           </aside>
         </div>

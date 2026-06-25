@@ -9,6 +9,18 @@ export async function POST(
   const { offerId } = await params;
   const token = request.nextUrl.searchParams.get("token");
 
+  const formData = await request.formData();
+  const declineReason = String(formData.get("decline_reason") || "").trim();
+  const declineNotes = String(formData.get("decline_notes") || "").trim();
+
+  const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : "";
+
+  if (!declineReason) {
+    return NextResponse.redirect(
+      new URL(`/offers/${offerId}${tokenQuery}`, request.url)
+    );
+  }
+
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -40,7 +52,7 @@ export async function POST(
 
   if (assignment?.assigned_notary_id) {
     return NextResponse.redirect(
-      new URL(`/offers/${offerId}?token=${token ?? ""}`, request.url)
+      new URL(`/offers/${offerId}${tokenQuery}`, request.url)
     );
   }
 
@@ -49,15 +61,19 @@ export async function POST(
 
   if (isExpired || offer.status !== "sent") {
     return NextResponse.redirect(
-      new URL(`/offers/${offerId}?token=${token ?? ""}`, request.url)
+      new URL(`/offers/${offerId}${tokenQuery}`, request.url)
     );
   }
+
+  const respondedAt = new Date().toISOString();
 
   await supabaseAdmin
     .from("assignment_offers")
     .update({
       status: "declined",
-      responded_at: new Date().toISOString(),
+      decline_reason: declineReason,
+      decline_notes: declineNotes || null,
+      responded_at: respondedAt,
     })
     .eq("id", offerId);
 
@@ -65,13 +81,18 @@ export async function POST(
     assignment_offer_id: offerId,
     event_type: "declined",
     notary_id: offer.notary_id,
-    metadata: {},
+    metadata: {
+      decline_reason: declineReason,
+      decline_notes: declineNotes || null,
+      responded_at: respondedAt,
+    },
   });
 
+  const responseQuery = token
+    ? `?token=${encodeURIComponent(token)}&response=declined`
+    : "?response=declined";
+
   return NextResponse.redirect(
-  new URL(
-    `/offers/${offerId}?token=${token ?? ""}&response=declined`,
-    request.url
-  )
-);
+    new URL(`/offers/${offerId}${responseQuery}`, request.url)
+  );
 }
