@@ -24,7 +24,7 @@ export default function DeclineOfferModal({
         onClick={() => setOpen(true)}
         className="w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700"
       >
-        Decline Offer
+        Decline Offer - MODAL TEST
       </button>
 
       {open && (
