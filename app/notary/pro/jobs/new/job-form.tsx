@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { addChoiceOption, createManualProJob } from "../actions";
 
@@ -102,47 +103,142 @@ function ChoiceField({
   choices: ChoiceOption[];
   placeholder?: string;
 }) {
+  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [localValue, setLocalValue] = useState("");
+  const [selectedValue, setSelectedValue] = useState("");
+  const [search, setSearch] = useState("");
+  const [newValue, setNewValue] = useState("");
 
-  const options = choices.filter((choice) => choice.category === category);
+  const options = choices
+    .filter((choice) => choice.category === category)
+    .filter((choice) =>
+      choice.value.toLowerCase().includes(search.toLowerCase())
+    );
 
-  function saveChoice() {
-    if (!localValue.trim()) return;
+  function selectOption(value: string) {
+    setSelectedValue(value);
+    setIsOpen(false);
+    setSearch("");
+    setNewValue("");
+  }
+
+  function saveNewOption() {
+    const cleanValue = newValue.trim();
+
+    if (!cleanValue) return;
 
     startTransition(async () => {
-      await addChoiceOption(category, localValue);
+      await addChoiceOption(category, cleanValue);
+      setSelectedValue(cleanValue);
+      setIsOpen(false);
+      setSearch("");
+      setNewValue("");
+      router.refresh();
     });
   }
 
   return (
-    <label className="block">
-      <span className="flex items-center justify-between gap-3 text-sm font-bold text-slate-700">
-        {label}
-        <button
-          type="button"
-          onClick={saveChoice}
-          className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-black text-[#0B1F4D] hover:bg-slate-50"
-        >
-          {isPending ? "Saving..." : "Add"}
-        </button>
-      </span>
+    <div className="block">
+      <span className="text-sm font-bold text-slate-700">{label}</span>
 
-      <input
-        name={name}
-        list={`${category}-list`}
-        placeholder={placeholder}
-        value={localValue}
-        onChange={(event) => setLocalValue(event.target.value)}
-        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950 placeholder:text-slate-400 focus:border-[#0B1F4D] focus:outline-none focus:ring-2 focus:ring-blue-100"
-      />
+      <input type="hidden" name={name} value={selectedValue} />
 
-      <datalist id={`${category}-list`}>
-        {options.map((option) => (
-          <option key={option.id} value={option.value} />
-        ))}
-      </datalist>
-    </label>
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="mt-2 flex w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-950 hover:bg-slate-50 focus:border-[#0B1F4D] focus:outline-none focus:ring-2 focus:ring-blue-100"
+      >
+        <span className={selectedValue ? "text-slate-950" : "text-slate-400"}>
+          {selectedValue || placeholder || `Select ${label}`}
+        </span>
+
+        <span className="text-lg font-black text-slate-400">⋯</span>
+      </button>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between bg-[#0B1F4D] px-5 py-4 text-white">
+              <h3 className="text-lg font-black">Select {label}</h3>
+
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="text-2xl font-black text-white"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4 p-5">
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950 placeholder:text-slate-400 focus:border-[#0B1F4D] focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setNewValue(search)}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50"
+                >
+                  New {label}
+                </button>
+              </div>
+
+              <div className="max-h-72 overflow-y-auto rounded-2xl border border-slate-200">
+                {options.length === 0 ? (
+                  <div className="p-4 text-sm font-semibold text-slate-500">
+                    No saved options found.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {options.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => selectOption(option.value)}
+                        className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-bold text-slate-900 hover:bg-slate-50"
+                      >
+                        <span>{option.value}</span>
+                        <span className="text-slate-300">›</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-black text-slate-900">
+                  Add New {label}
+                </p>
+
+                <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+                  <input
+                    value={newValue}
+                    onChange={(event) => setNewValue(event.target.value)}
+                    placeholder={`Enter new ${label}`}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950 placeholder:text-slate-400 focus:border-[#0B1F4D] focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={saveNewOption}
+                    disabled={isPending || !newValue.trim()}
+                    className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-black text-white hover:bg-blue-950 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isPending ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
