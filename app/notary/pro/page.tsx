@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../src/lib/supabase-server";
+import TimeFrameSelect from "./time-frame-select";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -23,6 +24,7 @@ type Assignment = {
 type PageProps = {
   searchParams?: Promise<{
     filter?: string;
+    timeframe?: string;
   }>;
 };
 
@@ -113,6 +115,10 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const activeFilter = resolvedSearchParams?.filter ?? "upcoming";
 
+  const currentYear = new Date().getFullYear();
+const activeTimeFrame =
+  resolvedSearchParams?.timeframe ?? `${currentYear}`;
+
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -140,7 +146,9 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
 
   const jobs = (assignments ?? []) as Assignment[];
 
-  const currentYearJobs = jobs.filter((job) => isCurrentYear(job.signing_date));
+  const currentYearJobs = jobs.filter((job) =>
+  jobMatchesTimeFrame(job, activeTimeFrame)
+);
 
   const upcomingJobs = jobs.filter((job) => {
     const status = (job.status ?? "").toLowerCase();
@@ -306,6 +314,65 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
     "Dec",
   ];
 
+  function jobMatchesTimeFrame(job: Assignment, timeFrame: string) {
+  if (timeFrame === "since-inception") return true;
+  if (!job.signing_date) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const jobDate = new Date(`${job.signing_date}T00:00:00`);
+  jobDate.setHours(0, 0, 0, 0);
+
+  if (/^\d{4}$/.test(timeFrame)) {
+    return job.signing_date.startsWith(timeFrame);
+  }
+
+  if (timeFrame === "this-month") {
+    return (
+      jobDate.getFullYear() === today.getFullYear() &&
+      jobDate.getMonth() === today.getMonth()
+    );
+  }
+
+  if (timeFrame === "last-month") {
+    const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    return (
+      jobDate.getFullYear() === lastMonth.getFullYear() &&
+      jobDate.getMonth() === lastMonth.getMonth()
+    );
+  }
+
+  if (timeFrame === "this-week") {
+    const start = new Date(today);
+    start.setDate(today.getDate() - today.getDay());
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+
+    return jobDate >= start && jobDate <= end;
+  }
+
+  if (timeFrame === "last-week") {
+    const start = new Date(today);
+    start.setDate(today.getDate() - today.getDay() - 7);
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+
+    return jobDate >= start && jobDate <= end;
+  }
+
+  if (timeFrame === "last-10-weeks") {
+    const start = new Date(today);
+    start.setDate(today.getDate() - 70);
+
+    return jobDate >= start && jobDate <= today;
+  }
+
+  return job.signing_date.startsWith(String(today.getFullYear()));
+}
+
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-6">
       <section className="mt-0 grid gap-6 xl:grid-cols-[360px_1fr]">
@@ -325,7 +392,7 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
             return (
               <Link
                 key={card.filter}
-                href={`/notary/pro?filter=${card.filter}`}
+                href={`/notary/pro?filter=${card.filter}&timeframe=${activeTimeFrame}`}
                 className={`flex items-center justify-between rounded-2xl border p-4 shadow-sm transition ${toneClass} ${
                   isActive ? "ring-2 ring-[#0B1F4D] ring-offset-2" : ""
                 }`}
@@ -394,13 +461,14 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
                   Signing Activity
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Monthly signing count for {new Date().getFullYear()}.
+                  Signing count for selected time frame.
                 </p>
               </div>
 
-              <select className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700">
-                <option>{new Date().getFullYear()}</option>
-              </select>
+              <TimeFrameSelect
+  currentYear={currentYear}
+  selectedTimeFrame={activeTimeFrame}
+/>
             </div>
 
             <div className="mt-8 flex h-72 items-end gap-3 border-b border-slate-200 px-2">
@@ -442,7 +510,7 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
               </div>
 
               <Link
-                href="/notary/pro?filter=upcoming"
+                href={`/notary/pro?filter=upcoming&timeframe=${activeTimeFrame}`}
                 className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-center text-sm font-bold text-white transition hover:bg-blue-950"
               >
                 Reset Filter
