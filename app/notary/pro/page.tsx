@@ -390,15 +390,15 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
 
   const quickActions = [
     {
-      label: "View Assignments",
-      href: "/notary/assignments",
-      icon: "calendar",
-    },
+  label: "View Pro Jobs",
+  href: "/notary/pro/jobs",
+  icon: "calendar",
+},
     {
-      label: "Add Expense",
-      href: "/notary/pro?filter=upcoming",
-      icon: "invoice",
-    },
+  label: "Add Non-INS Signing",
+  href: "/notary/pro/jobs/new",
+  icon: "invoice",
+},
     {
       label: "Mileage Log",
       href: "/notary/pro?filter=upcoming",
