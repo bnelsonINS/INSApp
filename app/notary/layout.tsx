@@ -46,6 +46,7 @@ export default async function NotaryLayout({
 
   const navItems = [
     { label: "Dashboard", href: "/notary/dashboard", tour: "tour-dashboard" },
+    { label: "INS Pro", href: "/notary/pro", tour: "tour-ins-pro" },
     {
       label: "Credentials",
       href: "/notary/credentials",
