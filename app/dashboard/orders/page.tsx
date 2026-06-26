@@ -84,17 +84,28 @@ function getProfit(order: AssignmentOrder) {
 function statusBadge(status: string | null) {
   const normalized = (status ?? "").toLowerCase();
 
-  if (normalized === "new request") return "bg-blue-50 text-blue-700 ring-blue-200";
-  if (normalized === "not confirmed") return "bg-amber-50 text-amber-700 ring-amber-200";
-  if (normalized === "confirmed") return "bg-purple-50 text-purple-700 ring-purple-200";
-  if (normalized === "in progress") return "bg-indigo-50 text-indigo-700 ring-indigo-200";
-  if (normalized === "late") return "bg-red-50 text-red-700 ring-red-200";
-  if (normalized === "docs uploaded") return "bg-orange-50 text-orange-700 ring-orange-200";
-  if (normalized === "qa") return "bg-teal-50 text-teal-700 ring-teal-200";
-  if (normalized === "signing complete") return "bg-orange-50 text-orange-700 ring-orange-200";
-  if (normalized === "completed") return "bg-green-50 text-green-700 ring-green-200";
-  if (normalized === "closed") return "bg-green-50 text-green-700 ring-green-200";
-  if (normalized === "cancelled") return "bg-red-50 text-red-700 ring-red-200";
+  if (normalized === "new request")
+    return "bg-blue-50 text-blue-700 ring-blue-200";
+  if (normalized === "not confirmed")
+    return "bg-amber-50 text-amber-700 ring-amber-200";
+  if (normalized === "confirmed")
+    return "bg-purple-50 text-purple-700 ring-purple-200";
+  if (normalized === "in progress")
+    return "bg-indigo-50 text-indigo-700 ring-indigo-200";
+  if (normalized === "late")
+    return "bg-red-50 text-red-700 ring-red-200";
+  if (normalized === "docs uploaded")
+    return "bg-orange-50 text-orange-700 ring-orange-200";
+  if (normalized === "qa")
+    return "bg-teal-50 text-teal-700 ring-teal-200";
+  if (normalized === "signing complete")
+    return "bg-orange-50 text-orange-700 ring-orange-200";
+  if (normalized === "completed")
+    return "bg-green-50 text-green-700 ring-green-200";
+  if (normalized === "closed")
+    return "bg-green-50 text-green-700 ring-green-200";
+  if (normalized === "cancelled")
+    return "bg-red-50 text-red-700 ring-red-200";
 
   return "bg-slate-50 text-slate-700 ring-slate-200";
 }
@@ -149,16 +160,21 @@ function bucketCardStyle(bucket: string) {
 
 function orderCard(order: AssignmentOrder) {
   return (
-    <div key={order.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div
+      key={order.id}
+      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+    >
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <p className="text-sm text-slate-500">Control #</p>
-          <p className="font-bold">{order.control_number ?? "—"}</p>
+          <p className="break-words font-bold text-slate-950">
+            {order.control_number ?? "—"}
+          </p>
         </div>
 
         <span
-          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
-            order.status
+          className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
+            order.status,
           )}`}
         >
           {order.status ?? "Unknown"}
@@ -266,7 +282,7 @@ export default async function OrdersPage({
 
   if (search) {
     query = query.or(
-      `control_number.ilike.%${search}%,borrower_name.ilike.%${search}%,signing_city.ilike.%${search}%,signing_zip.ilike.%${search}%`
+      `control_number.ilike.%${search}%,borrower_name.ilike.%${search}%,signing_city.ilike.%${search}%,signing_zip.ilike.%${search}%`,
     );
   }
 
@@ -274,19 +290,19 @@ export default async function OrdersPage({
   const safeOrders = (orders ?? []) as AssignmentOrder[];
 
   const incomingCount = safeOrders.filter((order) =>
-    incomingStatuses.includes(order.status ?? "")
+    incomingStatuses.includes(order.status ?? ""),
   ).length;
 
   const assignedCount = safeOrders.filter((order) =>
-    assignedStatuses.includes(order.status ?? "")
+    assignedStatuses.includes(order.status ?? ""),
   ).length;
 
   const qaCount = safeOrders.filter((order) =>
-    qaStatuses.includes(order.status ?? "")
+    qaStatuses.includes(order.status ?? ""),
   ).length;
 
   const completedCount = safeOrders.filter((order) =>
-    completedStatuses.includes(order.status ?? "")
+    completedStatuses.includes(order.status ?? ""),
   ).length;
 
   return (
@@ -294,7 +310,9 @@ export default async function OrdersPage({
       <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
         <div className="flex flex-col justify-between gap-4 p-6 md:flex-row md:items-center">
           <div>
-            <p className="text-sm font-semibold text-blue-100">Admin Order Queue</p>
+            <p className="text-sm font-semibold text-blue-100">
+              Admin Order Queue
+            </p>
             <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Orders</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-blue-100/90">
               Sort incoming title company requests, assigned orders, QA files,
@@ -315,7 +333,7 @@ export default async function OrdersPage({
         <a
           href="/dashboard/orders?bucket=incoming"
           className={`rounded-2xl border p-5 shadow-sm transition ${bucketCardStyle(
-            "incoming"
+            "incoming",
           )}`}
         >
           <p className="text-sm font-semibold">Incoming Requests</p>
@@ -326,7 +344,7 @@ export default async function OrdersPage({
         <a
           href="/dashboard/orders?bucket=assigned"
           className={`rounded-2xl border p-5 shadow-sm transition ${bucketCardStyle(
-            "assigned"
+            "assigned",
           )}`}
         >
           <p className="text-sm font-semibold">Assigned Orders</p>
@@ -337,7 +355,7 @@ export default async function OrdersPage({
         <a
           href="/dashboard/orders?bucket=qa"
           className={`rounded-2xl border p-5 shadow-sm transition ${bucketCardStyle(
-            "qa"
+            "qa",
           )}`}
         >
           <p className="text-sm font-semibold">Awaiting QA</p>
@@ -348,7 +366,7 @@ export default async function OrdersPage({
         <a
           href="/dashboard/orders?bucket=completed"
           className={`rounded-2xl border p-5 shadow-sm transition ${bucketCardStyle(
-            "completed"
+            "completed",
           )}`}
         >
           <p className="text-sm font-semibold">Completed</p>
@@ -363,7 +381,10 @@ export default async function OrdersPage({
           Search by control number, borrower, city, or ZIP code.
         </p>
 
-        <form method="get" className="mt-4 grid gap-3 md:grid-cols-[1fr_auto_auto]">
+        <form
+          method="get"
+          className="mt-4 grid gap-3 md:grid-cols-[1fr_auto_auto]"
+        >
           <input
             name="q"
             defaultValue={search}
@@ -371,7 +392,9 @@ export default async function OrdersPage({
             className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
           />
 
-          {bucket !== "all" && <input type="hidden" name="bucket" value={bucket} />}
+          {bucket !== "all" && (
+            <input type="hidden" name="bucket" value={bucket} />
+          )}
 
           <button className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950">
             Search
@@ -424,31 +447,33 @@ export default async function OrdersPage({
               {safeOrders.map((order) => orderCard(order))}
             </div>
 
-            <div className="hidden md:block">
-              <table className="w-full table-fixed text-left text-sm text-slate-900">
+            <div className="hidden overflow-x-auto md:block">
+              <table className="min-w-[1180px] w-full text-left text-sm text-slate-900">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="w-[9%] px-3 py-3">Control #</th>
-                    <th className="w-[15%] px-3 py-3">Signing</th>
-                    <th className="w-[13%] px-3 py-3">Borrower</th>
-                    <th className="w-[18%] px-3 py-3">Location</th>
-                    <th className="w-[9%] px-3 py-3">Notary</th>
-                    <th className="w-[9%] px-3 py-3">Title Fee</th>
-                    <th className="w-[9%] px-3 py-3">Notary Fee</th>
-                    <th className="w-[8%] px-3 py-3">Profit</th>
-                    <th className="w-[14%] px-3 py-3">Status</th>
-                    <th className="w-[8%] px-3 py-3 text-right">Actions</th>
+                    <th className="w-[150px] px-4 py-3">Control #</th>
+                    <th className="w-[170px] px-4 py-3">Signing</th>
+                    <th className="w-[160px] px-4 py-3">Borrower</th>
+                    <th className="w-[230px] px-4 py-3">Location</th>
+                    <th className="w-[110px] px-4 py-3">Notary</th>
+                    <th className="w-[110px] px-4 py-3">Title Fee</th>
+                    <th className="w-[120px] px-4 py-3">Notary Fee</th>
+                    <th className="w-[100px] px-4 py-3">Profit</th>
+                    <th className="w-[150px] px-4 py-3">Status</th>
+                    <th className="w-[90px] px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-slate-200 bg-white">
                   {safeOrders.map((order) => (
                     <tr key={order.id} className="transition hover:bg-slate-50">
-                      <td className="px-3 py-4 font-semibold text-slate-900">
-                        {order.control_number ?? "—"}
+                      <td className="px-4 py-4 align-top">
+                        <div className="max-w-[135px] break-words font-bold leading-snug text-slate-950">
+                          {order.control_number ?? "—"}
+                        </div>
                       </td>
 
-                      <td className="px-3 py-4 align-top text-slate-900">
+                      <td className="px-4 py-4 align-top text-slate-900">
                         <div className="font-medium text-slate-900">
                           {formatDate(order.signing_date)}
                         </div>
@@ -460,12 +485,16 @@ export default async function OrdersPage({
                         </div>
                       </td>
 
-                      <td className="px-3 py-4 align-top font-medium text-slate-900">
-                        <div className="break-words">{order.borrower_name ?? "—"}</div>
+                      <td className="px-4 py-4 align-top font-medium text-slate-900">
+                        <div className="break-words">
+                          {order.borrower_name ?? "—"}
+                        </div>
                       </td>
 
-                      <td className="px-3 py-4 align-top text-slate-900">
-                        <div className="break-words font-medium text-slate-900">{order.signing_address ?? "—"}</div>
+                      <td className="px-4 py-4 align-top text-slate-900">
+                        <div className="break-words font-medium text-slate-900">
+                          {order.signing_address ?? "—"}
+                        </div>
                         <div className="text-slate-500">
                           {order.signing_city ?? "—"},{" "}
                           {order.signing_state ?? "IN"}{" "}
@@ -473,7 +502,7 @@ export default async function OrdersPage({
                         </div>
                       </td>
 
-                      <td className="px-3 py-4 align-top">
+                      <td className="px-4 py-4 align-top">
                         {order.assigned_notary_id || order.notary_id ? (
                           <span className="font-medium text-slate-700">
                             Assigned
@@ -485,29 +514,29 @@ export default async function OrdersPage({
                         )}
                       </td>
 
-                      <td className="px-3 py-4 align-top font-semibold text-slate-900">
+                      <td className="px-4 py-4 align-top font-semibold text-slate-900">
                         {formatMoney(getClientFee(order))}
                       </td>
 
-                      <td className="px-3 py-4 align-top font-semibold text-slate-900">
+                      <td className="px-4 py-4 align-top font-semibold text-slate-900">
                         {formatMoney(order.notary_fee)}
                       </td>
 
-                      <td className="px-3 py-4 align-top font-bold text-slate-900">
+                      <td className="px-4 py-4 align-top font-bold text-slate-900">
                         {formatMoney(getProfit(order))}
                       </td>
 
-                      <td className="px-3 py-4 align-top">
+                      <td className="px-4 py-4 align-top">
                         <span
                           className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold leading-none ring-1 ${statusBadge(
-                            order.status
+                            order.status,
                           )}`}
                         >
                           {order.status ?? "Unknown"}
                         </span>
                       </td>
 
-                      <td className="px-3 py-4 text-right align-top">
+                      <td className="px-4 py-4 text-right align-top">
                         <a
                           href={`/dashboard/orders/${order.id}`}
                           className="inline-flex rounded-xl bg-[#0B1F4D] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-950"
