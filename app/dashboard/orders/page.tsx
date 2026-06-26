@@ -448,9 +448,10 @@ export default async function OrdersPage({
             </div>
 
             <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-[1180px] w-full text-left text-sm text-slate-900">
+              <table className="min-w-[1050px] w-full text-left text-sm text-slate-900">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
+                    <th className="sticky left-0 z-20 w-[90px] bg-slate-50 px-4 py-3 text-right">Actions</th>
                     <th className="w-[150px] px-4 py-3">Control #</th>
                     <th className="w-[170px] px-4 py-3">Signing</th>
                     <th className="w-[160px] px-4 py-3">Borrower</th>
@@ -460,13 +461,21 @@ export default async function OrdersPage({
                     <th className="w-[120px] px-4 py-3">Notary Fee</th>
                     <th className="w-[100px] px-4 py-3">Profit</th>
                     <th className="w-[150px] px-4 py-3">Status</th>
-                    <th className="w-[90px] px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-slate-200 bg-white">
                   {safeOrders.map((order) => (
-                    <tr key={order.id} className="transition hover:bg-slate-50">
+                    <tr key={order.id} className="group transition hover:bg-slate-50">
+                      <td className="sticky left-0 z-10 bg-white px-4 py-4 text-right align-top transition group-hover:bg-slate-50">
+                        <a
+                          href={`/dashboard/orders/${order.id}`}
+                          className="inline-flex rounded-xl bg-[#0B1F4D] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-950"
+                        >
+                          View
+                        </a>
+                      </td>
+
                       <td className="px-4 py-4 align-top">
                         <div className="max-w-[135px] break-words font-bold leading-snug text-slate-950">
                           {order.control_number ?? "—"}
@@ -534,15 +543,6 @@ export default async function OrdersPage({
                         >
                           {order.status ?? "Unknown"}
                         </span>
-                      </td>
-
-                      <td className="px-4 py-4 text-right align-top">
-                        <a
-                          href={`/dashboard/orders/${order.id}`}
-                          className="inline-flex rounded-xl bg-[#0B1F4D] px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-950"
-                        >
-                          View
-                        </a>
                       </td>
                     </tr>
                   ))}
