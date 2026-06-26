@@ -159,6 +159,31 @@ function firstTextValue(...values: Array<string | number | null | undefined>) {
   return "—";
 }
 
+
+const UUID_PATTERN =
+  /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+
+function extractProfileIdsFromText(value: string | null | undefined) {
+  if (!value) return [];
+
+  return Array.from(new Set(value.match(UUID_PATTERN) ?? []));
+}
+
+function formatActivityDetails(
+  value: string | null | undefined,
+  profileNameById: Map<string, string>
+) {
+  if (!value) return "—";
+
+  let formatted = value.replace(/"blank"/gi, '"Unassigned"');
+
+  for (const [profileId, displayName] of profileNameById.entries()) {
+    formatted = formatted.replaceAll(profileId, displayName);
+  }
+
+  return formatted;
+}
+
 function statusBadge(status: string | null) {
   const normalized = (status ?? "").toLowerCase();
 
@@ -656,6 +681,28 @@ Thank you for choosing Indiana Notary Solutions.
     .select("*")
     .eq("assignment_id", assignment.id)
     .order("created_at", { ascending: false });
+
+  const activityProfileIds = Array.from(
+    new Set(
+      (activity ?? []).flatMap((item) =>
+        extractProfileIdsFromText(item.details)
+      )
+    )
+  );
+
+  const { data: activityProfiles } = activityProfileIds.length
+    ? await supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", activityProfileIds)
+    : { data: [] };
+
+  const profileNameById = new Map<string, string>(
+    (activityProfiles ?? []).map((profile) => [
+      String(profile.id),
+      String(profile.full_name || profile.email || profile.id),
+    ])
+  );
 
   const { data: uploadedDocuments } = await supabase
     .from("assignment_uploaded_documents")
@@ -1498,7 +1545,7 @@ Thank you for choosing Indiana Notary Solutions.
                 )}
 
                 <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-slate-600">
-                  {item.details ?? "—"}
+                  {formatActivityDetails(item.details, profileNameById)}
                 </p>
 
                 <p className="mt-3 text-xs font-medium text-slate-400">
@@ -1531,7 +1578,7 @@ Thank you for choosing Indiana Notary Solutions.
                       )}
 
                       <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-slate-600">
-                        {item.details ?? "—"}
+                        {formatActivityDetails(item.details, profileNameById)}
                       </p>
 
                       <p className="mt-3 text-xs font-medium text-slate-400">
