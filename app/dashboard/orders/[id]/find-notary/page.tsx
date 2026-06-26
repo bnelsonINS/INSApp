@@ -7,6 +7,7 @@ export const revalidate = 0;
 
 type PageProps = {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ radius?: string }>;
 };
 
 function normalizeCounty(value: string | null) {
@@ -132,8 +133,52 @@ function getScoreWarning(score: number) {
   return null;
 }
 
-export default async function FindNotaryPage({ params }: PageProps) {
+function toNumberOrNull(value: unknown) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function calculateDistanceMiles(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+) {
+  const earthRadiusMiles = 3958.8;
+
+  const lat1Radians = (lat1 * Math.PI) / 180;
+  const lat2Radians = (lat2 * Math.PI) / 180;
+  const latDifferenceRadians = ((lat2 - lat1) * Math.PI) / 180;
+  const lonDifferenceRadians = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(latDifferenceRadians / 2) * Math.sin(latDifferenceRadians / 2) +
+    Math.cos(lat1Radians) *
+      Math.cos(lat2Radians) *
+      Math.sin(lonDifferenceRadians / 2) *
+      Math.sin(lonDifferenceRadians / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return earthRadiusMiles * c;
+}
+
+function formatDistance(distance: number | null) {
+  if (distance === null || distance === undefined) return "Not available";
+  return `${distance.toFixed(1)} mi`;
+}
+
+export default async function FindNotaryPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const expandedRadiusMiles = Math.max(
+    0,
+    Number(resolvedSearchParams.radius || 0)
+  );
+
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -238,13 +283,31 @@ export default async function FindNotaryPage({ params }: PageProps) {
 
   const notaryIds = (notaries || []).map((n) => n.id);
   const safeIds =
-    notaryIds.length > 0 ? notaryIds : ["00000000-0000-0000-0000-000000000000"];
+    notaryIds.length > 0
+      ? notaryIds
+      : ["00000000-0000-0000-0000-000000000000"];
+
+  const jobZip = (assignment.signing_zip || "").trim();
+  const jobCounty = normalizeCounty(assignment.signing_county);
+
+  const notaryHomeZips = Array.from(
+    new Set(
+      (notaries || [])
+        .map((notary) => (notary.home_zip || "").trim())
+        .filter(Boolean)
+    )
+  );
+
+  const zipCodesToLookup = Array.from(
+    new Set([jobZip, ...notaryHomeZips].filter(Boolean))
+  );
 
   const [
     { data: countyCoverage },
     { data: zipCoverage },
     { data: monthlyScores },
     { data: metrics },
+    { data: zipCoordinates },
   ] = await Promise.all([
     supabase
       .from("notary_coverage_counties")
@@ -266,7 +329,26 @@ export default async function FindNotaryPage({ params }: PageProps) {
       .from("notary_performance_metrics")
       .select("notary_id, total_assignments_completed, response_rate")
       .in("notary_id", safeIds),
+
+    zipCodesToLookup.length > 0
+      ? supabase
+          .from("zip_codes")
+          .select("zip_code, latitude, longitude")
+          .in("zip_code", zipCodesToLookup)
+      : Promise.resolve({ data: [] }),
   ]);
+
+  const zipCoordinateByZip = new Map(
+    (zipCoordinates || []).map((zip) => [
+      zip.zip_code,
+      {
+        latitude: toNumberOrNull(zip.latitude),
+        longitude: toNumberOrNull(zip.longitude),
+      },
+    ])
+  );
+
+  const jobCoordinates = zipCoordinateByZip.get(jobZip);
 
   const scoreByNotaryId = new Map(
     (monthlyScores || []).map((score) => [
@@ -275,15 +357,32 @@ export default async function FindNotaryPage({ params }: PageProps) {
     ])
   );
 
-  const jobZip = (assignment.signing_zip || "").trim();
-  const jobCounty = normalizeCounty(assignment.signing_county);
-
   const candidates = (notaries || [])
     .filter((notary) => {
       const approval = (notary.approval_status || "").toLowerCase();
       return approval === "approved";
     })
     .map((notary) => {
+      const notaryZip = (notary.home_zip || "").trim();
+      const notaryCoordinates = zipCoordinateByZip.get(notaryZip);
+
+      const distanceMiles =
+        jobCoordinates?.latitude !== null &&
+        jobCoordinates?.latitude !== undefined &&
+        jobCoordinates?.longitude !== null &&
+        jobCoordinates?.longitude !== undefined &&
+        notaryCoordinates?.latitude !== null &&
+        notaryCoordinates?.latitude !== undefined &&
+        notaryCoordinates?.longitude !== null &&
+        notaryCoordinates?.longitude !== undefined
+          ? calculateDistanceMiles(
+              jobCoordinates.latitude,
+              jobCoordinates.longitude,
+              notaryCoordinates.latitude,
+              notaryCoordinates.longitude
+            )
+          : null;
+
       const explicitZipMatches =
         zipCoverage?.some(
           (z) => z.user_id === notary.id && z.zip_code === jobZip
@@ -310,13 +409,22 @@ export default async function FindNotaryPage({ params }: PageProps) {
         (offer) => offer.notary_id === notary.id
       );
 
+      const matchStrength =
+        Number(zipMatches) + Number(homeZipMatches) + Number(countyMatches);
+
+      const expandedDistanceMatches =
+        expandedRadiusMiles > 0 &&
+        distanceMiles !== null &&
+        distanceMiles <= expandedRadiusMiles;
+
       return {
         ...notary,
+        distanceMiles,
+        expandedDistanceMatches,
         zipMatches,
         homeZipMatches,
         countyMatches,
-        matchStrength:
-          Number(zipMatches) + Number(homeZipMatches) + Number(countyMatches),
+        matchStrength,
         score,
         badge,
         warning,
@@ -326,8 +434,17 @@ export default async function FindNotaryPage({ params }: PageProps) {
         latestOffer,
       };
     })
-    .filter((candidate) => candidate.matchStrength > 0)
+    .filter(
+      (candidate) => candidate.matchStrength > 0 || candidate.expandedDistanceMatches
+    )
     .sort((a, b) => {
+      const aOriginalMatch = a.matchStrength > 0;
+      const bOriginalMatch = b.matchStrength > 0;
+
+      if (aOriginalMatch !== bOriginalMatch) {
+        return Number(bOriginalMatch) - Number(aOriginalMatch);
+      }
+
       if (b.canReceiveAutomaticOffer !== a.canReceiveAutomaticOffer) {
         return (
           Number(b.canReceiveAutomaticOffer) -
@@ -341,12 +458,26 @@ export default async function FindNotaryPage({ params }: PageProps) {
         return b.matchStrength - a.matchStrength;
       }
 
+      if (!aOriginalMatch && !bOriginalMatch) {
+        const aDistance = a.distanceMiles ?? Number.MAX_SAFE_INTEGER;
+        const bDistance = b.distanceMiles ?? Number.MAX_SAFE_INTEGER;
+
+        if (aDistance !== bDistance) {
+          return aDistance - bDistance;
+        }
+      }
+
       if (b.lifetimeClosings !== a.lifetimeClosings) {
         return b.lifetimeClosings - a.lifetimeClosings;
       }
 
       return b.responseRate - a.responseRate;
     });
+
+  const expandedOnlyCandidates = candidates.filter(
+    (candidate) =>
+      candidate.matchStrength === 0 && candidate.expandedDistanceMatches
+  );
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-6">
@@ -451,13 +582,42 @@ export default async function FindNotaryPage({ params }: PageProps) {
       >
         <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_380px]">
           <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <div className="mb-5">
-              <h2 className="text-xl font-bold text-slate-900">
-                Candidate Results
-              </h2>
-              <p className="mt-1 text-sm text-slate-600">
-                {candidates.length} matching notary candidate(s) found.
-              </p>
+            <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">
+                  Candidate Results
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {candidates.length} matching notary candidate(s) found.
+                </p>
+                {expandedRadiusMiles > 0 ? (
+                  <p className="mt-1 text-sm font-semibold text-blue-700">
+                    Expanded distance search: {expandedRadiusMiles} miles.{" "}
+                    {expandedOnlyCandidates.length} additional candidate
+                    {expandedOnlyCandidates.length === 1 ? "" : "s"} found.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Link
+                  href={`/dashboard/orders/${assignment.id}/find-notary?radius=${
+                    expandedRadiusMiles + 10
+                  }`}
+                  className="inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-[#12306f]"
+                >
+                  Expand Search +10 Miles
+                </Link>
+
+                {expandedRadiusMiles > 0 ? (
+                  <Link
+                    href={`/dashboard/orders/${assignment.id}/find-notary`}
+                    className="inline-flex justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-100"
+                  >
+                    Reset Expanded Search
+                  </Link>
+                ) : null}
+              </div>
             </div>
 
             {candidates.length === 0 ? (
@@ -467,7 +627,7 @@ export default async function FindNotaryPage({ params }: PageProps) {
                 </h3>
                 <p className="mt-2 text-sm text-slate-600">
                   No approved active notaries currently match this order by ZIP,
-                  county, or home ZIP.
+                  county, home ZIP, or expanded distance search.
                 </p>
               </div>
             ) : (
@@ -504,7 +664,8 @@ export default async function FindNotaryPage({ params }: PageProps) {
                           <p className="mt-1 text-sm text-slate-500">
                             Home ZIP: {candidate.home_zip ?? "Not set"} •
                             Radius:{" "}
-                            {candidate.travel_radius_miles ?? "Not set"} mi
+                            {candidate.travel_radius_miles ?? "Not set"} mi •
+                            Distance: {formatDistance(candidate.distanceMiles)}
                           </p>
                         </div>
                       </div>
@@ -560,6 +721,12 @@ export default async function FindNotaryPage({ params }: PageProps) {
                               County
                             </span>
                           )}
+                          {candidate.matchStrength === 0 &&
+                            candidate.expandedDistanceMatches && (
+                              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">
+                                Expanded Radius
+                              </span>
+                            )}
                         </div>
                       </div>
 
@@ -645,6 +812,15 @@ export default async function FindNotaryPage({ params }: PageProps) {
                         (candidate) => candidate.canReceiveAutomaticOffer
                       ).length
                     }
+                  </span>
+                </div>
+
+                <div className="flex justify-between gap-4">
+                  <span className="text-slate-500">Expanded Radius</span>
+                  <span className="font-semibold text-slate-900">
+                    {expandedRadiusMiles > 0
+                      ? `${expandedRadiusMiles} mi`
+                      : "Off"}
                   </span>
                 </div>
 
