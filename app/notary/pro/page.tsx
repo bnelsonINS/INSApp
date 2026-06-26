@@ -20,6 +20,12 @@ type Assignment = {
   scanbacks_required?: boolean | null;
 };
 
+type PageProps = {
+  searchParams?: Promise<{
+    filter?: string;
+  }>;
+};
+
 function money(value: number) {
   return value.toLocaleString("en-US", {
     style: "currency",
@@ -70,7 +76,43 @@ function isClosedOrComplete(status: string | null) {
   return normalized === "closed" || normalized === "signing complete";
 }
 
-export default async function INSProHomePage() {
+function getFilterTitle(filter: string) {
+  switch (filter) {
+    case "upcoming":
+      return "Upcoming Signings";
+    case "unconfirmed":
+      return "Unconfirmed Appointments";
+    case "docs-not-received":
+      return "Docs Not Received";
+    case "docs-not-printed":
+      return "Docs Not Printed";
+    case "scanbacks-not-sent":
+      return "Scanbacks Not Sent";
+    case "journal-missing":
+      return "Journal Entry Missing";
+    case "unsent-invoices":
+      return "Unsent Invoices";
+    case "mileage-missing":
+      return "Mileage Not Entered";
+    case "notarial-acts-missing":
+      return "Notarial Acts Missing";
+    case "time-missing":
+      return "Time Not Entered";
+    case "unpaid":
+      return "Unpaid - Not Overdue";
+    case "overdue-8-14":
+      return "Overdue 8-14 Days";
+    case "overdue-15-plus":
+      return "Overdue 15+ Days";
+    default:
+      return "Upcoming INS Jobs";
+  }
+}
+
+export default async function INSProHomePage({ searchParams }: PageProps) {
+  const resolvedSearchParams = await searchParams;
+  const activeFilter = resolvedSearchParams?.filter ?? "upcoming";
+
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -130,9 +172,18 @@ export default async function INSProHomePage() {
   const averageProfit =
     completedJobs.length > 0 ? profit / completedJobs.length : 0;
 
-  const unpaidJobs = currentYearJobs.filter((job) =>
-    isClosedOrComplete(job.status)
-  );
+  const unpaidJobs = completedJobs;
+
+  const emptyJobs: Assignment[] = [];
+
+  const filteredJobs =
+    activeFilter === "upcoming"
+      ? upcomingJobs
+      : activeFilter === "unconfirmed"
+        ? unconfirmedJobs
+        : activeFilter === "unpaid"
+          ? unpaidJobs
+          : emptyJobs;
 
   const monthlyCounts = Array.from({ length: 12 }, (_, index) => {
     const month = index + 1;
@@ -149,78 +200,91 @@ export default async function INSProHomePage() {
   const alertCards = [
     {
       label: "Upcoming Signings",
+      filter: "upcoming",
       count: upcomingJobs.length,
       amount: null,
       tone: "slate",
     },
     {
       label: "Unconfirmed Appointments",
+      filter: "unconfirmed",
       count: unconfirmedJobs.length,
       amount: null,
       tone: "amber",
     },
     {
       label: "Docs Not Received",
+      filter: "docs-not-received",
       count: 0,
       amount: null,
       tone: "slate",
     },
     {
       label: "Docs Not Printed",
+      filter: "docs-not-printed",
       count: 0,
       amount: null,
       tone: "slate",
     },
     {
       label: "Scanbacks Not Sent",
+      filter: "scanbacks-not-sent",
       count: 0,
       amount: null,
       tone: "slate",
     },
     {
       label: "Journal Entry Missing",
+      filter: "journal-missing",
       count: 0,
       amount: null,
       tone: "slate",
     },
     {
       label: "Unsent Invoices",
+      filter: "unsent-invoices",
       count: 0,
       amount: null,
       tone: "slate",
     },
     {
       label: "Mileage Not Entered",
+      filter: "mileage-missing",
       count: 0,
       amount: null,
       tone: "slate",
     },
     {
       label: "Notarial Acts Missing",
+      filter: "notarial-acts-missing",
       count: 0,
       amount: null,
       tone: "slate",
     },
     {
       label: "Time Not Entered",
+      filter: "time-missing",
       count: 0,
       amount: null,
       tone: "slate",
     },
     {
       label: "Unpaid - Not Overdue",
+      filter: "unpaid",
       count: unpaidJobs.length,
       amount: revenue,
       tone: "blue",
     },
     {
       label: "Overdue 8-14 Days",
+      filter: "overdue-8-14",
       count: 0,
       amount: 0,
       tone: "red",
     },
     {
       label: "Overdue 15+ Days",
+      filter: "overdue-15-plus",
       count: 0,
       amount: 0,
       tone: "red",
@@ -244,55 +308,27 @@ export default async function INSProHomePage() {
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-6">
-      <section className="overflow-hidden rounded-3xl bg-[#0B1F4D] text-white shadow-sm">
-        <div className="flex flex-col justify-between gap-5 p-6 lg:flex-row lg:items-center">
-          <div>
-            <p className="text-sm font-bold uppercase tracking-wide text-blue-200">
-              INS Professional Suite
-            </p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight">
-              Business Command Center
-            </h1>
-            <p className="mt-2 max-w-3xl text-sm text-blue-100">
-              Track signings, income, mileage, invoices, expenses, and business
-              tasks from one place.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Link
-              href="/notary/assignments"
-              className="rounded-xl bg-white px-5 py-3 text-center text-sm font-bold text-[#0B1F4D] transition hover:bg-slate-100"
-            >
-              Back to INS Assignments
-            </Link>
-
-            <Link
-              href="/notary/pro"
-              className="rounded-xl border border-white/30 px-5 py-3 text-center text-sm font-bold text-white transition hover:bg-white/10"
-            >
-              INS Pro Home
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-6 grid gap-6 xl:grid-cols-[360px_1fr]">
+      <section className="mt-0 grid gap-6 xl:grid-cols-[360px_1fr]">
         <aside className="space-y-3">
           {alertCards.map((card) => {
+            const isActive = activeFilter === card.filter;
+
             const toneClass =
               card.tone === "blue"
-                ? "border-blue-200 bg-blue-50 text-blue-900"
+                ? "border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-100"
                 : card.tone === "red"
-                  ? "border-red-200 bg-red-50 text-red-900"
+                  ? "border-red-200 bg-red-50 text-red-900 hover:bg-red-100"
                   : card.tone === "amber"
-                    ? "border-amber-200 bg-amber-50 text-amber-900"
-                    : "border-slate-200 bg-white text-slate-900";
+                    ? "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                    : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50";
 
             return (
-              <div
-                key={card.label}
-                className={`flex items-center justify-between rounded-2xl border p-4 shadow-sm ${toneClass}`}
+              <Link
+                key={card.filter}
+                href={`/notary/pro?filter=${card.filter}`}
+                className={`flex items-center justify-between rounded-2xl border p-4 shadow-sm transition ${toneClass} ${
+                  isActive ? "ring-2 ring-[#0B1F4D] ring-offset-2" : ""
+                }`}
               >
                 <div>
                   <p className="text-sm font-black uppercase tracking-wide">
@@ -307,7 +343,7 @@ export default async function INSProHomePage() {
                 </div>
 
                 <div className="text-3xl font-black">{card.count}</div>
-              </div>
+              </Link>
             );
           })}
         </aside>
@@ -398,29 +434,29 @@ export default async function INSProHomePage() {
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div>
                 <h2 className="text-xl font-black text-slate-950">
-                  Upcoming INS Jobs
+                  {getFilterTitle(activeFilter)}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  These are pulled directly from your INS assignments.
+                  Showing jobs that match the selected INS Pro alert card.
                 </p>
               </div>
 
               <Link
-                href="/notary/assignments"
+                href="/notary/pro?filter=upcoming"
                 className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-center text-sm font-bold text-white transition hover:bg-blue-950"
               >
-                View All
+                Reset Filter
               </Link>
             </div>
 
             <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
-              {upcomingJobs.length === 0 ? (
+              {filteredJobs.length === 0 ? (
                 <div className="p-6 text-sm font-medium text-slate-500">
-                  No upcoming jobs yet.
+                  No jobs match this filter yet.
                 </div>
               ) : (
                 <div className="divide-y divide-slate-200">
-                  {upcomingJobs.slice(0, 6).map((job) => (
+                  {filteredJobs.slice(0, 25).map((job) => (
                     <Link
                       key={job.id}
                       href={`/notary/assignments/${job.id}`}
