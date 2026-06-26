@@ -142,6 +142,24 @@ function formatDateTime(date: string | null) {
   return new Date(date).toLocaleString();
 }
 
+
+function collectUuidValues(value: string | null | undefined) {
+  if (!value) return [];
+
+  return Array.from(
+    value.matchAll(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+    ),
+  ).map((match) => match[0]);
+}
+
+function getProfileDisplayName(profile: {
+  full_name: string | null;
+  email: string | null;
+}) {
+  return profile.full_name || profile.email || "Unknown user";
+}
+
 function getTrackingUrl(carrier: string | null, trackingNumber: string | null) {
   if (!carrier || !trackingNumber) return null;
 
@@ -375,6 +393,64 @@ export default async function ClientOrderDetailPage({
 
   if (activityError) {
     console.error("Client order activity load error:", activityError);
+  }
+
+  const activityUserIds = new Set<string>();
+
+  for (const item of activity ?? []) {
+    for (const value of collectUuidValues(item.actor_name)) {
+      activityUserIds.add(value.toLowerCase());
+    }
+
+    for (const value of collectUuidValues(item.details)) {
+      activityUserIds.add(value.toLowerCase());
+    }
+  }
+
+  if (order.client_id) {
+    activityUserIds.add(order.client_id.toLowerCase());
+  }
+
+  if (order.notary_id) {
+    activityUserIds.add(order.notary_id.toLowerCase());
+  }
+
+  if (order.assigned_notary_id) {
+    activityUserIds.add(order.assigned_notary_id.toLowerCase());
+  }
+
+  const activityProfileNameById = new Map<string, string>();
+
+  if (activityUserIds.size > 0) {
+    const { data: activityProfiles, error: activityProfilesError } =
+      await supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", Array.from(activityUserIds));
+
+    if (activityProfilesError) {
+      console.error(
+        "Client activity profile lookup error:",
+        activityProfilesError,
+      );
+    }
+
+    for (const activityProfile of activityProfiles ?? []) {
+      activityProfileNameById.set(
+        activityProfile.id.toLowerCase(),
+        getProfileDisplayName(activityProfile),
+      );
+    }
+  }
+
+  function formatActivityText(value: string | null) {
+    if (!value) return "—";
+
+    return value.replace(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+      (matchedId) =>
+        activityProfileNameById.get(matchedId.toLowerCase()) || matchedId,
+    );
   }
 
   const activityItems = (activity ?? []) as ActivityItem[];
@@ -964,12 +1040,12 @@ Indiana Notary Solutions
 
                 {item.actor_name && (
                   <p className="mt-1 text-sm font-medium text-slate-700">
-                    {item.actor_name}
+                    {formatActivityText(item.actor_name)}
                   </p>
                 )}
 
                 <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-slate-600">
-                  {item.details || "—"}
+                  {formatActivityText(item.details)}
                 </p>
 
                 <p className="mt-3 text-xs font-medium text-slate-400">
@@ -997,12 +1073,12 @@ Indiana Notary Solutions
 
                       {item.actor_name && (
                         <p className="mt-1 text-sm font-medium text-slate-700">
-                          {item.actor_name}
+                          {formatActivityText(item.actor_name)}
                         </p>
                       )}
 
                       <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-slate-600">
-                        {item.details || "—"}
+                        {formatActivityText(item.details)}
                       </p>
 
                       <p className="mt-3 text-xs font-medium text-slate-400">
