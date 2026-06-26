@@ -139,22 +139,6 @@ function getFilterTitle(filter: string) {
       return "Upcoming Signings";
     case "unconfirmed":
       return "Unconfirmed Appointments";
-    case "docs-not-received":
-      return "Docs Not Received";
-    case "docs-not-printed":
-      return "Docs Not Printed";
-    case "scanbacks-not-sent":
-      return "Scanbacks Not Sent";
-    case "journal-missing":
-      return "Journal Entry Missing";
-    case "unsent-invoices":
-      return "Unsent Invoices";
-    case "mileage-missing":
-      return "Mileage Not Entered";
-    case "notarial-acts-missing":
-      return "Notarial Acts Missing";
-    case "time-missing":
-      return "Time Not Entered";
     case "unpaid":
       return "Unpaid - Not Overdue";
     case "overdue-8-14":
@@ -162,8 +146,77 @@ function getFilterTitle(filter: string) {
     case "overdue-15-plus":
       return "Overdue 15+ Days";
     default:
-      return "Upcoming INS Jobs";
+      return "Upcoming Signings";
   }
+}
+
+function ProIcon({ type }: { type: string }) {
+  const className = "h-6 w-6";
+
+  if (type === "calendar") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7 3v3m10-3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z" />
+      </svg>
+    );
+  }
+
+  if (type === "clock") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+      </svg>
+    );
+  }
+
+  if (type === "money") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 8.5H11a1.5 1.5 0 0 0 0 3h2a1.5 1.5 0 0 1 0 3H9.5M12 7v10" />
+      </svg>
+    );
+  }
+
+  if (type === "warning") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 4.3 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" />
+      </svg>
+    );
+  }
+
+  if (type === "invoice") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7 3h10v18l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2V3Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 8h6M9 12h6M9 16h3" />
+      </svg>
+    );
+  }
+
+  if (type === "car") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 16h14l-1.5-5h-11L5 16Zm2 0v3m10-3v3M7 19h.01M17 19h.01M8 11l1-4h6l1 4" />
+      </svg>
+    );
+  }
+
+  if (type === "book") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v17H6.5A2.5 2.5 0 0 1 4 17.5v-12Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h8M8 11h8" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 12h16M13 5l7 7-7 7" />
+    </svg>
+  );
 }
 
 export default async function INSProHomePage({ searchParams }: PageProps) {
@@ -257,82 +310,64 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
 
   const maxMonthCount = Math.max(...monthlyCounts, 1);
 
-  const alertCards = [
+  const topAlertCards = [
     {
       label: "Upcoming Signings",
       filter: "upcoming",
       count: upcomingJobs.length,
       amount: null,
-      tone: "slate",
+      icon: "calendar",
+      tone: "blue",
     },
     {
       label: "Unconfirmed Appointments",
       filter: "unconfirmed",
       count: unconfirmedJobs.length,
       amount: null,
+      icon: "clock",
       tone: "amber",
-    },
-    {
-      label: "Docs Not Received",
-      filter: "docs-not-received",
-      count: 0,
-      amount: null,
-      tone: "slate",
-    },
-    {
-      label: "Docs Not Printed",
-      filter: "docs-not-printed",
-      count: 0,
-      amount: null,
-      tone: "slate",
-    },
-    {
-      label: "Scanbacks Not Sent",
-      filter: "scanbacks-not-sent",
-      count: 0,
-      amount: null,
-      tone: "slate",
-    },
-    {
-      label: "Journal Entry Missing",
-      filter: "journal-missing",
-      count: 0,
-      amount: null,
-      tone: "slate",
-    },
-    {
-      label: "Unsent Invoices",
-      filter: "unsent-invoices",
-      count: 0,
-      amount: null,
-      tone: "slate",
-    },
-    {
-      label: "Mileage Not Entered",
-      filter: "mileage-missing",
-      count: 0,
-      amount: null,
-      tone: "slate",
-    },
-    {
-      label: "Notarial Acts Missing",
-      filter: "notarial-acts-missing",
-      count: 0,
-      amount: null,
-      tone: "slate",
-    },
-    {
-      label: "Time Not Entered",
-      filter: "time-missing",
-      count: 0,
-      amount: null,
-      tone: "slate",
     },
     {
       label: "Unpaid - Not Overdue",
       filter: "unpaid",
       count: unpaidJobs.length,
       amount: revenue,
+      icon: "money",
+      tone: "blue",
+    },
+    {
+      label: "Overdue 15+ Days",
+      filter: "overdue-15-plus",
+      count: 0,
+      amount: 0,
+      icon: "warning",
+      tone: "red",
+    },
+  ];
+
+  const alertList = [
+    {
+      label: "Upcoming Signings",
+      filter: "upcoming",
+      count: upcomingJobs.length,
+      amount: null,
+      icon: "calendar",
+      tone: "blue",
+    },
+    {
+      label: "Unconfirmed Appointments",
+      filter: "unconfirmed",
+      count: unconfirmedJobs.length,
+      amount: null,
+      icon: "clock",
+      tone: "amber",
+    },
+    {
+      label: "Unpaid - Not Overdue",
+      filter: "unpaid",
+      count: unpaidJobs.length,
+      amount: revenue,
+      icon: "money",
       tone: "blue",
     },
     {
@@ -340,6 +375,7 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
       filter: "overdue-8-14",
       count: 0,
       amount: 0,
+      icon: "warning",
       tone: "red",
     },
     {
@@ -347,7 +383,36 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
       filter: "overdue-15-plus",
       count: 0,
       amount: 0,
+      icon: "warning",
       tone: "red",
+    },
+  ];
+
+  const quickActions = [
+    {
+      label: "View Assignments",
+      href: "/notary/assignments",
+      icon: "calendar",
+    },
+    {
+      label: "Add Expense",
+      href: "/notary/pro?filter=upcoming",
+      icon: "invoice",
+    },
+    {
+      label: "Mileage Log",
+      href: "/notary/pro?filter=upcoming",
+      icon: "car",
+    },
+    {
+      label: "Notary Journal",
+      href: "/notary/pro?filter=upcoming",
+      icon: "book",
+    },
+    {
+      label: "Send Invoice",
+      href: "/notary/pro?filter=unpaid",
+      icon: "send",
     },
   ];
 
@@ -367,94 +432,113 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
   ];
 
   return (
-    <main className="min-h-screen bg-slate-50 p-3 sm:p-6">
-      <section className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
-        <aside className="pb-2 xl:pb-0">
-  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:block xl:space-y-3">
-            {alertCards.map((card) => {
-              const isActive = activeFilter === card.filter;
+    <main className="min-h-screen bg-slate-50 p-4 sm:p-6">
+      <div className="mx-auto max-w-[1600px] space-y-5">
+        <section className="grid gap-4 lg:grid-cols-4">
+          {topAlertCards.map((card) => {
+            const active = activeFilter === card.filter;
 
-              const toneClass =
-                card.tone === "blue"
-                  ? "border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-100"
-                  : card.tone === "red"
-                    ? "border-red-200 bg-red-50 text-red-900 hover:bg-red-100"
-                    : card.tone === "amber"
-                      ? "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100"
-                      : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50";
+            const tone =
+              card.tone === "red"
+                ? "text-red-600 bg-red-100 border-red-200"
+                : card.tone === "amber"
+                  ? "text-amber-700 bg-amber-100 border-amber-200"
+                  : "text-blue-700 bg-blue-100 border-blue-200";
 
-              return (
-                <Link
-                  key={card.filter}
-                  href={`/notary/pro?filter=${card.filter}&timeframe=${activeTimeFrame}`}
-                  className={`flex w-full items-center justify-between rounded-2xl border p-4 shadow-sm transition ${toneClass} ${
-                    isActive ? "ring-2 ring-[#0B1F4D] ring-offset-2" : ""
-                  }`}
-                >
+            return (
+              <Link
+                key={card.filter}
+                href={`/notary/pro?filter=${card.filter}&timeframe=${activeTimeFrame}`}
+                className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  active ? "ring-2 ring-[#0B1F4D] ring-offset-2" : ""
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border ${tone}`}
+                  >
+                    <ProIcon type={card.icon} />
+                  </div>
+
                   <div className="min-w-0">
-                    <p className="text-xs font-black uppercase tracking-wide sm:text-sm">
+                    <p className="text-sm font-black uppercase tracking-wide text-slate-600">
                       {card.label}
                     </p>
-
-                    {card.amount !== null && (
-                      <p className="mt-1 text-xs font-bold opacity-80">
-                        {money(card.amount)}
+                    <div className="mt-1 flex items-end gap-3">
+                      <p
+                        className={`text-4xl font-black ${
+                          card.tone === "red"
+                            ? "text-red-600"
+                            : card.tone === "amber"
+                              ? "text-amber-700"
+                              : "text-blue-700"
+                        }`}
+                      >
+                        {card.count}
                       </p>
-                    )}
-                  </div>
 
-                  <div className="ml-4 shrink-0 text-2xl font-black sm:text-3xl">
-                    {card.count}
+                      {card.amount !== null && (
+                        <p
+                          className={`pb-1 text-sm font-bold ${
+                            card.tone === "red"
+                              ? "text-red-600"
+                              : "text-blue-700"
+                          }`}
+                        >
+                          {money(card.amount)}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </Link>
-              );
-            })}
+                </div>
+              </Link>
+            );
+          })}
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+              Signings
+            </p>
+            <p className="mt-2 text-4xl font-black text-blue-700">
+              {timeFrameJobs.length}
+            </p>
           </div>
-        </aside>
 
-        <div className="min-w-0 space-y-5">
-          <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-              <p className="text-[11px] font-black uppercase tracking-wide text-slate-400 sm:text-xs">
-                Signings
-              </p>
-              <p className="mt-2 text-3xl font-black text-blue-600 sm:text-4xl">
-                {timeFrameJobs.length}
-              </p>
-            </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+              Revenue
+            </p>
+            <p className="mt-2 text-4xl font-black text-blue-700">
+              {money(revenue)}
+            </p>
+          </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-              <p className="text-[11px] font-black uppercase tracking-wide text-slate-400 sm:text-xs">
-                Revenue
-              </p>
-              <p className="mt-2 break-words text-2xl font-black text-blue-600 sm:text-4xl">
-                {money(revenue)}
-              </p>
-            </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+              Profit
+            </p>
+            <p className="mt-2 text-4xl font-black text-emerald-600">
+              {money(profit)}
+            </p>
+          </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-              <p className="text-[11px] font-black uppercase tracking-wide text-slate-400 sm:text-xs">
-                Profit
-              </p>
-              <p className="mt-2 break-words text-2xl font-black text-emerald-600 sm:text-4xl">
-                {money(profit)}
-              </p>
-            </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+              Avg Profit
+            </p>
+            <p className="mt-2 text-4xl font-black text-emerald-600">
+              {money(averageProfit)}
+            </p>
+          </div>
+        </section>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-              <p className="text-[11px] font-black uppercase tracking-wide text-slate-400 sm:text-xs">
-                Avg Profit
-              </p>
-              <p className="mt-2 break-words text-2xl font-black text-emerald-600 sm:text-4xl">
-                {money(averageProfit)}
-              </p>
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+        <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div>
-                <h2 className="text-xl font-black text-slate-950 sm:text-2xl">
+                <h2 className="text-2xl font-black text-slate-950">
                   Signing Activity
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
@@ -462,50 +546,112 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
                 </p>
               </div>
 
-              <div className="w-full md:w-auto">
-                <TimeFrameSelect
-                  currentYear={currentYear}
-                  selectedTimeFrame={activeTimeFrame}
-                />
-              </div>
+              <TimeFrameSelect
+                currentYear={currentYear}
+                selectedTimeFrame={activeTimeFrame}
+              />
             </div>
 
-            <div className="mt-6 w-full overflow-hidden">
-              <div className="grid h-72 grid-cols-12 items-end gap-1 border-b border-slate-200 px-1 sm:gap-3 sm:px-2">
-                {monthlyCounts.map((count, index) => {
-                  const barHeight =
-                    count > 0
-                      ? Math.max((count / maxMonthCount) * 220, 32)
-                      : 0;
+            <div className="mt-6 grid h-72 grid-cols-12 items-end gap-2 border-b border-slate-200 px-2">
+              {monthlyCounts.map((count, index) => {
+                const barHeight =
+                  count > 0 ? Math.max((count / maxMonthCount) * 220, 28) : 0;
 
-                  return (
-                    <div
-                      key={months[index]}
-                      className="flex h-full min-w-0 flex-col items-center justify-end gap-2"
-                    >
-                      <div className="text-xs font-bold text-slate-500">
-                        {count > 0 ? count : ""}
-                      </div>
-
-                      <div
-                        className="w-full max-w-10 rounded-t-lg bg-blue-500 sm:max-w-12 sm:rounded-t-xl"
-                        style={{ height: `${barHeight}px` }}
-                      />
-
-                      <div className="text-[10px] font-bold text-slate-500 sm:text-xs">
-                        {months[index]}
-                      </div>
+                return (
+                  <div
+                    key={months[index]}
+                    className="flex h-full min-w-0 flex-col items-center justify-end gap-2"
+                  >
+                    <div className="text-xs font-bold text-slate-600">
+                      {count}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                    <div
+                      className="w-full max-w-10 rounded-t-lg bg-blue-600"
+                      style={{ height: `${barHeight}px` }}
+                    />
+
+                    <div className="text-[10px] font-bold text-slate-500 sm:text-xs">
+                      {months[index]}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-black text-slate-950">Top Alerts</h2>
+
+            <div className="mt-4 space-y-2">
+              {alertList.map((alert) => {
+                const tone =
+                  alert.tone === "red"
+                    ? "text-red-600 bg-red-50"
+                    : alert.tone === "amber"
+                      ? "text-amber-700 bg-amber-50"
+                      : "text-blue-700 bg-blue-50";
+
+                return (
+                  <Link
+                    key={alert.filter}
+                    href={`/notary/pro?filter=${alert.filter}&timeframe=${activeTimeFrame}`}
+                    className="flex items-center justify-between rounded-xl border border-slate-200 p-3 transition hover:bg-slate-50"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tone}`}
+                      >
+                        <ProIcon type={alert.icon} />
+                      </div>
+                      <p className="truncate text-sm font-bold text-slate-900">
+                        {alert.label}
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <p
+                        className={`text-lg font-black ${
+                          alert.tone === "red"
+                            ? "text-red-600"
+                            : alert.tone === "amber"
+                              ? "text-amber-700"
+                              : "text-slate-950"
+                        }`}
+                      >
+                        {alert.count}
+                      </p>
+                      {alert.amount !== null && (
+                        <p
+                          className={`text-xs font-bold ${
+                            alert.tone === "red"
+                              ? "text-red-600"
+                              : "text-emerald-600"
+                          }`}
+                        >
+                          {money(alert.amount)}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            <Link
+              href={`/notary/pro?filter=upcoming&timeframe=${activeTimeFrame}`}
+              className="mt-4 block rounded-xl px-4 py-3 text-center text-sm font-black text-blue-700 transition hover:bg-blue-50"
+            >
+              View All Alerts
+            </Link>
+          </div>
+        </section>
+
+        <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-col justify-between gap-4 border-b border-slate-100 p-5 md:flex-row md:items-center">
               <div>
-                <h2 className="text-xl font-black text-slate-950 sm:text-2xl">
+                <h2 className="text-2xl font-black text-slate-950">
                   {getFilterTitle(activeFilter)}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
@@ -515,58 +661,96 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
 
               <Link
                 href={`/notary/pro?filter=upcoming&timeframe=${activeTimeFrame}`}
-                className="w-full rounded-xl bg-[#0B1F4D] px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-blue-950 md:w-auto md:py-2"
+                className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-center text-sm font-black text-white transition hover:bg-blue-950"
               >
-                Reset Filter
+                View All
               </Link>
             </div>
 
-            <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
-              {filteredJobs.length === 0 ? (
-                <div className="p-6 text-sm font-medium text-slate-500">
-                  No jobs match this filter yet.
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-200">
-                  {filteredJobs.slice(0, 25).map((job) => (
-                    <Link
-                      key={job.id}
-                      href={`/notary/assignments/${job.id}`}
-                      className="block p-4 transition hover:bg-slate-50"
-                    >
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div className="min-w-0">
-                          <p className="truncate font-black text-slate-950">
-                            {job.borrower_name || "Unnamed Borrower"}
-                          </p>
-                          <p className="mt-1 text-sm text-slate-500">
-                            {job.control_number || "No control #"} ·{" "}
-                            {job.signing_type || "Signing"}
-                          </p>
-                          <p className="mt-1 text-sm text-slate-500">
-                            {job.signing_city}, {job.signing_state}{" "}
-                            {job.signing_zip}
-                          </p>
-                        </div>
+            {filteredJobs.length === 0 ? (
+              <div className="p-6 text-sm font-medium text-slate-500">
+                No jobs match this filter yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[850px] text-left text-sm">
+                  <thead className="bg-slate-50 text-xs font-black uppercase tracking-wide text-slate-400">
+                    <tr>
+                      <th className="px-5 py-3">Borrower</th>
+                      <th className="px-5 py-3">Control #</th>
+                      <th className="px-5 py-3">Type</th>
+                      <th className="px-5 py-3">Date & Time</th>
+                      <th className="px-5 py-3">Location</th>
+                      <th className="px-5 py-3 text-right">Fee</th>
+                      <th className="px-5 py-3" />
+                    </tr>
+                  </thead>
 
-                        <div className="shrink-0 text-left md:text-right">
-                          <p className="font-black text-slate-950">
-                            {formatDate(job.signing_date)}{" "}
-                            {formatTime(job.signing_time)}
-                          </p>
-                          <p className="mt-1 text-sm font-bold text-emerald-600">
-                            {money(Number(job.notary_fee ?? 0))}
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredJobs.slice(0, 8).map((job) => (
+                      <tr key={job.id} className="hover:bg-slate-50">
+                        <td className="px-5 py-4 font-black text-slate-950">
+                          {job.borrower_name || "Unnamed Borrower"}
+                        </td>
+                        <td className="px-5 py-4 text-slate-600">
+                          {job.control_number || "No control #"}
+                        </td>
+                        <td className="px-5 py-4 text-slate-600">
+                          {job.signing_type || "Signing"}
+                        </td>
+                        <td className="px-5 py-4 font-semibold text-slate-900">
+                          {formatDate(job.signing_date)}{" "}
+                          {formatTime(job.signing_time)}
+                        </td>
+                        <td className="px-5 py-4 text-slate-600">
+                          {job.signing_city}, {job.signing_state}{" "}
+                          {job.signing_zip}
+                        </td>
+                        <td className="px-5 py-4 text-right font-black text-emerald-600">
+                          {money(Number(job.notary_fee ?? 0))}
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <Link
+                            href={`/notary/assignments/${job.id}`}
+                            className="font-black text-blue-700"
+                          >
+                            ›
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-black text-slate-950">
+              Quick Actions
+            </h2>
+
+            <div className="mt-4 space-y-2">
+              {quickActions.map((action) => (
+                <Link
+                  key={action.label}
+                  href={action.href}
+                  className="flex items-center justify-between rounded-xl border border-slate-200 p-3 transition hover:bg-slate-50"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50 text-[#0B1F4D]">
+                      <ProIcon type={action.icon} />
+                    </div>
+                    <p className="font-bold text-slate-900">{action.label}</p>
+                  </div>
+
+                  <span className="text-xl font-black text-slate-400">›</span>
+                </Link>
+              ))}
             </div>
-          </section>
-        </div>
-      </section>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

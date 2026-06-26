@@ -1,9 +1,88 @@
 import Image from "next/image";
-import NavLinkWithSpinner from "../components/NavLinkWithSpinner";import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
+import NavLinkWithSpinner from "../components/NavLinkWithSpinner";
 import { createSupabaseServerClient } from "../../src/lib/supabase-server";
 import LogoutButton from "../components/logout-button";
 import NotaryMobileMenu from "./notary-mobile-menu";
 import NotaryOnboardingTour from "../components/notary-onboarding-tour";
+
+function NavIcon({ type }: { type: string }) {
+  const className = "h-5 w-5 shrink-0";
+
+  if (type === "dashboard") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 11.5 12 4l9 7.5M5 10v10h14V10M9 20v-6h6v6" />
+      </svg>
+    );
+  }
+
+  if (type === "pro") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 19V9m5 10V5m5 14v-7m5 7V8" />
+      </svg>
+    );
+  }
+
+  if (type === "credentials") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6l-7-3Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="m9 12 2 2 4-5" />
+      </svg>
+    );
+  }
+
+  if (type === "profile") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a7.5 7.5 0 0 1 15 0" />
+      </svg>
+    );
+  }
+
+  if (type === "coverage") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 21s7-5.25 7-12a7 7 0 1 0-14 0c0 6.75 7 12 7 12Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+      </svg>
+    );
+  }
+
+  if (type === "assignments") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 4h8m-8 4h8M7 3h10a2 2 0 0 1 2 2v15H5V5a2 2 0 0 1 2-2Z" />
+      </svg>
+    );
+  }
+
+  if (type === "earnings") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 8.5H11a1.5 1.5 0 0 0 0 3h2a1.5 1.5 0 0 1 0 3H9.5M12 7v10" />
+      </svg>
+    );
+  }
+
+  if (type === "terms") {
+    return (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7 3h7l4 4v14H7V3Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14 3v5h5M9 13h6M9 17h6" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 10V8a5 5 0 0 1 10 0v2M6 10h12v11H6V10Z" />
+    </svg>
+  );
+}
 
 export default async function NotaryLayout({
   children,
@@ -45,27 +124,50 @@ export default async function NotaryLayout({
     notaryProfile?.business_name || firstLastName || profile.email;
 
   const navItems = [
-    { label: "Dashboard", href: "/notary/dashboard", tour: "tour-dashboard" },
-    { label: "INS Pro", href: "/notary/pro", tour: "tour-ins-pro" },
+    {
+      label: "Dashboard",
+      href: "/notary/dashboard",
+      tour: "tour-dashboard",
+      icon: "dashboard",
+    },
+    {
+      label: "INS Pro",
+      href: "/notary/pro",
+      tour: "tour-ins-pro",
+      icon: "pro",
+    },
     {
       label: "Credentials",
       href: "/notary/credentials",
       tour: "tour-credentials",
+      icon: "credentials",
     },
-    { label: "Profile", href: "/notary/profile", tour: "tour-profile" },
+    {
+      label: "Profile",
+      href: "/notary/profile",
+      tour: "tour-profile",
+      icon: "profile",
+    },
     {
       label: "Coverage Areas",
       href: "/notary/coverage",
       tour: "tour-coverage",
+      icon: "coverage",
     },
     {
       label: "Assignments",
       href: "/notary/assignments",
       tour: "tour-assignments",
+      icon: "assignments",
     },
-    { label: "Earnings", href: "/notary/earnings", tour: "tour-earnings" },
-    { label: "Terms", href: "/notary/terms" },
-    { label: "Privacy", href: "/notary/privacy" },
+    {
+      label: "Earnings",
+      href: "/notary/earnings",
+      tour: "tour-earnings",
+      icon: "earnings",
+    },
+    { label: "Terms", href: "/notary/terms", icon: "terms" },
+    { label: "Privacy", href: "/notary/privacy", icon: "privacy" },
   ];
 
   return (
@@ -108,29 +210,28 @@ export default async function NotaryLayout({
       </header>
 
       <div className="flex">
-        <aside className="hidden min-h-[calc(100vh-5rem)] w-64 shrink-0 border-r border-slate-200 bg-white md:block">
-          <div className="p-4">
-            <div className="rounded-2xl bg-slate-50 p-3">
+        <aside className="hidden min-h-[calc(100vh-5rem)] w-72 shrink-0 border-r border-slate-200 bg-white md:block">
+          <div className="flex min-h-[calc(100vh-5rem)] flex-col p-4">
+            <div className="rounded-3xl bg-slate-50 p-4">
               <p className="px-3 text-xs font-bold uppercase tracking-wide text-slate-400">
                 Notary Portal
               </p>
 
-              <nav className="mt-3 space-y-1">
+              <nav className="mt-4 space-y-2">
                 {navItems.map((item) => (
-  <div key={item.href} data-tour={item.tour}>
-    <NavLinkWithSpinner href={item.href}>
-      <div className="flex w-full items-center justify-between">
-        <span>{item.label}</span>
-
-        <span className="h-1.5 w-1.5 rounded-full bg-slate-300 opacity-0 transition group-hover:opacity-100" />
-      </div>
-    </NavLinkWithSpinner>
-  </div>
-))}
+                  <div key={item.href} data-tour={item.tour}>
+                    <NavLinkWithSpinner href={item.href}>
+                      <div className="flex w-full items-center gap-3">
+                        <NavIcon type={item.icon} />
+                        <span>{item.label}</span>
+                      </div>
+                    </NavLinkWithSpinner>
+                  </div>
+                ))}
               </nav>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="mt-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
                 Status
               </p>
