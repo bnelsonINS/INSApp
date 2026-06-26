@@ -426,12 +426,18 @@ export default async function FindNotaryPage({
         distanceMiles > notaryTravelRadiusMiles &&
         distanceMiles <= notaryTravelRadiusMiles + expandedRadiusMiles;
 
+      const outsidePreferredRadius =
+        notaryTravelRadiusMiles > 0 &&
+        distanceMiles !== null &&
+        distanceMiles > notaryTravelRadiusMiles;
+
       return {
         ...notary,
         distanceMiles,
         notaryTravelRadiusMiles,
         insideNormalRadius,
         expandedDistanceMatches,
+        outsidePreferredRadius,
         zipMatches,
         homeZipMatches,
         countyMatches,
@@ -596,6 +602,11 @@ export default async function FindNotaryPage({
         action={`/dashboard/orders/${assignment.id}/find-notary/send-offers`}
         method="POST"
       >
+        <input
+          type="hidden"
+          name="search_radius_miles"
+          value={expandedRadiusMiles}
+        />
         <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_380px]">
           <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
             <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -668,6 +679,20 @@ export default async function FindNotaryPage({
                             !candidate.canReceiveAutomaticOffer
                           }
                           className="mt-1 h-4 w-4 rounded border-slate-300 disabled:cursor-not-allowed"
+                        />
+                        <input
+                          type="hidden"
+                          name={`distance_miles_${candidate.id}`}
+                          value={
+                            candidate.distanceMiles === null
+                              ? ""
+                              : candidate.distanceMiles.toFixed(2)
+                          }
+                        />
+                        <input
+                          type="hidden"
+                          name={`outside_preferred_radius_${candidate.id}`}
+                          value={String(candidate.outsidePreferredRadius)}
                         />
 
                         <div>

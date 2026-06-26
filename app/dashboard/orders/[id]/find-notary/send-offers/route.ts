@@ -30,6 +30,13 @@ function getBaseUrl() {
   ).replace(/\/$/, "");
 }
 
+function parseNumberOrNull(value: FormDataEntryValue | null) {
+  if (value === null) return null;
+
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -63,6 +70,14 @@ export async function POST(
 
   const allowLowScoreOverride =
     formData.get("allow_low_score_override") === "true";
+
+  const submittedSearchRadiusMiles = Number(
+    formData.get("search_radius_miles") || 0
+  );
+
+  const searchRadiusMiles = Number.isFinite(submittedSearchRadiusMiles)
+    ? Math.max(0, submittedSearchRadiusMiles)
+    : 0;
 
   if (selectedNotaryIds.length === 0) {
     return NextResponse.redirect(
@@ -154,15 +169,15 @@ export async function POST(
       .in("user_id", validNotaryIds),
   ]);
 
-  const scoreByNotaryId = new Map(
-    (monthlyScores || []).map((score) => [
+  const scoreByNotaryId = new Map<string, number>(
+    (monthlyScores || []).map((score: any) => [
       score.notary_id,
       score.current_score ?? 100,
     ])
   );
 
-  const metricByNotaryId = new Map(
-    (metrics || []).map((metric) => [metric.notary_id, metric])
+  const metricByNotaryId = new Map<string, any>(
+    (metrics || []).map((metric: any) => [metric.notary_id, metric])
   );
 
   const jobZip = (assignment.signing_zip || "").trim();
@@ -190,6 +205,11 @@ export async function POST(
         ) ?? false;
 
       const distanceRank = zipMatches ? 1 : countyMatches ? 2 : 3;
+      const distanceMiles = parseNumberOrNull(
+        formData.get(`distance_miles_${notary.id}`)
+      );
+      const outsidePreferredRadius =
+        formData.get(`outside_preferred_radius_${notary.id}`) === "true";
 
       return {
         ...notary,
@@ -201,6 +221,9 @@ export async function POST(
         lifetimeClosings: metric?.total_assignments_completed ?? 0,
         responseRate: metric?.response_rate ?? 0,
         isRestricted: score < 70,
+        distanceMilesAtOffer: distanceMiles,
+        searchRadiusMilesAtOffer: searchRadiusMiles,
+        outsidePreferredRadiusAtOffer: outsidePreferredRadius,
       };
     })
     .sort((a, b) => {
@@ -222,7 +245,9 @@ export async function POST(
     );
   }
 
-  const notaryById = new Map(rankedNotaries.map((notary) => [notary.id, notary]));
+  const notaryById = new Map<string, any>(
+    rankedNotaries.map((notary) => [notary.id, notary])
+  );
 
   const { data: existingOffers } = await supabase
     .from("assignment_offers")
@@ -261,6 +286,9 @@ export async function POST(
     sent_at: now,
     expires_at: expiresAt,
     response_token: crypto.randomUUID(),
+    search_radius_miles: notary.searchRadiusMilesAtOffer,
+    distance_miles: notary.distanceMilesAtOffer,
+    outside_preferred_radius: notary.outsidePreferredRadiusAtOffer,
   }));
 
   const { data: insertedOffers, error: offerError } = await supabase
@@ -297,6 +325,11 @@ export async function POST(
           distance_rank_at_offer: notary?.distanceRank ?? null,
           zip_match_at_offer: notary?.zipMatches ?? false,
           county_match_at_offer: notary?.countyMatches ?? false,
+          search_radius_miles_at_offer:
+            notary?.searchRadiusMilesAtOffer ?? searchRadiusMiles,
+          distance_miles_at_offer: notary?.distanceMilesAtOffer ?? null,
+          outside_preferred_radius_at_offer:
+            notary?.outsidePreferredRadiusAtOffer ?? false,
           low_score_override_used:
             Boolean(notary?.isRestricted) && allowLowScoreOverride,
         },
@@ -368,6 +401,10 @@ export async function POST(
             distance_rank_at_offer: notary.distanceRank,
             zip_match_at_offer: notary.zipMatches,
             county_match_at_offer: notary.countyMatches,
+            search_radius_miles_at_offer: notary.searchRadiusMilesAtOffer,
+            distance_miles_at_offer: notary.distanceMilesAtOffer,
+            outside_preferred_radius_at_offer:
+              notary.outsidePreferredRadiusAtOffer,
             low_score_override_used:
               notary.isRestricted && allowLowScoreOverride,
           },
