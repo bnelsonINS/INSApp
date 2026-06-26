@@ -909,8 +909,49 @@ const currentScoreMonth = nowForScore.getMonth() + 1;
   const hiddenActivity = activityItems.slice(3);
   const hasHiddenActivity = hiddenActivity.length > 0;
 
+  const activityProfileIds = Array.from(
+    new Set(
+      activityItems.flatMap((item: any) =>
+        String(item.details ?? "").match(
+          /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+        ) ?? [],
+      ),
+    ),
+  );
+
+  const { data: activityProfiles } = activityProfileIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", activityProfileIds)
+    : { data: [] };
+
+  const activityProfileNameById = new Map(
+    (activityProfiles ?? []).map((activityProfile) => [
+      String(activityProfile.id),
+      activityProfile.full_name || activityProfile.email || "Unknown User",
+    ]),
+  );
+
+  function formatActivityPerson(value: string) {
+    const normalized = value.trim();
+
+    if (!normalized || normalized.toLowerCase() === "blank") {
+      return "No assigned notary";
+    }
+
+    return activityProfileNameById.get(normalized) ?? normalized;
+  }
+
+  function formatActivityDetails(details: string) {
+    return details.replace(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|blank/gi,
+      (match) => formatActivityPerson(match),
+    );
+  }
+
   function renderActivityItem(item: any) {
-    const details = String(item.details ?? "");
+    const details = formatActivityDetails(String(item.details ?? ""));
     const [name, ...messageParts] = details.split("\n");
     const message = messageParts.join("\n");
 
