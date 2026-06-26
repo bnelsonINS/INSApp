@@ -44,6 +44,77 @@ function formatTime(time: string | null) {
   });
 }
 
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "Not set";
+
+  return new Date(value).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function getOfferStatusBadge(status: string | null | undefined) {
+  const normalizedStatus = (status || "unknown").toLowerCase();
+
+  if (normalizedStatus === "pending" || normalizedStatus === "sent") {
+    return {
+      label: "Pending",
+      className: "bg-yellow-100 text-yellow-800",
+    };
+  }
+
+  if (
+    normalizedStatus === "accepted" ||
+    normalizedStatus === "assigned" ||
+    normalizedStatus === "countered"
+  ) {
+    return {
+      label:
+        normalizedStatus === "assigned"
+          ? "Assigned"
+          : normalizedStatus === "countered"
+          ? "Countered"
+          : "Accepted",
+      className: "bg-emerald-100 text-emerald-800",
+    };
+  }
+
+  if (normalizedStatus === "declined") {
+    return {
+      label: "Declined",
+      className: "bg-red-100 text-red-800",
+    };
+  }
+
+  if (normalizedStatus === "expired") {
+    return {
+      label: "Expired",
+      className: "bg-slate-200 text-slate-700",
+    };
+  }
+
+  return {
+    label: normalizedStatus,
+    className: "bg-slate-100 text-slate-700",
+  };
+}
+
+function getQueueSectionClass(status: "pending" | "accepted" | "declined" | "expired" | "other") {
+  const classes = {
+    pending: "border-yellow-200 bg-yellow-50",
+    accepted: "border-emerald-200 bg-emerald-50",
+    declined: "border-red-200 bg-red-50",
+    expired: "border-slate-200 bg-slate-50",
+    other: "border-blue-200 bg-blue-50",
+  };
+
+  return classes[status];
+}
+
 function formatDeclineReason(reason: string | null | undefined) {
   if (!reason) return "Not provided";
 
@@ -254,7 +325,10 @@ export default async function FindNotaryPage({
       decline_reason,
       decline_notes,
       sent_at,
-      expires_at
+      expires_at,
+      search_radius_miles,
+      distance_miles,
+      outside_preferred_radius
     `
     )
     .eq("assignment_id", assignment.id)
@@ -263,6 +337,39 @@ export default async function FindNotaryPage({
 
   const acceptedOffers =
     existingOffers?.filter((offer) => offer.status === "accepted") ?? [];
+
+  const offerQueue = existingOffers ?? [];
+
+  const pendingQueue = offerQueue.filter((offer) => {
+    const status = (offer.status || "").toLowerCase();
+    return status === "pending" || status === "sent";
+  });
+
+  const acceptedQueue = offerQueue.filter((offer) => {
+    const status = (offer.status || "").toLowerCase();
+    return status === "accepted" || status === "assigned" || status === "countered";
+  });
+
+  const declinedQueue = offerQueue.filter(
+    (offer) => (offer.status || "").toLowerCase() === "declined"
+  );
+
+  const expiredQueue = offerQueue.filter(
+    (offer) => (offer.status || "").toLowerCase() === "expired"
+  );
+
+  const otherQueue = offerQueue.filter((offer) => {
+    const status = (offer.status || "").toLowerCase();
+    return (
+      status !== "pending" &&
+      status !== "sent" &&
+      status !== "accepted" &&
+      status !== "assigned" &&
+      status !== "countered" &&
+      status !== "declined" &&
+      status !== "expired"
+    );
+  });
 
   const highestRound =
     existingOffers && existingOffers.length > 0
@@ -972,121 +1079,253 @@ export default async function FindNotaryPage({
       </form>
 
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        <h2 className="text-xl font-bold text-slate-900">Offer History</h2>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">Offer Queue</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Manage every offer response for this assignment from one place.
+            </p>
+          </div>
 
-        {!existingOffers || existingOffers.length === 0 ? (
+          <div className="flex flex-wrap gap-2 text-xs font-bold">
+            <span className="rounded-full bg-yellow-100 px-3 py-1 text-yellow-800">
+              Pending {pendingQueue.length}
+            </span>
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">
+              Accepted {acceptedQueue.length}
+            </span>
+            <span className="rounded-full bg-red-100 px-3 py-1 text-red-800">
+              Declined {declinedQueue.length}
+            </span>
+            <span className="rounded-full bg-slate-200 px-3 py-1 text-slate-700">
+              Expired {expiredQueue.length}
+            </span>
+          </div>
+        </div>
+
+        {offerQueue.length === 0 ? (
           <div className="mt-4 rounded-xl bg-slate-50 p-5 text-sm text-slate-600">
             No offers have been sent for this assignment.
           </div>
         ) : (
-          <div className="mt-4 space-y-4">
-            {existingOffers.map((offer) => {
-              const offerNotary = notaryById.get(offer.notary_id);
-              const offerScore = scoreByNotaryId.get(offer.notary_id) ?? 100;
-              const offerBadge = getScoreBadge(offerScore);
-              const isDeclined =
-                offer.status === "declined" && offer.decline_reason;
-
-              return (
-                <div
-                  key={offer.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
-                    <div className="min-w-0">
-                      <p className="break-words font-bold text-slate-900">
-                        Round {offer.round_number} •{" "}
-                        {offerNotary?.full_name ?? "Unknown Notary"}
-                      </p>
-                      <p className="break-all text-sm text-slate-500">
-                        {offerNotary?.email ?? offer.notary_id}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col gap-3 xl:items-end">
-                      <div className="flex flex-wrap gap-2">
-                        <span className="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-800">
-                          {offerScore}%
-                        </span>
-
-                        <span
-                          className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-xs font-bold ${offerBadge.className}`}
-                        >
-                          {offerBadge.label}
-                        </span>
-
-                        <span className="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-                          {offer.status}
-                        </span>
-
-                        <span className="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-                          Offered: {formatMoney(offer.offered_fee)}
-                        </span>
-
-                        {offer.counter_fee && (
-                          <span className="inline-flex whitespace-nowrap rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
-                            Counter: {formatMoney(offer.counter_fee)}
-                          </span>
-                        )}
-                      </div>
-
-                      {isDeclined && (
-                        <div className="w-full rounded-xl border border-red-200 bg-red-50 p-3 text-left xl:w-[340px]">
-                          <p className="text-xs font-bold uppercase tracking-wide text-red-700">
-                            Decline Reason
-                          </p>
-
-                          <p className="mt-1 text-sm font-semibold text-slate-900">
-                            {formatDeclineReason(offer.decline_reason)}
-                          </p>
-
-                          {offer.decline_notes && (
-                            <>
-                              <p className="mt-3 text-xs font-bold uppercase tracking-wide text-red-700">
-                                Additional Notes
-                              </p>
-
-                              <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">
-                                {offer.decline_notes}
-                              </p>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
+          <div className="mt-6 space-y-6">
+            {[
+              {
+                key: "pending",
+                title: "Pending Offers",
+                description: "Offers waiting on a notary response.",
+                items: pendingQueue,
+              },
+              {
+                key: "accepted",
+                title: "Accepted Offers",
+                description: "Offers accepted, countered, or already assigned.",
+                items: acceptedQueue,
+              },
+              {
+                key: "declined",
+                title: "Declined Offers",
+                description: "Offers declined by the notary with any reason provided.",
+                items: declinedQueue,
+              },
+              {
+                key: "expired",
+                title: "Expired Offers",
+                description: "Offers marked expired by the system or admin workflow.",
+                items: expiredQueue,
+              },
+              ...(otherQueue.length > 0
+                ? [
+                    {
+                      key: "other",
+                      title: "Other Offers",
+                      description: "Offers with statuses that do not fit the main queue groups.",
+                      items: otherQueue,
+                    },
+                  ]
+                : []),
+            ].map((section) => (
+              <div
+                key={section.key}
+                className={`rounded-2xl border p-4 ${getQueueSectionClass(
+                  section.key as "pending" | "accepted" | "declined" | "expired" | "other"
+                )}`}
+              >
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      {section.title}
+                    </h3>
+                    <p className="text-sm text-slate-600">{section.description}</p>
                   </div>
 
-                  <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-                    <p className="font-semibold text-slate-600">
-                      Sent:{" "}
-                      {offer.sent_at
-                        ? new Date(offer.sent_at).toLocaleString()
-                        : "Not set"}
-                    </p>
-
-                    {!hasAssignedNotary &&
-                    (offer.status === "accepted" ||
-                      offer.status === "countered") ? (
-                      <form
-                        action={`/dashboard/orders/${assignment.id}/find-notary/assign-offer/${offer.id}`}
-                        method="POST"
-                      >
-                        <button
-                          type="submit"
-                          className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 sm:w-auto"
-                        >
-                          Assign
-                        </button>
-                      </form>
-                    ) : offer.status === "assigned" ? (
-                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
-                        Assigned
-                      </span>
-                    ) : null}
-                  </div>
+                  <span className="text-sm font-bold text-slate-700">
+                    {section.items.length} offer{section.items.length === 1 ? "" : "s"}
+                  </span>
                 </div>
-              );
-            })}
+
+                {section.items.length === 0 ? (
+                  <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white/70 p-4 text-sm font-semibold text-slate-500">
+                    Nothing in this queue.
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    {section.items.map((offer) => {
+                      const offerNotary = notaryById.get(offer.notary_id);
+                      const offerScore = scoreByNotaryId.get(offer.notary_id) ?? 100;
+                      const offerBadge = getScoreBadge(offerScore);
+                      const statusBadge = getOfferStatusBadge(offer.status);
+                      const isDeclined =
+                        offer.status === "declined" && offer.decline_reason;
+
+                      return (
+                        <div
+                          key={offer.id}
+                          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                        >
+                          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+                            <div className="min-w-0">
+                              <p className="break-words font-bold text-slate-900">
+                                Round {offer.round_number} •{" "}
+                                {offerNotary?.full_name ?? "Unknown Notary"}
+                              </p>
+                              <p className="break-all text-sm text-slate-500">
+                                {offerNotary?.email ?? offer.notary_id}
+                              </p>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 xl:justify-end">
+                              <span className="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-800">
+                                {offerScore}%
+                              </span>
+
+                              <span
+                                className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-xs font-bold ${offerBadge.className}`}
+                              >
+                                {offerBadge.label}
+                              </span>
+
+                              <span
+                                className={`inline-flex whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold ${statusBadge.className}`}
+                              >
+                                {statusBadge.label}
+                              </span>
+
+                              {offer.outside_preferred_radius ? (
+                                <span className="inline-flex whitespace-nowrap rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-800">
+                                  Outside Preferred Radius
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-5">
+                            <div className="rounded-xl bg-slate-50 p-3">
+                              <p className="text-xs font-semibold uppercase text-slate-500">
+                                Sent
+                              </p>
+                              <p className="mt-1 font-bold text-slate-900">
+                                {formatDateTime(offer.sent_at)}
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl bg-slate-50 p-3">
+                              <p className="text-xs font-semibold uppercase text-slate-500">
+                                Distance
+                              </p>
+                              <p className="mt-1 font-bold text-slate-900">
+                                {formatDistance(offer.distance_miles)}
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl bg-slate-50 p-3">
+                              <p className="text-xs font-semibold uppercase text-slate-500">
+                                Search Radius
+                              </p>
+                              <p className="mt-1 font-bold text-slate-900">
+                                {offer.search_radius_miles
+                                  ? `${offer.search_radius_miles} mi`
+                                  : "Not stored"}
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl bg-slate-50 p-3">
+                              <p className="text-xs font-semibold uppercase text-slate-500">
+                                Offered Fee
+                              </p>
+                              <p className="mt-1 font-bold text-slate-900">
+                                {formatMoney(offer.offered_fee)}
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl bg-slate-50 p-3">
+                              <p className="text-xs font-semibold uppercase text-slate-500">
+                                Counter Fee
+                              </p>
+                              <p className="mt-1 font-bold text-slate-900">
+                                {offer.counter_fee
+                                  ? formatMoney(offer.counter_fee)
+                                  : "None"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {isDeclined ? (
+                            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-left">
+                              <p className="text-xs font-bold uppercase tracking-wide text-red-700">
+                                Decline Reason
+                              </p>
+
+                              <p className="mt-1 text-sm font-semibold text-slate-900">
+                                {formatDeclineReason(offer.decline_reason)}
+                              </p>
+
+                              {offer.decline_notes ? (
+                                <>
+                                  <p className="mt-3 text-xs font-bold uppercase tracking-wide text-red-700">
+                                    Additional Notes
+                                  </p>
+
+                                  <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">
+                                    {offer.decline_notes}
+                                  </p>
+                                </>
+                              ) : null}
+                            </div>
+                          ) : null}
+
+                          <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+                            <p className="font-semibold text-slate-600">
+                              Offer ID: <span className="font-mono">{offer.id}</span>
+                            </p>
+
+                            {!hasAssignedNotary &&
+                            (offer.status === "accepted" ||
+                              offer.status === "countered") ? (
+                              <form
+                                action={`/dashboard/orders/${assignment.id}/find-notary/assign-offer/${offer.id}`}
+                                method="POST"
+                              >
+                                <button
+                                  type="submit"
+                                  className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 sm:w-auto"
+                                >
+                                  Assign
+                                </button>
+                              </form>
+                            ) : offer.status === "assigned" ? (
+                              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                                Assigned Notary
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </section>
