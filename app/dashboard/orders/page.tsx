@@ -181,15 +181,15 @@ function orderCard(order: AssignmentOrder) {
         </span>
       </div>
 
-      <div className="mt-4 grid gap-3 text-sm">
+      <div className="mt-4 grid gap-3 text-sm text-slate-900">
         <div>
           <p className="text-slate-500">Borrower</p>
-          <p className="font-semibold">{order.borrower_name ?? "—"}</p>
+          <p className="font-semibold text-slate-950">{order.borrower_name ?? "—"}</p>
         </div>
 
         <div>
           <p className="text-slate-500">Signing</p>
-          <p className="font-semibold">{formatDate(order.signing_date)}</p>
+          <p className="font-semibold text-slate-950">{formatDate(order.signing_date)}</p>
           <p className="text-slate-600">{formatTime(order.signing_time)}</p>
           <p className="text-xs text-slate-500">
             {order.signing_type ?? "Signing"}
@@ -198,7 +198,7 @@ function orderCard(order: AssignmentOrder) {
 
         <div>
           <p className="text-slate-500">Location</p>
-          <p className="font-semibold">{order.signing_address ?? "—"}</p>
+          <p className="font-semibold text-slate-950">{order.signing_address ?? "—"}</p>
           <p className="text-slate-600">
             {order.signing_city ?? "—"}, {order.signing_state ?? "IN"}{" "}
             {order.signing_zip ?? ""}
