@@ -472,30 +472,31 @@ const activeTimeFrame =
             </div>
 
             <div className="mt-8 flex h-72 items-end gap-3 border-b border-slate-200 px-2">
-              {monthlyCounts.map((count, index) => {
-                const height = Math.max((count / maxMonthCount) * 100, 3);
+  {monthlyCounts.map((count, index) => {
+    const barHeight =
+      count > 0 ? Math.max((count / maxMonthCount) * 220, 32) : 0;
 
-                return (
-                  <div
-                    key={months[index]}
-                    className="flex flex-1 flex-col items-center gap-2"
-                  >
-                    <div className="text-xs font-bold text-slate-500">
-                      {count > 0 ? count : ""}
-                    </div>
+    return (
+      <div
+        key={months[index]}
+        className="flex h-full flex-1 flex-col items-center justify-end gap-2"
+      >
+        <div className="text-xs font-bold text-slate-500">
+          {count > 0 ? count : ""}
+        </div>
 
-                    <div
-                      className="w-full max-w-12 rounded-t-xl bg-blue-500"
-                      style={{ height: `${height}%` }}
-                    />
+        <div
+          className="w-full max-w-12 rounded-t-xl bg-blue-500"
+          style={{ height: `${barHeight}px` }}
+        />
 
-                    <div className="text-xs font-bold text-slate-500">
-                      {months[index]}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+        <div className="text-xs font-bold text-slate-500">
+          {months[index]}
+        </div>
+      </div>
+    );
+  })}
+</div>
           </section>
 
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
