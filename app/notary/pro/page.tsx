@@ -470,8 +470,8 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
               </div>
             </div>
 
-            <div className="-mx-4 mt-6 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-              <div className="flex h-72 min-w-[720px] items-end gap-3 border-b border-slate-200 px-2">
+            <div className="mt-6 w-full overflow-hidden">
+              <div className="grid h-72 grid-cols-12 items-end gap-1 border-b border-slate-200 px-1 sm:gap-3 sm:px-2">
                 {monthlyCounts.map((count, index) => {
                   const barHeight =
                     count > 0
@@ -481,18 +481,18 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
                   return (
                     <div
                       key={months[index]}
-                      className="flex h-full flex-1 flex-col items-center justify-end gap-2"
+                      className="flex h-full min-w-0 flex-col items-center justify-end gap-2"
                     >
                       <div className="text-xs font-bold text-slate-500">
                         {count > 0 ? count : ""}
                       </div>
 
                       <div
-                        className="w-full max-w-12 rounded-t-xl bg-blue-500"
+                        className="w-full max-w-10 rounded-t-lg bg-blue-500 sm:max-w-12 sm:rounded-t-xl"
                         style={{ height: `${barHeight}px` }}
                       />
 
-                      <div className="text-xs font-bold text-slate-500">
+                      <div className="text-[10px] font-bold text-slate-500 sm:text-xs">
                         {months[index]}
                       </div>
                     </div>
