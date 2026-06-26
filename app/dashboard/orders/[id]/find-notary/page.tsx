@@ -412,14 +412,25 @@ export default async function FindNotaryPage({
       const matchStrength =
         Number(zipMatches) + Number(homeZipMatches) + Number(countyMatches);
 
+      const notaryTravelRadiusMiles = Number(notary.travel_radius_miles || 0);
+
+      const insideNormalRadius =
+        notaryTravelRadiusMiles > 0 &&
+        distanceMiles !== null &&
+        distanceMiles <= notaryTravelRadiusMiles;
+
       const expandedDistanceMatches =
         expandedRadiusMiles > 0 &&
+        notaryTravelRadiusMiles > 0 &&
         distanceMiles !== null &&
-        distanceMiles <= expandedRadiusMiles;
+        distanceMiles > notaryTravelRadiusMiles &&
+        distanceMiles <= notaryTravelRadiusMiles + expandedRadiusMiles;
 
       return {
         ...notary,
         distanceMiles,
+        notaryTravelRadiusMiles,
+        insideNormalRadius,
         expandedDistanceMatches,
         zipMatches,
         homeZipMatches,
@@ -435,11 +446,14 @@ export default async function FindNotaryPage({
       };
     })
     .filter(
-      (candidate) => candidate.matchStrength > 0 || candidate.expandedDistanceMatches
+      (candidate) =>
+        candidate.matchStrength > 0 ||
+        candidate.insideNormalRadius ||
+        candidate.expandedDistanceMatches
     )
     .sort((a, b) => {
-      const aOriginalMatch = a.matchStrength > 0;
-      const bOriginalMatch = b.matchStrength > 0;
+      const aOriginalMatch = a.matchStrength > 0 || a.insideNormalRadius;
+      const bOriginalMatch = b.matchStrength > 0 || b.insideNormalRadius;
 
       if (aOriginalMatch !== bOriginalMatch) {
         return Number(bOriginalMatch) - Number(aOriginalMatch);
@@ -476,7 +490,9 @@ export default async function FindNotaryPage({
 
   const expandedOnlyCandidates = candidates.filter(
     (candidate) =>
-      candidate.matchStrength === 0 && candidate.expandedDistanceMatches
+      candidate.matchStrength === 0 &&
+      !candidate.insideNormalRadius &&
+      candidate.expandedDistanceMatches
   );
 
   return (
@@ -721,7 +737,7 @@ export default async function FindNotaryPage({
                               County
                             </span>
                           )}
-                          {candidate.matchStrength === 0 &&
+                          {!candidate.insideNormalRadius &&
                             candidate.expandedDistanceMatches && (
                               <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">
                                 Expanded Radius
