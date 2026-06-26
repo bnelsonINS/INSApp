@@ -37,6 +37,11 @@ function parseNumberOrNull(value: FormDataEntryValue | null) {
   return Number.isFinite(numberValue) ? numberValue : null;
 }
 
+function roundDistanceMiles(distance: number | null) {
+  if (distance === null || distance === undefined) return null;
+  return Math.round(distance * 10) / 10;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -205,8 +210,8 @@ export async function POST(
         ) ?? false;
 
       const distanceRank = zipMatches ? 1 : countyMatches ? 2 : 3;
-      const distanceMiles = parseNumberOrNull(
-        formData.get(`distance_miles_${notary.id}`)
+      const distanceMiles = roundDistanceMiles(
+        parseNumberOrNull(formData.get(`distance_miles_${notary.id}`))
       );
       const outsidePreferredRadius =
         formData.get(`outside_preferred_radius_${notary.id}`) === "true";

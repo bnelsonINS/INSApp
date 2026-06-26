@@ -165,9 +165,15 @@ function calculateDistanceMiles(
   return earthRadiusMiles * c;
 }
 
+function roundDistanceMiles(distance: number | null) {
+  if (distance === null || distance === undefined) return null;
+  return Math.round(distance * 10) / 10;
+}
+
 function formatDistance(distance: number | null) {
-  if (distance === null || distance === undefined) return "Not available";
-  return `${distance.toFixed(1)} mi`;
+  const roundedDistance = roundDistanceMiles(distance);
+  if (roundedDistance === null) return "Not available";
+  return `${roundedDistance.toFixed(1)} mi`;
 }
 
 export default async function FindNotaryPage({
@@ -689,9 +695,9 @@ export default async function FindNotaryPage({
                           type="hidden"
                           name={`distance_miles_${candidate.id}`}
                           value={
-                            candidate.distanceMiles === null
+                            roundDistanceMiles(candidate.distanceMiles) === null
                               ? ""
-                              : candidate.distanceMiles.toFixed(2)
+                              : String(roundDistanceMiles(candidate.distanceMiles))
                           }
                         />
                         <input
@@ -741,7 +747,7 @@ export default async function FindNotaryPage({
                       </div>
                     </div>
 
-                    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+                    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
                       <div className="rounded-xl bg-slate-50 p-3">
                         <p className="text-xs font-semibold uppercase text-slate-500">
                           Coverage
@@ -773,7 +779,39 @@ export default async function FindNotaryPage({
                                 Expanded Radius
                               </span>
                             )}
+                          {candidate.outsidePreferredRadius && (
+                            <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-700">
+                              Outside Preferred Radius
+                            </span>
+                          )}
                         </div>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-xs font-semibold uppercase text-slate-500">
+                          Approx. Distance
+                        </p>
+                        <p className="mt-1 font-bold text-slate-900">
+                          {formatDistance(candidate.distanceMiles)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-xs font-semibold uppercase text-slate-500">
+                          Preferred Radius
+                        </p>
+                        <p className="mt-1 font-bold text-slate-900">
+                          {candidate.travel_radius_miles ?? "Not set"} mi
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-xs font-semibold uppercase text-slate-500">
+                          Search Radius
+                        </p>
+                        <p className="mt-1 font-bold text-slate-900">
+                          {currentSearchRadiusMiles} mi
+                        </p>
                       </div>
 
                       <div className="rounded-xl bg-slate-50 p-3">
