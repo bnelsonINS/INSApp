@@ -57,6 +57,26 @@ function formatDateTime(value: string | null | undefined) {
   });
 }
 
+
+function formatElapsedTime(value: string | null | undefined) {
+  if (!value) return "Not set";
+
+  const then = new Date(value).getTime();
+  const now = Date.now();
+  const diffMinutes = Math.max(0, Math.floor((now - then) / 60000));
+
+  if (diffMinutes < 1) return "Just now";
+  if (diffMinutes < 60) return `${diffMinutes} min ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} hr${diffHours === 1 ? "" : "s"} ago`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
+}
+
 function getOfferStatusBadge(status: string | null | undefined) {
   const normalizedStatus = (status || "unknown").toLowerCase();
 
@@ -1079,27 +1099,84 @@ export default async function FindNotaryPage({
       </form>
 
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">Offer Queue</h2>
+            <p className="text-sm font-semibold text-slate-500">
+              Dispatch Management
+            </p>
+            <h2 className="mt-1 text-2xl font-bold text-slate-900">
+              Offer Queue
+            </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Manage every offer response for this assignment from one place.
+              Compact queue view for pending, accepted, declined, and expired offers.
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2 text-xs font-bold">
-            <span className="rounded-full bg-yellow-100 px-3 py-1 text-yellow-800">
-              Pending {pendingQueue.length}
-            </span>
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">
-              Accepted {acceptedQueue.length}
-            </span>
-            <span className="rounded-full bg-red-100 px-3 py-1 text-red-800">
-              Declined {declinedQueue.length}
-            </span>
-            <span className="rounded-full bg-slate-200 px-3 py-1 text-slate-700">
-              Expired {expiredQueue.length}
-            </span>
+          <div className="grid w-full gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-4">
+            <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-3">
+              <p className="text-xs font-bold uppercase text-yellow-700">Pending</p>
+              <p className="mt-1 text-2xl font-black text-slate-900">
+                {pendingQueue.length}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+              <p className="text-xs font-bold uppercase text-emerald-700">Accepted</p>
+              <p className="mt-1 text-2xl font-black text-slate-900">
+                {acceptedQueue.length}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-3">
+              <p className="text-xs font-bold uppercase text-red-700">Declined</p>
+              <p className="mt-1 text-2xl font-black text-slate-900">
+                {declinedQueue.length}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase text-slate-600">Expired</p>
+              <p className="mt-1 text-2xl font-black text-slate-900">
+                {expiredQueue.length}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div>
+            <p className="text-xs font-bold uppercase text-slate-500">Assigned Notary</p>
+            <p className="mt-1 truncate text-sm font-bold text-slate-900">
+              {assignedNotary?.full_name ?? "Not assigned"}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold uppercase text-slate-500">Current Radius</p>
+            <p className="mt-1 text-sm font-bold text-slate-900">
+              {currentSearchRadiusMiles} mi
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold uppercase text-slate-500">Last Round</p>
+            <p className="mt-1 text-sm font-bold text-slate-900">
+              {highestRound > 0 ? `Round ${highestRound}` : "None"}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold uppercase text-slate-500">Total Offers</p>
+            <p className="mt-1 text-sm font-bold text-slate-900">
+              {offerQueue.length}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold uppercase text-slate-500">Next Round</p>
+            <p className="mt-1 text-sm font-bold text-slate-900">
+              {hasAssignedNotary ? "Disabled" : `Round ${nextRound}`}
+            </p>
           </div>
         </div>
 
@@ -1108,68 +1185,84 @@ export default async function FindNotaryPage({
             No offers have been sent for this assignment.
           </div>
         ) : (
-          <div className="mt-6 space-y-6">
+          <div className="mt-6 space-y-4">
             {[
               {
                 key: "pending",
                 title: "Pending Offers",
-                description: "Offers waiting on a notary response.",
+                description: "Waiting on a notary response.",
                 items: pendingQueue,
+                defaultOpen: true,
               },
               {
                 key: "accepted",
                 title: "Accepted Offers",
-                description: "Offers accepted, countered, or already assigned.",
+                description: "Accepted, countered, or already assigned.",
                 items: acceptedQueue,
+                defaultOpen: true,
               },
               {
                 key: "declined",
                 title: "Declined Offers",
-                description: "Offers declined by the notary with any reason provided.",
+                description: "Declines with reasons and notes.",
                 items: declinedQueue,
+                defaultOpen: false,
               },
               {
                 key: "expired",
                 title: "Expired Offers",
-                description: "Offers marked expired by the system or admin workflow.",
+                description: "Offers marked expired by the current workflow.",
                 items: expiredQueue,
+                defaultOpen: false,
               },
               ...(otherQueue.length > 0
                 ? [
                     {
                       key: "other",
                       title: "Other Offers",
-                      description: "Offers with statuses that do not fit the main queue groups.",
+                      description: "Statuses outside the main queue groups.",
                       items: otherQueue,
+                      defaultOpen: false,
                     },
                   ]
                 : []),
             ].map((section) => (
-              <div
+              <details
                 key={section.key}
-                className={`rounded-2xl border p-4 ${getQueueSectionClass(
+                open={section.defaultOpen}
+                className={`group rounded-2xl border ${getQueueSectionClass(
                   section.key as "pending" | "accepted" | "declined" | "expired" | "other"
                 )}`}
               >
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900">
-                      {section.title}
-                    </h3>
-                    <p className="text-sm text-slate-600">{section.description}</p>
+                <summary className="flex cursor-pointer list-none flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-black text-slate-700 group-open:hidden">
+                        ▶
+                      </span>
+                      <span className="hidden text-sm font-black text-slate-700 group-open:inline">
+                        ▼
+                      </span>
+                      <h3 className="text-lg font-bold text-slate-900">
+                        {section.title} ({section.items.length})
+                      </h3>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {section.description}
+                    </p>
                   </div>
 
-                  <span className="text-sm font-bold text-slate-700">
+                  <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-bold text-slate-700 shadow-sm">
                     {section.items.length} offer{section.items.length === 1 ? "" : "s"}
                   </span>
-                </div>
+                </summary>
 
                 {section.items.length === 0 ? (
-                  <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white/70 p-4 text-sm font-semibold text-slate-500">
+                  <div className="mx-4 mb-4 rounded-xl border border-dashed border-slate-300 bg-white/70 p-4 text-sm font-semibold text-slate-500">
                     Nothing in this queue.
                   </div>
                 ) : (
-                  <div className="mt-4 space-y-3">
+                  <div className="space-y-2 px-4 pb-4">
                     {section.items.map((offer) => {
                       const offerNotary = notaryById.get(offer.notary_id);
                       const offerScore = scoreByNotaryId.get(offer.notary_id) ?? 100;
@@ -1181,24 +1274,62 @@ export default async function FindNotaryPage({
                       return (
                         <div
                           key={offer.id}
-                          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                          className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
                         >
-                          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+                          <div className="grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)_auto] xl:items-center">
                             <div className="min-w-0">
-                              <p className="break-words font-bold text-slate-900">
-                                Round {offer.round_number} •{" "}
+                              <p className="truncate text-base font-black text-slate-900">
                                 {offerNotary?.full_name ?? "Unknown Notary"}
                               </p>
-                              <p className="break-all text-sm text-slate-500">
-                                {offerNotary?.email ?? offer.notary_id}
+                              <p className="truncate text-xs text-slate-500">
+                                {offerNotary?.email ?? "Email not available"}
+                              </p>
+                              <p className="mt-1 text-xs font-semibold text-slate-500">
+                                Round {offer.round_number ?? "?"} • Sent {formatElapsedTime(offer.sent_at)}
                               </p>
                             </div>
 
-                            <div className="flex flex-wrap gap-2 xl:justify-end">
-                              <span className="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-800">
-                                {offerScore}%
-                              </span>
+                            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                              <div className="rounded-xl bg-slate-50 px-3 py-2">
+                                <p className="text-[10px] font-bold uppercase text-slate-500">
+                                  Score
+                                </p>
+                                <p className="mt-0.5 text-sm font-black text-slate-900">
+                                  {offerScore}%
+                                </p>
+                              </div>
 
+                              <div className="rounded-xl bg-slate-50 px-3 py-2">
+                                <p className="text-[10px] font-bold uppercase text-slate-500">
+                                  Distance
+                                </p>
+                                <p className="mt-0.5 text-sm font-black text-slate-900">
+                                  {formatDistance(offer.distance_miles)}
+                                </p>
+                              </div>
+
+                              <div className="rounded-xl bg-slate-50 px-3 py-2">
+                                <p className="text-[10px] font-bold uppercase text-slate-500">
+                                  Radius
+                                </p>
+                                <p className="mt-0.5 text-sm font-black text-slate-900">
+                                  {offer.search_radius_miles
+                                    ? `${offer.search_radius_miles} mi`
+                                    : "Not stored"}
+                                </p>
+                              </div>
+
+                              <div className="rounded-xl bg-slate-50 px-3 py-2">
+                                <p className="text-[10px] font-bold uppercase text-slate-500">
+                                  Fee
+                                </p>
+                                <p className="mt-0.5 text-sm font-black text-slate-900">
+                                  {formatMoney(offer.offered_fee)}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 xl:justify-end">
                               <span
                                 className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-xs font-bold ${offerBadge.className}`}
                               >
@@ -1213,65 +1344,34 @@ export default async function FindNotaryPage({
 
                               {offer.outside_preferred_radius ? (
                                 <span className="inline-flex whitespace-nowrap rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-800">
-                                  Outside Preferred Radius
+                                  Outside Radius
+                                </span>
+                              ) : null}
+
+                              {!hasAssignedNotary &&
+                              (offer.status === "accepted" ||
+                                offer.status === "countered") ? (
+                                <form
+                                  action={`/dashboard/orders/${assignment.id}/find-notary/assign-offer/${offer.id}`}
+                                  method="POST"
+                                >
+                                  <button
+                                    type="submit"
+                                    className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
+                                  >
+                                    Assign
+                                  </button>
+                                </form>
+                              ) : offer.status === "assigned" ? (
+                                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                                  Assigned Notary
                                 </span>
                               ) : null}
                             </div>
                           </div>
 
-                          <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-5">
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-xs font-semibold uppercase text-slate-500">
-                                Sent
-                              </p>
-                              <p className="mt-1 font-bold text-slate-900">
-                                {formatDateTime(offer.sent_at)}
-                              </p>
-                            </div>
-
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-xs font-semibold uppercase text-slate-500">
-                                Distance
-                              </p>
-                              <p className="mt-1 font-bold text-slate-900">
-                                {formatDistance(offer.distance_miles)}
-                              </p>
-                            </div>
-
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-xs font-semibold uppercase text-slate-500">
-                                Search Radius
-                              </p>
-                              <p className="mt-1 font-bold text-slate-900">
-                                {offer.search_radius_miles
-                                  ? `${offer.search_radius_miles} mi`
-                                  : "Not stored"}
-                              </p>
-                            </div>
-
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-xs font-semibold uppercase text-slate-500">
-                                Offered Fee
-                              </p>
-                              <p className="mt-1 font-bold text-slate-900">
-                                {formatMoney(offer.offered_fee)}
-                              </p>
-                            </div>
-
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-xs font-semibold uppercase text-slate-500">
-                                Counter Fee
-                              </p>
-                              <p className="mt-1 font-bold text-slate-900">
-                                {offer.counter_fee
-                                  ? formatMoney(offer.counter_fee)
-                                  : "None"}
-                              </p>
-                            </div>
-                          </div>
-
                           {isDeclined ? (
-                            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-left">
+                            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-left">
                               <p className="text-xs font-bold uppercase tracking-wide text-red-700">
                                 Decline Reason
                               </p>
@@ -1294,37 +1394,47 @@ export default async function FindNotaryPage({
                             </div>
                           ) : null}
 
-                          <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-                            <p className="font-semibold text-slate-600">
-                              Offer ID: <span className="font-mono">{offer.id}</span>
-                            </p>
+                          <details className="mt-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                            <summary className="cursor-pointer text-xs font-bold text-slate-600">
+                              View Details
+                            </summary>
 
-                            {!hasAssignedNotary &&
-                            (offer.status === "accepted" ||
-                              offer.status === "countered") ? (
-                              <form
-                                action={`/dashboard/orders/${assignment.id}/find-notary/assign-offer/${offer.id}`}
-                                method="POST"
-                              >
-                                <button
-                                  type="submit"
-                                  className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 sm:w-auto"
-                                >
-                                  Assign
-                                </button>
-                              </form>
-                            ) : offer.status === "assigned" ? (
-                              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
-                                Assigned Notary
-                              </span>
-                            ) : null}
-                          </div>
+                            <div className="mt-3 grid gap-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
+                              <div>
+                                <p className="font-bold uppercase text-slate-500">Exact Sent Time</p>
+                                <p className="mt-1 font-semibold text-slate-900">
+                                  {formatDateTime(offer.sent_at)}
+                                </p>
+                              </div>
+
+                              <div>
+                                <p className="font-bold uppercase text-slate-500">Counter Fee</p>
+                                <p className="mt-1 font-semibold text-slate-900">
+                                  {offer.counter_fee ? formatMoney(offer.counter_fee) : "None"}
+                                </p>
+                              </div>
+
+                              <div>
+                                <p className="font-bold uppercase text-slate-500">Offer ID</p>
+                                <p className="mt-1 break-all font-mono text-slate-900">
+                                  {offer.id}
+                                </p>
+                              </div>
+
+                              <div>
+                                <p className="font-bold uppercase text-slate-500">Raw Status</p>
+                                <p className="mt-1 font-semibold text-slate-900">
+                                  {offer.status ?? "Unknown"}
+                                </p>
+                              </div>
+                            </div>
+                          </details>
                         </div>
                       );
                     })}
                   </div>
                 )}
-              </div>
+              </details>
             ))}
           </div>
         )}
