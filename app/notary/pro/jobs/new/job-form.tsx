@@ -105,6 +105,7 @@ function ChoiceField({
 }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [mode, setMode] = useState<"select" | "new">("select");
   const [isPending, startTransition] = useTransition();
   const [selectedValue, setSelectedValue] = useState("");
   const [search, setSearch] = useState("");
@@ -116,11 +117,21 @@ function ChoiceField({
       choice.value.toLowerCase().includes(search.toLowerCase())
     );
 
-  function selectOption(value: string) {
-    setSelectedValue(value);
+  function closeModal() {
     setIsOpen(false);
+    setMode("select");
     setSearch("");
     setNewValue("");
+  }
+
+  function selectOption(value: string) {
+    setSelectedValue(value);
+    closeModal();
+  }
+
+  function openNewMode() {
+    setMode("new");
+    setNewValue(search);
   }
 
   function saveNewOption() {
@@ -131,9 +142,7 @@ function ChoiceField({
     startTransition(async () => {
       await addChoiceOption(category, cleanValue);
       setSelectedValue(cleanValue);
-      setIsOpen(false);
-      setSearch("");
-      setNewValue("");
+      closeModal();
       router.refresh();
     });
   }
@@ -146,7 +155,10 @@ function ChoiceField({
 
       <button
         type="button"
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          setMode("select");
+          setIsOpen(true);
+        }}
         className="mt-2 flex w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-950 hover:bg-slate-50 focus:border-[#0B1F4D] focus:outline-none focus:ring-2 focus:ring-blue-100"
       >
         <span className={selectedValue ? "text-slate-950" : "text-slate-400"}>
@@ -160,69 +172,83 @@ function ChoiceField({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
           <div className="w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl">
             <div className="flex items-center justify-between bg-[#0B1F4D] px-5 py-4 text-white">
-              <h3 className="text-lg font-black">Select {label}</h3>
+              <h3 className="text-lg font-black">
+                {mode === "new" ? `New ${label}` : `Select ${label}`}
+              </h3>
 
               <button
                 type="button"
-                onClick={() => setIsOpen(false)}
+                onClick={closeModal}
                 className="text-2xl font-black text-white"
               >
                 ×
               </button>
             </div>
 
-            <div className="space-y-4 p-5">
-              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950 placeholder:text-slate-400 focus:border-[#0B1F4D] focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
+            {mode === "select" ? (
+              <div className="space-y-4 p-5">
+                <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950 placeholder:text-slate-400 focus:border-[#0B1F4D] focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
 
-                <button
-                  type="button"
-                  onClick={() => setNewValue(search)}
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50"
-                >
-                  New {label}
-                </button>
+                  <button
+                    type="button"
+                    onClick={openNewMode}
+                    className="rounded-xl border-2 border-blue-700 bg-white px-4 py-3 text-sm font-black text-[#0B1F4D] hover:bg-blue-50"
+                  >
+                    New {label}
+                  </button>
+                </div>
+
+                <div className="max-h-80 overflow-y-auto rounded-2xl border border-slate-200">
+                  {options.length === 0 ? (
+                    <div className="p-4 text-sm font-semibold text-slate-500">
+                      No saved options found. Click New {label} to add one.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {options.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => selectOption(option.value)}
+                          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-bold text-slate-900 hover:bg-slate-50"
+                        >
+                          <span>{option.value}</span>
+                          <span className="text-slate-300">›</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-
-              <div className="max-h-72 overflow-y-auto rounded-2xl border border-slate-200">
-                {options.length === 0 ? (
-                  <div className="p-4 text-sm font-semibold text-slate-500">
-                    No saved options found.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-slate-100">
-                    {options.map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => selectOption(option.value)}
-                        className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-bold text-slate-900 hover:bg-slate-50"
-                      >
-                        <span>{option.value}</span>
-                        <span className="text-slate-300">›</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-black text-slate-900">
-                  Add New {label}
-                </p>
-
-                <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+            ) : (
+              <div className="space-y-4 p-5">
+                <label className="block">
+                  <span className="text-sm font-bold text-slate-700">
+                    {label}
+                  </span>
                   <input
                     value={newValue}
                     onChange={(event) => setNewValue(event.target.value)}
                     placeholder={`Enter new ${label}`}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950 placeholder:text-slate-400 focus:border-[#0B1F4D] focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    autoFocus
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950 placeholder:text-slate-400 focus:border-[#0B1F4D] focus:outline-none focus:ring-2 focus:ring-blue-100"
                   />
+                </label>
+
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setMode("select")}
+                    className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    Back
+                  </button>
 
                   <button
                     type="button"
@@ -234,7 +260,7 @@ function ChoiceField({
                   </button>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
@@ -277,7 +303,7 @@ function reminderOptions() {
       const days = minutes / 1440;
       label = Number.isInteger(days)
         ? `${days} day${days === 1 ? "" : "s"} before`
-        : `1 day 12 hours before`;
+        : "1 day 12 hours before";
     }
 
     options.push({ label, value: String(minutes) });
@@ -403,13 +429,17 @@ export default function JobForm({ choices }: Props) {
                   ],
                   ["send_email_reminder", "Send email reminder"],
                   ["send_text_reminder", "Send text reminder"],
-                ].map(([name, label]) => (
+                ].map(([checkboxName, checkboxLabel]) => (
                   <label
-                    key={name}
+                    key={checkboxName}
                     className="flex items-center gap-3 text-sm font-bold text-slate-700"
                   >
-                    <input name={name} type="checkbox" className="h-4 w-4" />
-                    {label}
+                    <input
+                      name={checkboxName}
+                      type="checkbox"
+                      className="h-4 w-4"
+                    />
+                    {checkboxLabel}
                   </label>
                 ))}
               </div>
