@@ -369,8 +369,8 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
   return (
     <main className="min-h-screen bg-slate-50 p-3 sm:p-6">
       <section className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
-        <aside className="-mx-3 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0 xl:overflow-visible xl:pb-0">
-          <div className="flex gap-3 xl:block xl:space-y-3">
+        <aside className="pb-2 xl:pb-0">
+  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:block xl:space-y-3">
             {alertCards.map((card) => {
               const isActive = activeFilter === card.filter;
 
@@ -387,7 +387,7 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
                 <Link
                   key={card.filter}
                   href={`/notary/pro?filter=${card.filter}&timeframe=${activeTimeFrame}`}
-                  className={`flex min-w-[240px] items-center justify-between rounded-2xl border p-4 shadow-sm transition sm:min-w-[275px] xl:min-w-0 ${toneClass} ${
+                  className={`flex w-full items-center justify-between rounded-2xl border p-4 shadow-sm transition ${toneClass} ${
                     isActive ? "ring-2 ring-[#0B1F4D] ring-offset-2" : ""
                   }`}
                 >
