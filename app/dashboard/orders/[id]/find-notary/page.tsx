@@ -5,6 +5,8 @@ import { createSupabaseServerClient } from "../../../../../src/lib/supabase-serv
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const DEFAULT_SEARCH_RADIUS_MILES = 25;
+
 type PageProps = {
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ radius?: string }>;
@@ -178,6 +180,8 @@ export default async function FindNotaryPage({
     0,
     Number(resolvedSearchParams.radius || 0)
   );
+  const currentSearchRadiusMiles =
+    DEFAULT_SEARCH_RADIUS_MILES + expandedRadiusMiles;
 
   const supabase = await createSupabaseServerClient();
 
@@ -415,16 +419,14 @@ export default async function FindNotaryPage({
       const notaryTravelRadiusMiles = Number(notary.travel_radius_miles || 0);
 
       const insideNormalRadius =
-        notaryTravelRadiusMiles > 0 &&
         distanceMiles !== null &&
-        distanceMiles <= notaryTravelRadiusMiles;
+        distanceMiles <= DEFAULT_SEARCH_RADIUS_MILES;
 
       const expandedDistanceMatches =
         expandedRadiusMiles > 0 &&
-        notaryTravelRadiusMiles > 0 &&
         distanceMiles !== null &&
-        distanceMiles > notaryTravelRadiusMiles &&
-        distanceMiles <= notaryTravelRadiusMiles + expandedRadiusMiles;
+        distanceMiles > DEFAULT_SEARCH_RADIUS_MILES &&
+        distanceMiles <= currentSearchRadiusMiles;
 
       const outsidePreferredRadius =
         notaryTravelRadiusMiles > 0 &&
@@ -605,7 +607,7 @@ export default async function FindNotaryPage({
         <input
           type="hidden"
           name="search_radius_miles"
-          value={expandedRadiusMiles}
+          value={currentSearchRadiusMiles}
         />
         <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_380px]">
           <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
@@ -617,11 +619,14 @@ export default async function FindNotaryPage({
                 <p className="mt-1 text-sm text-slate-600">
                   {candidates.length} matching notary candidate(s) found.
                 </p>
+                <p className="mt-1 text-sm font-semibold text-blue-700">
+                  Current Search Radius: {currentSearchRadiusMiles} miles.
+                </p>
                 {expandedRadiusMiles > 0 ? (
                   <p className="mt-1 text-sm font-semibold text-blue-700">
-                    Expanded distance search: {expandedRadiusMiles} miles.{" "}
                     {expandedOnlyCandidates.length} additional candidate
-                    {expandedOnlyCandidates.length === 1 ? "" : "s"} found.
+                    {expandedOnlyCandidates.length === 1 ? "" : "s"} found
+                    after expanding the search.
                   </p>
                 ) : null}
               </div>
@@ -654,7 +659,7 @@ export default async function FindNotaryPage({
                 </h3>
                 <p className="mt-2 text-sm text-slate-600">
                   No approved active notaries currently match this order by ZIP,
-                  county, home ZIP, or expanded distance search.
+                  county, home ZIP, or current search radius.
                 </p>
               </div>
             ) : (
@@ -706,7 +711,7 @@ export default async function FindNotaryPage({
                             Home ZIP: {candidate.home_zip ?? "Not set"} •
                             Radius:{" "}
                             {candidate.travel_radius_miles ?? "Not set"} mi •
-                            Distance: {formatDistance(candidate.distanceMiles)}
+                            Approx. Distance: {formatDistance(candidate.distanceMiles)}
                           </p>
                         </div>
                       </div>
@@ -857,11 +862,9 @@ export default async function FindNotaryPage({
                 </div>
 
                 <div className="flex justify-between gap-4">
-                  <span className="text-slate-500">Expanded Radius</span>
+                  <span className="text-slate-500">Search Radius</span>
                   <span className="font-semibold text-slate-900">
-                    {expandedRadiusMiles > 0
-                      ? `${expandedRadiusMiles} mi`
-                      : "Off"}
+                    {currentSearchRadiusMiles} mi
                   </span>
                 </div>
 
