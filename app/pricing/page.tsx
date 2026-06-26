@@ -16,7 +16,7 @@ export default function PricingPage() {
             <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-600">Title Companies</p>
             <h2 className="mt-4 text-3xl font-black text-slate-950">Request Demo</h2>
             <p className="mt-4 text-slate-600 leading-7">
-              INS title company pricing depends on operational needs, order volume, workflow requirements, and implementation scope.
+              INS title companies may use this sytem for free. Pricing is on a per job basis set upon agreement with INS.
             </p>
             <ul className="mt-6 space-y-3 text-sm font-semibold text-slate-700">
               <li>✓ Order and client management</li>
