@@ -11,8 +11,26 @@ type ChoiceOption = {
   value: string;
 };
 
+type ProCustomer = {
+  id: string;
+  company: string;
+  address: string | null;
+  address_2: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  default_signing_fee: number | string | null;
+  default_appointment_duration_minutes: number | null;
+  default_payment_terms_days: number | null;
+  default_loan_type: string | null;
+  default_scanbacks_required: boolean | null;
+  special_instructions: string | null;
+  banner_message: string | null;
+};
+
 type Props = {
   choices: ChoiceOption[];
+  customers: ProCustomer[];
 };
 
 const tabs = [
@@ -312,7 +330,7 @@ function reminderOptions() {
   return options;
 }
 
-export default function JobForm({ choices }: Props) {
+export default function JobForm({ choices, customers }: Props) {
   const [activeTab, setActiveTab] = useState(tabs[0]);
 
   return (
