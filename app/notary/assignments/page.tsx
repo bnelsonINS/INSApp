@@ -105,22 +105,8 @@ function normalizeStatus(status: string | null) {
   return (status ?? "").toLowerCase().trim();
 }
 
-function statusCategory(status: string | null) {
+function rawStatusCategory(status: string | null) {
   const normalized = normalizeStatus(status);
-
-  if (
-    normalized === "not confirmed" ||
-    normalized === "new request" ||
-    normalized === "scheduled"
-  ) {
-    return "upcoming";
-  }
-
-  if (normalized === "confirmed") return "confirmed";
-
-  if (normalized === "in progress" || normalized === "late") {
-    return "in_progress";
-  }
 
   if (
     normalized === "signing complete" ||
@@ -134,12 +120,15 @@ function statusCategory(status: string | null) {
     return "cancelled";
   }
 
-  return "upcoming";
-}
+  if (normalized === "in progress" || normalized === "late") {
+    return "in_progress";
+  }
 
-function isClosedOrDone(status: string | null) {
-  const category = statusCategory(status);
-  return category === "completed" || category === "cancelled";
+  if (normalized === "confirmed") {
+    return "confirmed";
+  }
+
+  return "upcoming";
 }
 
 function isUpcomingDate(date: string | null) {
@@ -154,8 +143,22 @@ function isUpcomingDate(date: string | null) {
   return signingDate >= today;
 }
 
+function assignmentBucket(assignment: UnifiedAssignment) {
+  const category = rawStatusCategory(assignment.status);
+
+  if (category === "completed") return "completed";
+  if (category === "cancelled") return "cancelled";
+  if (category === "in_progress") return "in_progress";
+
+  if (isUpcomingDate(assignment.signingDate)) {
+    return "upcoming";
+  }
+
+  return "completed";
+}
+
 function statusBadge(status: string | null) {
-  const category = statusCategory(status);
+  const category = rawStatusCategory(status);
 
   if (category === "upcoming") {
     return "bg-blue-50 text-blue-700 ring-blue-200";
@@ -396,7 +399,7 @@ export default async function AssignmentsPage({
   }
 
   if (status) {
-    rows = rows.filter((row) => statusCategory(row.status) === status);
+    rows = rows.filter((row) => assignmentBucket(row) === status);
   }
 
   if (from) {
@@ -425,27 +428,19 @@ export default async function AssignmentsPage({
   }
 
   const upcomingCount = rows.filter(
-    (assignment) =>
-      !isClosedOrDone(assignment.status) && isUpcomingDate(assignment.signingDate)
-  ).length;
-
-  const confirmedCount = rows.filter(
-    (assignment) => statusCategory(assignment.status) === "confirmed"
+    (assignment) => assignmentBucket(assignment) === "upcoming"
   ).length;
 
   const inProgressCount = rows.filter(
-    (assignment) => statusCategory(assignment.status) === "in_progress"
+    (assignment) => assignmentBucket(assignment) === "in_progress"
   ).length;
 
   const completedCount = rows.filter(
-    (assignment) => statusCategory(assignment.status) === "completed"
-  ).length;
-
-  const cancelledCount = rows.filter(
-    (assignment) => statusCategory(assignment.status) === "cancelled"
+    (assignment) => assignmentBucket(assignment) === "completed"
   ).length;
 
   const insCount = rows.filter((assignment) => assignment.source === "ins").length;
+
   const externalCount = rows.filter(
     (assignment) => assignment.source === "external"
   ).length;
@@ -501,7 +496,6 @@ export default async function AssignmentsPage({
           <select name="status" defaultValue={status} className={inputClass}>
             <option value="">All Statuses</option>
             <option value="upcoming">Upcoming</option>
-            <option value="confirmed">Confirmed</option>
             <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
