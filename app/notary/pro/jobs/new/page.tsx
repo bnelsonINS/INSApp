@@ -22,6 +22,12 @@ export default async function NewProJobPage() {
     .order("category", { ascending: true })
     .order("value", { ascending: true });
 
+  const { data: customers } = await supabase
+    .from("pro_customers")
+    .select("*")
+    .eq("notary_id", user.id)
+    .order("company", { ascending: true });
+
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-6">
       <div className="mx-auto max-w-6xl">
@@ -46,7 +52,7 @@ export default async function NewProJobPage() {
           </Link>
         </div>
 
-        <JobForm choices={choices ?? []} />
+        <JobForm choices={choices ?? []} customers={customers ?? []} />
       </div>
     </main>
   );
