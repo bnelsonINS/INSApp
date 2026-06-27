@@ -191,6 +191,48 @@ function sourceBadge(source: "ins" | "external") {
   return "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
+function assignmentDateTimeValue(assignment: UnifiedAssignment) {
+  if (!assignment.signingDate) return 0;
+
+  const time = assignment.signingTime || "00:00";
+  return new Date(`${assignment.signingDate}T${time}`).getTime();
+}
+
+function assignmentFeeValue(assignment: UnifiedAssignment) {
+  const amount = Number(assignment.fee);
+  return Number.isNaN(amount) ? 0 : amount;
+}
+
+function compareText(a: string | null, b: string | null) {
+  return (a ?? "").localeCompare(b ?? "", "en", { sensitivity: "base" });
+}
+
+function sortAssignments(rows: UnifiedAssignment[], sort: string) {
+  return [...rows].sort((a, b) => {
+    if (sort === "date_asc") {
+      return assignmentDateTimeValue(a) - assignmentDateTimeValue(b);
+    }
+
+    if (sort === "fee_desc") {
+      return assignmentFeeValue(b) - assignmentFeeValue(a);
+    }
+
+    if (sort === "fee_asc") {
+      return assignmentFeeValue(a) - assignmentFeeValue(b);
+    }
+
+    if (sort === "borrower_asc") {
+      return compareText(a.borrowerName, b.borrowerName);
+    }
+
+    if (sort === "client_asc") {
+      return compareText(a.clientName, b.clientName);
+    }
+
+    return assignmentDateTimeValue(b) - assignmentDateTimeValue(a);
+  });
+}
+
 function statusAccent(type: string) {
   if (type === "upcoming") return "bg-blue-500";
   if (type === "confirmed") return "bg-slate-500";
@@ -211,15 +253,13 @@ function assignmentCard(assignment: UnifiedAssignment) {
         <div>
           <span
             className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${sourceBadge(
-              assignment.source
+              assignment.source,
             )}`}
           >
             {assignment.sourceLabel}
           </span>
 
-          <p className="mt-3 text-sm font-semibold text-slate-500">
-            Control #
-          </p>
+          <p className="mt-3 text-sm font-semibold text-slate-500">Control #</p>
           <p className="mt-1 font-bold text-slate-950">
             {assignment.controlNumber ?? "—"}
           </p>
@@ -227,7 +267,7 @@ function assignmentCard(assignment: UnifiedAssignment) {
 
         <span
           className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
-            assignment.status
+            assignment.status,
           )}`}
         >
           {assignment.status ?? "Unknown"}
@@ -311,6 +351,7 @@ export default async function AssignmentsPage({
     source?: string;
     from?: string;
     to?: string;
+    sort?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -320,6 +361,7 @@ export default async function AssignmentsPage({
   const source = params?.source?.trim() ?? "";
   const from = params?.from?.trim() ?? "";
   const to = params?.to?.trim() ?? "";
+  const sort = params?.sort?.trim() || "date_desc";
 
   const supabase = await createSupabaseServerClient();
 
@@ -344,55 +386,51 @@ export default async function AssignmentsPage({
     .order("signing_date", { ascending: true })
     .order("signing_time", { ascending: true });
 
-  const insRows: UnifiedAssignment[] = ((insAssignments ?? []) as Assignment[]).map(
-    (assignment) => ({
-      id: assignment.id,
-      source: "ins",
-      sourceLabel: "INS",
-      controlNumber: assignment.control_number,
-      clientName: null,
-      borrowerName: assignment.borrower_name,
-      status: assignment.status,
-      signingType: assignment.signing_type,
-      signingDate: assignment.signing_date,
-      signingTime: assignment.signing_time,
-      signingAddress: assignment.signing_address,
-      signingCity: assignment.signing_city,
-      signingState: assignment.signing_state,
-      signingZip: assignment.signing_zip,
-      fee: assignment.notary_fee,
-      documentsUrl: assignment.documents_url,
-      href: `/notary/assignments/${assignment.id}`,
-    })
-  );
+  const insRows: UnifiedAssignment[] = (
+    (insAssignments ?? []) as Assignment[]
+  ).map((assignment) => ({
+    id: assignment.id,
+    source: "ins",
+    sourceLabel: "INS",
+    controlNumber: assignment.control_number,
+    clientName: null,
+    borrowerName: assignment.borrower_name,
+    status: assignment.status,
+    signingType: assignment.signing_type,
+    signingDate: assignment.signing_date,
+    signingTime: assignment.signing_time,
+    signingAddress: assignment.signing_address,
+    signingCity: assignment.signing_city,
+    signingState: assignment.signing_state,
+    signingZip: assignment.signing_zip,
+    fee: assignment.notary_fee,
+    documentsUrl: assignment.documents_url,
+    href: `/notary/assignments/${assignment.id}`,
+  }));
 
-  const externalRows: UnifiedAssignment[] = ((externalJobs ?? []) as ProJob[]).map(
-    (job) => ({
-      id: job.id,
-      source: "external",
-      sourceLabel: "External",
-      controlNumber: null,
-      clientName: job.client_name,
-      borrowerName: job.borrower_name,
-      status: job.status,
-      signingType: job.signing_type,
-      signingDate: job.signing_date,
-      signingTime: job.signing_time,
-      signingAddress: job.signing_address,
-      signingCity: job.signing_city,
-      signingState: job.signing_state,
-      signingZip: job.signing_zip,
-      fee: job.fee,
-      documentsUrl: null,
-      href: "/notary/pro/jobs",
-    })
-  );
+  const externalRows: UnifiedAssignment[] = (
+    (externalJobs ?? []) as ProJob[]
+  ).map((job) => ({
+    id: job.id,
+    source: "external",
+    sourceLabel: "External",
+    controlNumber: null,
+    clientName: job.client_name,
+    borrowerName: job.borrower_name,
+    status: job.status,
+    signingType: job.signing_type,
+    signingDate: job.signing_date,
+    signingTime: job.signing_time,
+    signingAddress: job.signing_address,
+    signingCity: job.signing_city,
+    signingState: job.signing_state,
+    signingZip: job.signing_zip,
+    fee: job.fee,
+    documentsUrl: null,
+    href: "/notary/pro/jobs",
+  }));
 
-  let rows = [...insRows, ...externalRows].sort((a, b) => {
-    const aDate = `${a.signingDate ?? "9999-12-31"} ${a.signingTime ?? "23:59"}`;
-    const bDate = `${b.signingDate ?? "9999-12-31"} ${b.signingTime ?? "23:59"}`;
-    return aDate.localeCompare(bDate);
-  });
+  let rows = [...insRows, ...externalRows];
 
   if (source === "ins" || source === "external") {
     rows = rows.filter((row) => row.source === source);
@@ -423,26 +461,54 @@ export default async function AssignmentsPage({
         row.signingType,
       ]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(lowered))
+        .some((value) => String(value).toLowerCase().includes(lowered)),
     );
   }
 
+  rows = sortAssignments(rows, sort);
+
+  const buildHref = (updates: Record<string, string>) => {
+    const query = new URLSearchParams();
+
+    if (search) query.set("q", search);
+    if (source) query.set("source", source);
+    if (status) query.set("status", status);
+    if (from) query.set("from", from);
+    if (to) query.set("to", to);
+    if (sort && sort !== "date_desc") query.set("sort", sort);
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value) {
+        query.set(key, value);
+      } else {
+        query.delete(key);
+      }
+    });
+
+    const queryString = query.toString();
+    return queryString
+      ? `/notary/assignments?${queryString}`
+      : "/notary/assignments";
+  };
+
   const upcomingCount = rows.filter(
-    (assignment) => assignmentBucket(assignment) === "upcoming"
+    (assignment) => assignmentBucket(assignment) === "upcoming",
   ).length;
 
   const inProgressCount = rows.filter(
-    (assignment) => assignmentBucket(assignment) === "in_progress"
+    (assignment) => assignmentBucket(assignment) === "in_progress",
   ).length;
 
   const completedCount = rows.filter(
-    (assignment) => assignmentBucket(assignment) === "completed"
+    (assignment) => assignmentBucket(assignment) === "completed",
   ).length;
 
-  const insCount = rows.filter((assignment) => assignment.source === "ins").length;
+  const insCount = rows.filter(
+    (assignment) => assignment.source === "ins",
+  ).length;
 
   const externalCount = rows.filter(
-    (assignment) => assignment.source === "external"
+    (assignment) => assignment.source === "external",
   ).length;
 
   return (
@@ -478,7 +544,7 @@ export default async function AssignmentsPage({
 
         <form
           method="get"
-          className="mt-5 grid gap-3 md:grid-cols-[1.3fr_.8fr_.9fr_1fr_1fr_auto_auto]"
+          className="mt-5 grid gap-3 md:grid-cols-[1.2fr_.7fr_.8fr_.9fr_1fr_1fr_auto_auto]"
         >
           <input
             name="q"
@@ -499,6 +565,15 @@ export default async function AssignmentsPage({
             <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
+          </select>
+
+          <select name="sort" defaultValue={sort} className={inputClass}>
+            <option value="date_desc">Signing Date: Newest → Oldest</option>
+            <option value="date_asc">Signing Date: Oldest → Newest</option>
+            <option value="fee_desc">Fee: Highest</option>
+            <option value="fee_asc">Fee: Lowest</option>
+            <option value="borrower_asc">Borrower: A–Z</option>
+            <option value="client_asc">Client: A–Z</option>
           </select>
 
           <input
@@ -533,8 +608,8 @@ export default async function AssignmentsPage({
             key={label}
             href={
               sourceValue
-                ? `/notary/assignments?source=${sourceValue}`
-                : "/notary/assignments"
+                ? buildHref({ source: String(sourceValue) })
+                : buildHref({ source: "", status: "" })
             }
             className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:bg-slate-50"
           >
@@ -552,12 +627,12 @@ export default async function AssignmentsPage({
         ].map(([label, count, description, statusValue]) => (
           <Link
             key={label}
-            href={`/notary/assignments?status=${statusValue}`}
+            href={buildHref({ status: String(statusValue) })}
             className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:bg-slate-50"
           >
             <div
               className={`mb-4 h-1 w-10 rounded-full ${statusAccent(
-                String(statusValue)
+                String(statusValue),
               )}`}
             />
             <p className="text-sm font-semibold text-slate-600">{label}</p>
@@ -618,7 +693,7 @@ export default async function AssignmentsPage({
                       <td className="px-4 py-4">
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${sourceBadge(
-                            assignment.source
+                            assignment.source,
                           )}`}
                         >
                           {assignment.sourceLabel}
@@ -661,7 +736,7 @@ export default async function AssignmentsPage({
                       <td className="px-4 py-4">
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
-                            assignment.status
+                            assignment.status,
                           )}`}
                         >
                           {assignment.status ?? "Unknown"}
