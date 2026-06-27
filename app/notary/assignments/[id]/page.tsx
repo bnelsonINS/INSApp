@@ -284,6 +284,95 @@ export default async function AssignmentDetailPage({
 }) {
   const { id } = await params;
 
+
+  async function saveJournalEntry(formData: FormData) {
+    "use server";
+
+    const assignmentId = String(formData.get("assignment_id") ?? "");
+    const journalDate = String(formData.get("journal_date") ?? "").trim();
+    const journalTime = String(formData.get("journal_time") ?? "").trim();
+    const journalType = String(formData.get("journal_type") ?? "In-Person").trim();
+    const locationMode = String(formData.get("location_mode") ?? "address").trim();
+    const address = String(formData.get("journal_address") ?? "").trim();
+    const city = String(formData.get("journal_city") ?? "").trim();
+    const state = String(formData.get("journal_state") ?? "IN").trim();
+    const zip = String(formData.get("journal_zip") ?? "").trim();
+    const notes = String(formData.get("journal_notes") ?? "").trim();
+    const signerName = String(formData.get("signer_name") ?? "").trim();
+    const signerAddress = String(formData.get("signer_address") ?? "").trim();
+    const signerCity = String(formData.get("signer_city") ?? "").trim();
+    const signerState = String(formData.get("signer_state") ?? "IN").trim();
+    const signerZip = String(formData.get("signer_zip") ?? "").trim();
+    const idVerificationType = String(formData.get("id_verification_type") ?? "Driver's License").trim();
+    const idNumber = String(formData.get("id_number") ?? "").trim();
+    const idIssuedBy = String(formData.get("id_issued_by") ?? "").trim();
+    const idIssuedDate = String(formData.get("id_issued_date") ?? "").trim();
+    const idExpirationDate = String(formData.get("id_expiration_date") ?? "").trim();
+    const idVerified = formData.get("id_verified") === "on";
+    const documentNames = formData
+      .getAll("journal_documents")
+      .map((value) => String(value).trim())
+      .filter(Boolean);
+
+    if (!assignmentId) return;
+
+    const supabase = await createSupabaseServerClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) redirect("/login");
+
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select("id, borrower_name")
+      .eq("id", assignmentId)
+      .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
+      .single();
+
+    if (!assignment) redirect("/notary/assignments");
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .single();
+
+    const actorName = profile?.full_name || profile?.email || "Notary";
+
+    const details = [
+      "Journal entry saved.",
+      `Date/Time: ${journalDate || "—"} ${journalTime || ""}`.trim(),
+      `Type: ${journalType}`,
+      `Location: ${locationMode === "gps" ? "GPS" : [address, city, state, zip].filter(Boolean).join(", ") || "—"}`,
+      `Signer: ${signerName || assignment.borrower_name || "—"}`,
+      `Signer Address: ${[signerAddress, signerCity, signerState, signerZip].filter(Boolean).join(", ") || "—"}`,
+      `ID Verification: ${idVerificationType}`,
+      `ID Number: ${idNumber || "—"}`,
+      `ID Issued By: ${idIssuedBy || "—"}`,
+      `ID Issued: ${idIssuedDate || "—"}`,
+      `ID Expires: ${idExpirationDate || "—"}`,
+      `ID Verified: ${idVerified ? "Yes" : "No"}`,
+      `Documents: ${documentNames.length ? documentNames.join(", ") : "None selected"}`,
+      notes ? `Notes: ${notes}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    await supabase.from("assignment_activity").insert({
+      assignment_id: assignmentId,
+      actor_id: user.id,
+      actor_name: actorName,
+      actor_role: "notary",
+      action: "Journal Entry Saved",
+      details,
+    });
+
+    revalidatePath(`/notary/assignments/${assignmentId}`);
+    redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+  }
+
   async function addOrderNote(formData: FormData) {
     "use server";
 
@@ -891,6 +980,42 @@ Thank you for choosing Indiana Notary Solutions.
   const canMarkScanbacksComplete =
     showUploadDocuments && documentsWithUrls.length > 0;
 
+  const devUnlockInsPro = process.env.NEXT_PUBLIC_INS_PRO_DEV_UNLOCK === "true";
+
+  const { data: activeInsProSubscription } = await supabase
+    .from("notary_subscriptions")
+    .select("id, status")
+    .eq("notary_id", user.id)
+    .in("status", ["active", "trialing"])
+    .maybeSingle();
+
+  const hasInsPro = devUnlockInsPro || Boolean(activeInsProSubscription);
+
+  const workspaceTabs = [
+    "Journal",
+    "Invoice",
+    "Mileage",
+    "Notarial Acts",
+    "Expenses",
+    "Payments",
+    "Print",
+  ];
+
+  const commonDocumentOptions = [
+    "Acknowledgment",
+    "Affidavit",
+    "Deed",
+    "HELOC",
+    "Mortgage",
+    "Power of Attorney",
+    "Purchase Agreement",
+    "Quitclaim Deed",
+    "Refinance Package",
+    "Seller Package",
+    "Signature/Name Affidavit",
+    "Warranty Deed",
+  ];
+
   return (
     <main className="space-y-6 bg-slate-50 p-4 sm:p-6">
       <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
@@ -1184,6 +1309,443 @@ Thank you for choosing Indiana Notary Solutions.
               ) : (
                 <p>No special instructions have been added.</p>
               )}
+            </div>
+          </section>
+
+          <section
+            id="assignment-workspace"
+            className="rounded-2xl border border-slate-200 bg-white shadow-sm"
+          >
+            <div className="border-b border-slate-200 p-5">
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                INS Pro Workspace
+              </p>
+              <h2 className="mt-1 text-2xl font-bold text-slate-950">
+                Assignment Tools
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Journal, invoices, mileage, expenses, payments, and reporting will all roll into the notary Dashboard.
+              </p>
+
+              <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
+                {workspaceTabs.map((tab) => (
+                  <a
+                    key={tab}
+                    href={tab === "Journal" ? "#journal-workspace" : `#${tab.toLowerCase().replaceAll(" ", "-")}-workspace`}
+                    className={`shrink-0 rounded-xl px-4 py-2 text-sm font-bold ring-1 transition ${
+                      tab === "Journal"
+                        ? "bg-[#0B1F4D] text-white ring-[#0B1F4D] hover:bg-blue-950"
+                        : "bg-slate-50 text-slate-700 ring-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    {tab}
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {!hasInsPro ? (
+              <div className="p-5">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                  <p className="text-sm font-black uppercase tracking-wide text-amber-700">
+                    INS Pro Feature
+                  </p>
+                  <h3 className="mt-2 text-xl font-bold text-slate-950">
+                    Journal tools are visible, but locked until the notary upgrades.
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">
+                    This is where the upgrade modal will open. For development testing, set <span className="font-mono font-bold">NEXT_PUBLIC_INS_PRO_DEV_UNLOCK=true</span> in Vercel/local env.
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-4 rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                  >
+                    Upgrade to INS Pro
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div id="journal-workspace" className="p-5">
+                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-950">
+                      Journal Entry
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Pre-filled from this assignment. Verify the details, add ID information, select documents, and save the journal entry.
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700 ring-1 ring-green-200">
+                    Open
+                  </span>
+                </div>
+
+                <form action={saveJournalEntry} className="mt-5 space-y-5">
+                  <input type="hidden" name="assignment_id" value={assignment.id} />
+
+                  <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 md:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700">
+                        Date
+                      </label>
+                      <input
+                        type="date"
+                        name="journal_date"
+                        defaultValue={assignment.signing_date ?? ""}
+                        required
+                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700">
+                        Time
+                      </label>
+                      <input
+                        type="time"
+                        name="journal_time"
+                        defaultValue={assignment.signing_time ?? ""}
+                        required
+                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700">
+                        Type
+                      </label>
+                      <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold text-slate-700">
+                        {["In-Person", "RON", "IPEN"].map((type) => (
+                          <label key={type} className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="journal_type"
+                              value={type}
+                              defaultChecked={type === "In-Person"}
+                              className="h-4 w-4 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+                            />
+                            {type}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700">
+                        Location Source
+                      </label>
+                      <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold text-slate-700">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="location_mode"
+                            value="address"
+                            defaultChecked
+                            className="h-4 w-4 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+                          />
+                          Address
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="location_mode"
+                            value="gps"
+                            className="h-4 w-4 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+                          />
+                          GPS
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-bold text-slate-700">
+                        Signing Address
+                      </label>
+                      <input
+                        name="journal_address"
+                        defaultValue={assignment.signing_address ?? ""}
+                        required
+                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700">
+                        City
+                      </label>
+                      <input
+                        name="journal_city"
+                        defaultValue={assignment.signing_city ?? ""}
+                        required
+                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-[1fr_1fr] gap-3">
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700">
+                          State
+                        </label>
+                        <input
+                          name="journal_state"
+                          defaultValue={assignment.signing_state ?? "IN"}
+                          required
+                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700">
+                          ZIP
+                        </label>
+                        <input
+                          name="journal_zip"
+                          defaultValue={assignment.signing_zip ?? ""}
+                          required
+                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-950">
+                          Signer ID Verification
+                        </h4>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Scan will read the PDF417 barcode on the back of an Indiana driver's license. The button is wired as UI now; scanner component comes next.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
+                      >
+                        Scan Indiana Driver's License
+                      </button>
+                    </div>
+
+                    <div className="mt-5 grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700">
+                          Signer Name
+                        </label>
+                        <input
+                          name="signer_name"
+                          defaultValue={assignment.borrower_name ?? ""}
+                          required
+                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700">
+                          Verification Type
+                        </label>
+                        <select
+                          name="id_verification_type"
+                          defaultValue="Driver's License"
+                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                        >
+                          <option>Driver's License</option>
+                          <option>State ID</option>
+                          <option>Passport</option>
+                          <option>Military ID</option>
+                          <option>Permanent Resident Card</option>
+                          <option>Other</option>
+                        </select>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-bold text-slate-700">
+                          Signer Address
+                        </label>
+                        <input
+                          name="signer_address"
+                          placeholder="Street address from ID"
+                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700">
+                          City
+                        </label>
+                        <input
+                          name="signer_city"
+                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-[1fr_1fr] gap-3">
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700">
+                            State
+                          </label>
+                          <input
+                            name="signer_state"
+                            defaultValue="IN"
+                            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700">
+                            ZIP
+                          </label>
+                          <input
+                            name="signer_zip"
+                            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700">
+                          ID Number
+                        </label>
+                        <input
+                          name="id_number"
+                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700">
+                          ID Issued By
+                        </label>
+                        <input
+                          name="id_issued_by"
+                          defaultValue="Indiana BMV"
+                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700">
+                          ID Issued
+                        </label>
+                        <input
+                          type="date"
+                          name="id_issued_date"
+                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700">
+                          ID Expires
+                        </label>
+                        <input
+                          type="date"
+                          name="id_expiration_date"
+                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                        />
+                      </div>
+                    </div>
+
+                    <label className="mt-5 flex items-center gap-3 text-sm font-bold text-slate-700">
+                      <input
+                        type="checkbox"
+                        name="id_verified"
+                        className="h-5 w-5 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+                      />
+                      I have verified this signer&apos;s ID.
+                    </label>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <h4 className="text-lg font-bold text-slate-950">
+                      Documents / Notarial Acts
+                    </h4>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Select common documents for now. The full master document library and per-document acts come in the next pass.
+                    </p>
+
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {commonDocumentOptions.map((documentName) => (
+                        <label
+                          key={documentName}
+                          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-700"
+                        >
+                          <input
+                            type="checkbox"
+                            name="journal_documents"
+                            value={documentName}
+                            className="h-4 w-4 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+                          />
+                          {documentName}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700">
+                      Notes
+                    </label>
+                    <textarea
+                      name="journal_notes"
+                      rows={4}
+                      placeholder="Optional journal notes..."
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Print
+                    </button>
+
+                    <SubmitButton
+                      pendingText="Saving journal..."
+                      className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                    >
+                      Save Journal Entry
+                    </SubmitButton>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            <div className="grid gap-4 border-t border-slate-200 p-5 md:grid-cols-2 xl:grid-cols-3">
+              {[
+                ["invoice-workspace", "Invoice", "Create invoices and email clients from this assignment."],
+                ["mileage-workspace", "Mileage", "Track trips and push mileage into Dashboard totals."],
+                ["notarial-acts-workspace", "Notarial Acts", "Track acknowledgments, jurats, signers, and witnesses."],
+                ["expenses-workspace", "Expenses", "Log printing, parking, tolls, shipping, and supplies."],
+                ["payments-workspace", "Payments", "Track paid, unpaid, method, and outstanding balance."],
+                ["print-workspace", "Print", "Generate assignment, journal, invoice, and report printouts."],
+              ].map(([sectionId, title, description]) => (
+                <div
+                  id={sectionId}
+                  key={sectionId}
+                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h4 className="font-bold text-slate-950">{title}</h4>
+                      <p className="mt-1 text-sm leading-5 text-slate-500">
+                        {description}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-200">
+                      PRO
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="mt-4 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Build Next
+                  </button>
+                </div>
+              ))}
             </div>
           </section>
 
