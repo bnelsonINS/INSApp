@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../src/lib/supabase-server";
 
@@ -20,18 +21,43 @@ type Assignment = {
   signing_zip: string | null;
   documents_url: string | null;
   notary_fee: number | string | null;
-  fee?: number | string | null;
 };
 
-const activeStatuses = [
-  "Not Confirmed",
-  "Confirmed",
-  "In Progress",
-  "Late",
-  "Signing Complete",
-];
+type ProJob = {
+  id: string;
+  source_type: string | null;
+  client_name: string | null;
+  borrower_name: string | null;
+  status: string | null;
+  signing_type: string | null;
+  signing_date: string | null;
+  signing_time: string | null;
+  signing_address: string | null;
+  signing_city: string | null;
+  signing_state: string | null;
+  signing_zip: string | null;
+  fee: number | string | null;
+};
 
-const closedStatuses = ["Closed"];
+type UnifiedAssignment = {
+  id: string;
+  source: "ins" | "external";
+  sourceLabel: "INS" | "External";
+  controlNumber: string | null;
+  clientName: string | null;
+  borrowerName: string | null;
+  status: string | null;
+  signingType: string | null;
+  signingDate: string | null;
+  signingTime: string | null;
+  signingAddress: string | null;
+  signingCity: string | null;
+  signingState: string | null;
+  signingZip: string | null;
+  fee: number | string | null;
+  documentsUrl: string | null;
+  href: string;
+};
 
 const inputClass =
   "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100";
@@ -75,57 +101,124 @@ function formatMoney(value: number | string | null | undefined) {
   return `$${amount.toFixed(2)}`;
 }
 
-function statusBadge(status: string | null) {
-  const normalized = (status ?? "").toLowerCase();
+function normalizeStatus(status: string | null) {
+  return (status ?? "").toLowerCase().trim();
+}
 
-  if (normalized === "not confirmed") {
+function statusCategory(status: string | null) {
+  const normalized = normalizeStatus(status);
+
+  if (
+    normalized === "not confirmed" ||
+    normalized === "new request" ||
+    normalized === "scheduled"
+  ) {
+    return "upcoming";
+  }
+
+  if (normalized === "confirmed") return "confirmed";
+
+  if (normalized === "in progress" || normalized === "late") {
+    return "in_progress";
+  }
+
+  if (
+    normalized === "signing complete" ||
+    normalized === "completed" ||
+    normalized === "closed"
+  ) {
+    return "completed";
+  }
+
+  if (normalized === "cancelled" || normalized === "canceled") {
+    return "cancelled";
+  }
+
+  return "upcoming";
+}
+
+function isClosedOrDone(status: string | null) {
+  const category = statusCategory(status);
+  return category === "completed" || category === "cancelled";
+}
+
+function isUpcomingDate(date: string | null) {
+  if (!date) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const signingDate = new Date(`${date}T00:00:00`);
+  signingDate.setHours(0, 0, 0, 0);
+
+  return signingDate >= today;
+}
+
+function statusBadge(status: string | null) {
+  const category = statusCategory(status);
+
+  if (category === "upcoming") {
     return "bg-blue-50 text-blue-700 ring-blue-200";
   }
 
-  if (normalized === "confirmed") {
+  if (category === "confirmed") {
     return "bg-slate-100 text-slate-700 ring-slate-200";
   }
 
-  if (normalized === "in progress") {
-    return "bg-slate-100 text-slate-700 ring-slate-200";
+  if (category === "in_progress") {
+    return "bg-amber-50 text-amber-700 ring-amber-200";
   }
 
-  if (normalized === "late") {
+  if (category === "completed") {
+    return "bg-green-50 text-green-700 ring-green-200";
+  }
+
+  if (category === "cancelled") {
     return "bg-red-50 text-red-700 ring-red-200";
-  }
-
-  if (normalized === "signing complete") {
-    return "bg-green-50 text-green-700 ring-green-200";
-  }
-
-  if (normalized === "closed") {
-    return "bg-green-50 text-green-700 ring-green-200";
   }
 
   return "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
-function statusAccent(status: string) {
-  if (status === "Not Confirmed") return "bg-blue-500";
-  if (status === "Confirmed") return "bg-slate-500";
-  if (status === "In Progress") return "bg-slate-500";
-  if (status === "Signing Complete") return "bg-green-600";
-  if (status === "Closed") return "bg-green-600";
+function sourceBadge(source: "ins" | "external") {
+  if (source === "ins") {
+    return "bg-blue-50 text-blue-700 ring-blue-200";
+  }
+
+  return "bg-slate-100 text-slate-700 ring-slate-200";
+}
+
+function statusAccent(type: string) {
+  if (type === "upcoming") return "bg-blue-500";
+  if (type === "confirmed") return "bg-slate-500";
+  if (type === "in_progress") return "bg-amber-500";
+  if (type === "completed") return "bg-green-600";
+  if (type === "cancelled") return "bg-red-600";
 
   return "bg-slate-400";
 }
 
-function assignmentCard(assignment: Assignment) {
+function assignmentCard(assignment: UnifiedAssignment) {
   return (
     <div
-      key={assignment.id}
+      key={`${assignment.source}-${assignment.id}`}
       className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-500">Control #</p>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${sourceBadge(
+              assignment.source
+            )}`}
+          >
+            {assignment.sourceLabel}
+          </span>
+
+          <p className="mt-3 text-sm font-semibold text-slate-500">
+            Control #
+          </p>
           <p className="mt-1 font-bold text-slate-950">
-            {assignment.control_number ?? "—"}
+            {assignment.controlNumber ?? "—"}
           </p>
         </div>
 
@@ -142,44 +235,51 @@ function assignmentCard(assignment: Assignment) {
         <div>
           <p className="font-semibold text-slate-500">Signing</p>
           <p className="font-semibold text-slate-950">
-            {formatDate(assignment.signing_date)}
+            {formatDate(assignment.signingDate)}
           </p>
-          <p className="text-slate-600">{formatTime(assignment.signing_time)}</p>
+          <p className="text-slate-600">{formatTime(assignment.signingTime)}</p>
           <p className="text-xs text-slate-500">
-            {assignment.signing_type ?? "Signing"}
+            {assignment.signingType ?? "Signing"}
           </p>
         </div>
 
         <div>
           <p className="font-semibold text-slate-500">Borrower</p>
           <p className="font-semibold text-slate-950">
-            {assignment.borrower_name ?? "—"}
+            {assignment.borrowerName ?? "—"}
+          </p>
+        </div>
+
+        <div>
+          <p className="font-semibold text-slate-500">Client</p>
+          <p className="font-semibold text-slate-950">
+            {assignment.clientName ?? "—"}
           </p>
         </div>
 
         <div>
           <p className="font-semibold text-slate-500">Location</p>
           <p className="font-semibold text-slate-950">
-            {assignment.signing_address ?? "—"}
+            {assignment.signingAddress ?? "—"}
           </p>
           <p className="text-slate-600">
-            {assignment.signing_city ?? "—"}, {assignment.signing_state ?? "IN"}{" "}
-            {assignment.signing_zip ?? ""}
+            {assignment.signingCity ?? "—"}, {assignment.signingState ?? "IN"}{" "}
+            {assignment.signingZip ?? ""}
           </p>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-xs font-semibold text-slate-500">Notary Fee</p>
+          <p className="text-xs font-semibold text-slate-500">Fee</p>
           <p className="font-bold text-slate-950">
-            {formatMoney(assignment.notary_fee)}
+            {formatMoney(assignment.fee)}
           </p>
         </div>
       </div>
 
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-        {assignment.documents_url ? (
+        {assignment.documentsUrl ? (
           <a
-            href={assignment.documents_url}
+            href={assignment.documentsUrl}
             className={secondaryButtonClass}
             target="_blank"
           >
@@ -191,12 +291,9 @@ function assignmentCard(assignment: Assignment) {
           </span>
         )}
 
-        <a
-          href={`/notary/assignments/${assignment.id}`}
-          className={primaryButtonClass}
-        >
-          View Assignment
-        </a>
+        <Link href={assignment.href} className={primaryButtonClass}>
+          View
+        </Link>
       </div>
     </div>
   );
@@ -208,6 +305,7 @@ export default async function AssignmentsPage({
   searchParams?: Promise<{
     q?: string;
     status?: string;
+    source?: string;
     from?: string;
     to?: string;
   }>;
@@ -216,6 +314,7 @@ export default async function AssignmentsPage({
 
   const search = params?.q?.trim() ?? "";
   const status = params?.status?.trim() ?? "";
+  const source = params?.source?.trim() ?? "";
   const from = params?.from?.trim() ?? "";
   const to = params?.to?.trim() ?? "";
 
@@ -227,80 +326,164 @@ export default async function AssignmentsPage({
 
   if (!user) redirect("/login");
 
-  let query = supabase
+  const { data: insAssignments } = await supabase
     .from("assignments")
     .select("*")
     .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
     .order("signing_date", { ascending: true })
     .order("signing_time", { ascending: true });
 
-  if (status) query = query.eq("status", status);
-  if (from) query = query.gte("signing_date", from);
-  if (to) query = query.lte("signing_date", to);
+  const { data: externalJobs } = await supabase
+    .from("pro_jobs")
+    .select("*")
+    .eq("notary_id", user.id)
+    .eq("source_type", "manual")
+    .order("signing_date", { ascending: true })
+    .order("signing_time", { ascending: true });
+
+  const insRows: UnifiedAssignment[] = ((insAssignments ?? []) as Assignment[]).map(
+    (assignment) => ({
+      id: assignment.id,
+      source: "ins",
+      sourceLabel: "INS",
+      controlNumber: assignment.control_number,
+      clientName: null,
+      borrowerName: assignment.borrower_name,
+      status: assignment.status,
+      signingType: assignment.signing_type,
+      signingDate: assignment.signing_date,
+      signingTime: assignment.signing_time,
+      signingAddress: assignment.signing_address,
+      signingCity: assignment.signing_city,
+      signingState: assignment.signing_state,
+      signingZip: assignment.signing_zip,
+      fee: assignment.notary_fee,
+      documentsUrl: assignment.documents_url,
+      href: `/notary/assignments/${assignment.id}`,
+    })
+  );
+
+  const externalRows: UnifiedAssignment[] = ((externalJobs ?? []) as ProJob[]).map(
+    (job) => ({
+      id: job.id,
+      source: "external",
+      sourceLabel: "External",
+      controlNumber: null,
+      clientName: job.client_name,
+      borrowerName: job.borrower_name,
+      status: job.status,
+      signingType: job.signing_type,
+      signingDate: job.signing_date,
+      signingTime: job.signing_time,
+      signingAddress: job.signing_address,
+      signingCity: job.signing_city,
+      signingState: job.signing_state,
+      signingZip: job.signing_zip,
+      fee: job.fee,
+      documentsUrl: null,
+      href: "/notary/pro/jobs",
+    })
+  );
+
+  let rows = [...insRows, ...externalRows].sort((a, b) => {
+    const aDate = `${a.signingDate ?? "9999-12-31"} ${a.signingTime ?? "23:59"}`;
+    const bDate = `${b.signingDate ?? "9999-12-31"} ${b.signingTime ?? "23:59"}`;
+    return aDate.localeCompare(bDate);
+  });
+
+  if (source === "ins" || source === "external") {
+    rows = rows.filter((row) => row.source === source);
+  }
+
+  if (status) {
+    rows = rows.filter((row) => statusCategory(row.status) === status);
+  }
+
+  if (from) {
+    rows = rows.filter((row) => row.signingDate && row.signingDate >= from);
+  }
+
+  if (to) {
+    rows = rows.filter((row) => row.signingDate && row.signingDate <= to);
+  }
 
   if (search) {
-    query = query.or(
-      `control_number.ilike.%${search}%,borrower_name.ilike.%${search}%,signing_city.ilike.%${search}%,signing_zip.ilike.%${search}%`
+    const lowered = search.toLowerCase();
+
+    rows = rows.filter((row) =>
+      [
+        row.controlNumber,
+        row.clientName,
+        row.borrowerName,
+        row.signingCity,
+        row.signingZip,
+        row.signingType,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(lowered))
     );
   }
 
-  const { data: assignments } = await query;
-  const safeAssignments = (assignments ?? []) as Assignment[];
-
-  const activeAssignments = safeAssignments.filter((item) =>
-    activeStatuses.includes(item.status ?? "")
-  );
-
-  const closedAssignments = safeAssignments.filter((item) =>
-    closedStatuses.includes(item.status ?? "")
-  );
-
-  const notConfirmedCount = safeAssignments.filter(
-    (assignment) => assignment.status === "Not Confirmed"
-  ).length;
-
-  const confirmedCount = safeAssignments.filter(
-    (assignment) => assignment.status === "Confirmed"
-  ).length;
-
-  const inProgressCount = safeAssignments.filter(
+  const upcomingCount = rows.filter(
     (assignment) =>
-      assignment.status === "In Progress" || assignment.status === "Late"
+      !isClosedOrDone(assignment.status) && isUpcomingDate(assignment.signingDate)
   ).length;
 
-  const signingCompleteCount = safeAssignments.filter(
-    (assignment) => assignment.status === "Signing Complete"
+  const confirmedCount = rows.filter(
+    (assignment) => statusCategory(assignment.status) === "confirmed"
   ).length;
 
-  const closedCount = safeAssignments.filter(
-    (assignment) => assignment.status === "Closed"
+  const inProgressCount = rows.filter(
+    (assignment) => statusCategory(assignment.status) === "in_progress"
+  ).length;
+
+  const completedCount = rows.filter(
+    (assignment) => statusCategory(assignment.status) === "completed"
+  ).length;
+
+  const cancelledCount = rows.filter(
+    (assignment) => statusCategory(assignment.status) === "cancelled"
+  ).length;
+
+  const insCount = rows.filter((assignment) => assignment.source === "ins").length;
+  const externalCount = rows.filter(
+    (assignment) => assignment.source === "external"
   ).length;
 
   return (
     <main className="space-y-6 bg-slate-50 p-4 sm:p-6">
       <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
-        <div className="p-6">
-          <p className="text-sm font-medium text-blue-100">
-            Notary Work Queue
-          </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-            Assignments
-          </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100/90">
-            View active signings, documents, status updates, and closed work.
-          </p>
+        <div className="flex flex-col justify-between gap-4 p-6 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-sm font-medium text-blue-100">
+              Notary Work Queue
+            </p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+              Assignments
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100/90">
+              Manage INS and External assignments from one workspace.
+            </p>
+          </div>
+
+          <Link
+            href="/notary/pro/jobs/new"
+            className="rounded-xl bg-white px-5 py-3 text-center text-sm font-black text-[#0B1F4D] transition hover:bg-blue-50"
+          >
+            + Add External Assignment
+          </Link>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-xl font-bold text-slate-950">Find Assignments</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Search by control number, borrower, city, or ZIP code.
+          Search by borrower, client, control number, city, or ZIP code.
         </p>
 
         <form
           method="get"
-          className="mt-5 grid gap-3 md:grid-cols-[1.5fr_1fr_1fr_1fr_auto_auto]"
+          className="mt-5 grid gap-3 md:grid-cols-[1.3fr_.8fr_.9fr_1fr_1fr_auto_auto]"
         >
           <input
             name="q"
@@ -309,14 +492,19 @@ export default async function AssignmentsPage({
             className={inputClass}
           />
 
+          <select name="source" defaultValue={source} className={inputClass}>
+            <option value="">All Sources</option>
+            <option value="ins">INS</option>
+            <option value="external">External</option>
+          </select>
+
           <select name="status" defaultValue={status} className={inputClass}>
             <option value="">All Statuses</option>
-            <option value="Not Confirmed">Not Confirmed</option>
-            <option value="Confirmed">Confirmed</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Late">Late</option>
-            <option value="Signing Complete">Signing Complete</option>
-            <option value="Closed">Closed</option>
+            <option value="upcoming">Upcoming</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
           </select>
 
           <input
@@ -335,109 +523,145 @@ export default async function AssignmentsPage({
 
           <button className={primaryButtonClass}>Filter</button>
 
-          <a href="/notary/assignments" className={secondaryButtonClass}>
+          <Link href="/notary/assignments" className={secondaryButtonClass}>
             Reset
-          </a>
+          </Link>
         </form>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-5">
+      <section className="grid gap-4 md:grid-cols-4 xl:grid-cols-6">
         {[
-          ["Not Confirmed", notConfirmedCount, "Needs your response"],
-          ["Confirmed", confirmedCount, "Appointment confirmed"],
-          ["In Progress", inProgressCount, "Currently active"],
-          ["Signing Complete", signingCompleteCount, "Awaiting closeout"],
-          ["Closed", closedCount, "Processed work"],
-        ].map(([label, count, description]) => (
-          <a
+          ["All", rows.length, "Every assignment", ""],
+          ["INS", insCount, "INS originated", "ins"],
+          ["External", externalCount, "Outside INS", "external"],
+        ].map(([label, count, description, sourceValue]) => (
+          <Link
             key={label}
-            href={`/notary/assignments?status=${encodeURIComponent(
-              String(label)
-            )}`}
+            href={
+              sourceValue
+                ? `/notary/assignments?source=${sourceValue}`
+                : "/notary/assignments"
+            }
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:bg-slate-50"
+          >
+            <div className="mb-4 h-1 w-10 rounded-full bg-[#0B1F4D]" />
+            <p className="text-sm font-semibold text-slate-600">{label}</p>
+            <p className="mt-2 text-4xl font-bold text-slate-950">{count}</p>
+            <p className="mt-2 text-xs text-slate-500">{description}</p>
+          </Link>
+        ))}
+
+        {[
+          ["Upcoming", upcomingCount, "Scheduled work", "upcoming"],
+          ["In Progress", inProgressCount, "Currently active", "in_progress"],
+          ["Completed", completedCount, "Finished work", "completed"],
+        ].map(([label, count, description, statusValue]) => (
+          <Link
+            key={label}
+            href={`/notary/assignments?status=${statusValue}`}
             className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:bg-slate-50"
           >
             <div
               className={`mb-4 h-1 w-10 rounded-full ${statusAccent(
-                String(label)
+                String(statusValue)
               )}`}
             />
             <p className="text-sm font-semibold text-slate-600">{label}</p>
             <p className="mt-2 text-4xl font-bold text-slate-950">{count}</p>
             <p className="mt-2 text-xs text-slate-500">{description}</p>
-          </a>
+          </Link>
         ))}
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 p-5">
-          <h2 className="text-xl font-bold text-slate-950">
-            Active Assignments
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            These are assignments that still require action or are waiting to be
-            closed.
-          </p>
+        <div className="flex flex-col justify-between gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="text-xl font-bold text-slate-950">
+              All Assignments
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              INS and External work in one list with source badges.
+            </p>
+          </div>
+
+          <Link href="/notary/pro/jobs/new" className={primaryButtonClass}>
+            + Add External Assignment
+          </Link>
         </div>
 
-        {!activeAssignments.length ? (
+        {!rows.length ? (
           <div className="p-8 text-center text-sm text-slate-500">
-            No active assignments right now.
+            No assignments match your filters.
           </div>
         ) : (
           <>
             <div className="grid gap-4 p-4 md:hidden">
-              {activeAssignments.map((assignment) => assignmentCard(assignment))}
+              {rows.map((assignment) => assignmentCard(assignment))}
             </div>
 
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="px-4 py-3 font-bold">Control #</th>
-                    <th className="px-4 py-3 font-bold">Signing</th>
+                    <th className="px-4 py-3 font-bold">Source</th>
                     <th className="px-4 py-3 font-bold">Borrower</th>
+                    <th className="px-4 py-3 font-bold">Client</th>
+                    <th className="px-4 py-3 font-bold">Signing</th>
                     <th className="px-4 py-3 font-bold">Location</th>
-                    <th className="px-4 py-3 font-bold">Notary Fee</th>
+                    <th className="px-4 py-3 font-bold">Fee</th>
                     <th className="px-4 py-3 font-bold">Status</th>
-                    <th className="px-4 py-3 font-bold">Documents</th>
+                    <th className="px-4 py-3 font-bold">Docs</th>
                     <th className="px-4 py-3 font-bold">Actions</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-slate-200">
-                  {activeAssignments.map((assignment) => (
-                    <tr key={assignment.id} className="transition hover:bg-slate-50">
+                  {rows.map((assignment) => (
+                    <tr
+                      key={`${assignment.source}-${assignment.id}`}
+                      className="transition hover:bg-slate-50"
+                    >
+                      <td className="px-4 py-4">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${sourceBadge(
+                            assignment.source
+                          )}`}
+                        >
+                          {assignment.sourceLabel}
+                        </span>
+                      </td>
+
                       <td className="px-4 py-4 font-semibold text-slate-950">
-                        {assignment.control_number ?? "—"}
+                        {assignment.borrowerName ?? "—"}
+                      </td>
+
+                      <td className="px-4 py-4 text-slate-700">
+                        {assignment.clientName ?? "—"}
                       </td>
 
                       <td className="px-4 py-4">
                         <div className="font-semibold text-slate-950">
-                          {formatDate(assignment.signing_date)}
+                          {formatDate(assignment.signingDate)}
                         </div>
                         <div className="text-slate-500">
-                          {formatTime(assignment.signing_time)}
+                          {formatTime(assignment.signingTime)}
                         </div>
                         <div className="text-xs text-slate-500">
-                          {assignment.signing_type ?? "Signing"}
+                          {assignment.signingType ?? "Signing"}
                         </div>
                       </td>
 
                       <td className="px-4 py-4 text-slate-700">
-                        {assignment.borrower_name ?? "—"}
-                      </td>
-
-                      <td className="px-4 py-4 text-slate-700">
-                        <div>{assignment.signing_address ?? "—"}</div>
+                        <div>{assignment.signingAddress ?? "—"}</div>
                         <div className="text-slate-500">
-                          {assignment.signing_city ?? "—"},{" "}
-                          {assignment.signing_state ?? "IN"}{" "}
-                          {assignment.signing_zip ?? ""}
+                          {assignment.signingCity ?? "—"},{" "}
+                          {assignment.signingState ?? "IN"}{" "}
+                          {assignment.signingZip ?? ""}
                         </div>
                       </td>
 
                       <td className="px-4 py-4 font-bold text-slate-950">
-                        {formatMoney(assignment.notary_fee)}
+                        {formatMoney(assignment.fee)}
                       </td>
 
                       <td className="px-4 py-4">
@@ -451,108 +675,9 @@ export default async function AssignmentsPage({
                       </td>
 
                       <td className="px-4 py-4">
-                        {assignment.documents_url ? (
+                        {assignment.documentsUrl ? (
                           <a
-                            href={assignment.documents_url}
-                            className="font-bold text-[#0B1F4D] hover:underline"
-                            target="_blank"
-                          >
-                            View Docs
-                          </a>
-                        ) : (
-                          <span className="text-slate-400">Not uploaded</span>
-                        )}
-                      </td>
-
-                      <td className="px-4 py-4">
-                        <a
-                          href={`/notary/assignments/${assignment.id}`}
-                          className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-950"
-                        >
-                          View
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </section>
-
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 p-5">
-          <h2 className="text-xl font-bold text-slate-950">
-            Closed Assignments
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            These assignments have been processed and fully closed.
-          </p>
-        </div>
-
-        {!closedAssignments.length ? (
-          <div className="p-8 text-center text-sm text-slate-500">
-            No closed assignments yet.
-          </div>
-        ) : (
-          <>
-            <div className="grid gap-4 p-4 md:hidden">
-              {closedAssignments.map((assignment) => assignmentCard(assignment))}
-            </div>
-
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3 font-bold">Control #</th>
-                    <th className="px-4 py-3 font-bold">Date</th>
-                    <th className="px-4 py-3 font-bold">Borrower</th>
-                    <th className="px-4 py-3 font-bold">City</th>
-                    <th className="px-4 py-3 font-bold">Notary Fee</th>
-                    <th className="px-4 py-3 font-bold">Status</th>
-                    <th className="px-4 py-3 font-bold">Documents</th>
-                    <th className="px-4 py-3 font-bold">Actions</th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-slate-200">
-                  {closedAssignments.map((assignment) => (
-                    <tr key={assignment.id} className="transition hover:bg-slate-50">
-                      <td className="px-4 py-4 font-semibold text-slate-950">
-                        {assignment.control_number ?? "—"}
-                      </td>
-
-                      <td className="px-4 py-4 text-slate-700">
-                        {formatDate(assignment.signing_date)}
-                      </td>
-
-                      <td className="px-4 py-4 text-slate-700">
-                        {assignment.borrower_name ?? "—"}
-                      </td>
-
-                      <td className="px-4 py-4 text-slate-700">
-                        {assignment.signing_city ?? "—"}
-                      </td>
-
-                      <td className="px-4 py-4 font-bold text-slate-950">
-                        {formatMoney(assignment.notary_fee)}
-                      </td>
-
-                      <td className="px-4 py-4">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
-                            assignment.status
-                          )}`}
-                        >
-                          {assignment.status ?? "Unknown"}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-4">
-                        {assignment.documents_url ? (
-                          <a
-                            href={assignment.documents_url}
+                            href={assignment.documentsUrl}
                             className="font-bold text-[#0B1F4D] hover:underline"
                             target="_blank"
                           >
@@ -564,12 +689,12 @@ export default async function AssignmentsPage({
                       </td>
 
                       <td className="px-4 py-4">
-                        <a
-                          href={`/notary/assignments/${assignment.id}`}
+                        <Link
+                          href={assignment.href}
                           className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-950"
                         >
                           View
-                        </a>
+                        </Link>
                       </td>
                     </tr>
                   ))}
