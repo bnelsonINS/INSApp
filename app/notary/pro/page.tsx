@@ -434,6 +434,35 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-6">
       <div className="mx-auto max-w-[1600px] space-y-5">
+        <section className="flex flex-col justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center">
+  <div>
+    <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
+      INS Pro
+    </p>
+    <h1 className="text-3xl font-black text-slate-950">
+      Business Dashboard
+    </h1>
+    <p className="mt-1 text-sm text-slate-500">
+      Track signings, customers, invoices, mileage, and business tasks.
+    </p>
+  </div>
+
+  <div className="flex flex-col gap-3 sm:flex-row">
+    <Link
+      href="/notary/pro/jobs/new"
+      className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-center text-sm font-black text-white transition hover:bg-blue-950"
+    >
+      + New Signing
+    </Link>
+
+    <Link
+      href="/notary/pro/customers/new"
+      className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-black text-slate-700 transition hover:bg-slate-50"
+    >
+      + New Customer
+    </Link>
+  </div>
+</section>
         <section className="grid gap-4 lg:grid-cols-4">
           {topAlertCards.map((card) => {
             const active = activeFilter === card.filter;
