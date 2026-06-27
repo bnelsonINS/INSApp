@@ -108,6 +108,154 @@ function SelectField({
   );
 }
 
+function CustomerField({ customers }: { customers: ProCustomer[] }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<ProCustomer | null>(
+    null
+  );
+  const [search, setSearch] = useState("");
+
+  const filteredCustomers = customers.filter((customer) =>
+    customer.company.toLowerCase().includes(search.toLowerCase())
+  );
+
+  function closeModal() {
+    setIsOpen(false);
+    setSearch("");
+  }
+
+  function selectCustomer(customer: ProCustomer) {
+    setSelectedCustomer(customer);
+    closeModal();
+  }
+
+  return (
+    <div className="block">
+      <span className="text-sm font-bold text-slate-700">
+        Client / Company
+      </span>
+
+      <input
+        type="hidden"
+        name="pro_customer_id"
+        value={selectedCustomer?.id ?? ""}
+      />
+      <input
+        type="hidden"
+        name="client_name"
+        value={selectedCustomer?.company ?? ""}
+      />
+
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="mt-2 flex w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-950 hover:bg-slate-50 focus:border-[#0B1F4D] focus:outline-none focus:ring-2 focus:ring-blue-100"
+      >
+        <span className={selectedCustomer ? "text-slate-950" : "text-slate-400"}>
+          {selectedCustomer?.company ?? "Select Client / Company"}
+        </span>
+
+        <span className="text-lg font-black text-slate-400">⋯</span>
+      </button>
+
+      {selectedCustomer?.banner_message && (
+        <div className="mt-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
+          {selectedCustomer.banner_message}
+        </div>
+      )}
+
+      {selectedCustomer?.special_instructions && (
+        <div className="mt-2 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-900">
+          {selectedCustomer.special_instructions}
+        </div>
+      )}
+
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+          <div className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between bg-[#0B1F4D] px-5 py-4 text-white">
+              <h3 className="text-lg font-black">Select Client / Company</h3>
+
+              <button
+                type="button"
+                onClick={closeModal}
+                className="text-2xl font-black text-white"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4 p-5">
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search customers"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950 placeholder:text-slate-400 focus:border-[#0B1F4D] focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+
+                <Link
+                  href="/notary/pro/customers/new"
+                  className="rounded-xl border-2 border-blue-700 bg-white px-4 py-3 text-center text-sm font-black text-[#0B1F4D] hover:bg-blue-50"
+                >
+                  New Customer
+                </Link>
+              </div>
+
+              <div className="max-h-96 overflow-y-auto rounded-2xl border border-slate-200">
+                {filteredCustomers.length === 0 ? (
+                  <div className="p-5 text-sm font-semibold text-slate-500">
+                    No customers found. Click New Customer to create one.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {filteredCustomers.map((customer) => (
+                      <button
+                        key={customer.id}
+                        type="button"
+                        onClick={() => selectCustomer(customer)}
+                        className="flex w-full items-center justify-between px-4 py-4 text-left hover:bg-slate-50"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-black text-slate-950">
+                            {customer.company}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {[customer.city, customer.state]
+                              .filter(Boolean)
+                              .join(", ") || "No location saved"}
+                          </p>
+                          <p className="mt-1 text-xs font-bold text-slate-400">
+                            Default fee: $
+                            {Number(customer.default_signing_fee ?? 0).toFixed(
+                              2
+                            )}{" "}
+                            · Terms:{" "}
+                            {customer.default_payment_terms_days ?? 0} days
+                          </p>
+                        </div>
+
+                        <span className="text-xl font-black text-slate-300">
+                          ›
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+                Customers are managed from INS Pro → Customers. Create the full
+                customer profile there, then select it here.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ChoiceField({
   label,
   name,
@@ -372,13 +520,7 @@ export default function JobForm({ choices, customers }: Props) {
                 placeholder="John Smith"
               />
 
-              <ChoiceField
-                label="Client / Company"
-                name="client_name"
-                category="client_name"
-                choices={choices}
-                placeholder="ABC Title"
-              />
+              <CustomerField customers={customers} />
 
               <ChoiceField
                 label="Signing Type"

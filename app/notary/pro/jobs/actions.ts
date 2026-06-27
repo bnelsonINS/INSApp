@@ -52,10 +52,13 @@ export async function createManualProJob(formData: FormData) {
     throw new Error("Borrower name is required.");
   }
 
+  const saveMode = value(formData, "save_mode");
+
   const { error } = await supabase.from("pro_jobs").insert({
     notary_id: user.id,
     source_type: "manual",
 
+    pro_customer_id: value(formData, "pro_customer_id"),
     client_name: value(formData, "client_name"),
     borrower_name: borrowerName,
 
@@ -110,6 +113,10 @@ export async function createManualProJob(formData: FormData) {
   });
 
   if (error) throw new Error(error.message);
+
+  if (saveMode === "save_add_another") {
+    redirect("/notary/pro/jobs/new");
+  }
 
   redirect("/notary/pro/jobs");
 }
