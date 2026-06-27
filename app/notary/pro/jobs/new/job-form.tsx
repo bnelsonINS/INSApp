@@ -486,14 +486,14 @@ export default function JobForm({ choices, customers }: Props) {
       action={createManualProJob}
       className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
     >
-      <div className="border-b border-slate-200 bg-white px-5 pt-5">
-        <div className="flex gap-2 overflow-x-auto">
-          {tabs.map((tab) => (
+      <div className="border-b border-slate-200 bg-white px-4 pt-4 sm:px-5 sm:pt-5">
+  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+    {tabs.map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={`shrink-0 border-b-2 px-4 py-3 text-sm font-black transition ${
+              className={`rounded-xl border border-slate-200 px-3 py-3 text-center text-xs font-black transition sm:border-b-2 sm:border-l-0 sm:border-r-0 sm:border-t-0 sm:px-4 sm:text-sm ${
                 activeTab === tab
                   ? "border-[#0B1F4D] text-[#0B1F4D]"
                   : "border-transparent text-slate-500 hover:text-slate-900"
