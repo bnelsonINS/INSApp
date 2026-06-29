@@ -2749,13 +2749,17 @@ Thank you for choosing Indiana Notary Solutions.
 
                               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
                                 <button
-  type="submit"
-  formAction={saveJournalDocuments}
-  formNoValidate
-  className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 disabled:opacity-70"
->
-  Done
-</button>
+                                  type="submit"
+                                  formAction={saveJournalDocuments}
+                                  formNoValidate
+                                  className="group inline-flex items-center justify-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 focus:cursor-wait focus:bg-blue-950 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                                >
+                                  <span className="group-focus:hidden">Done</span>
+                                  <span className="hidden items-center gap-2 group-focus:inline-flex">
+                                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                                    Saving documents...
+                                  </span>
+                                </button>
                               </div>
                             </div>
                           </div>
