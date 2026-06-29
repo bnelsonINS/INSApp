@@ -284,6 +284,128 @@ export default async function AssignmentDetailPage({
 }) {
   const { id } = await params;
 
+  async function saveJournalPerson(formData: FormData) {
+    "use server";
+
+    const assignmentId = String(formData.get("assignment_id") ?? "").trim();
+    const personType = String(formData.get("new_person_type") ?? "signer").trim().toLowerCase();
+    const fullName = String(formData.get("new_person_name") ?? "").trim();
+    const address = String(formData.get("new_person_address") ?? "").trim();
+    const city = String(formData.get("new_person_city") ?? "").trim();
+    const state = String(formData.get("new_person_state") ?? "IN").trim();
+    const zip = String(formData.get("new_person_zip") ?? "").trim();
+    const idVerificationType = String(formData.get("new_person_verification_type") ?? "Driver's License").trim();
+    const idNumber = String(formData.get("new_person_id_number") ?? "").trim();
+    const idIssuedBy = String(formData.get("new_person_id_issued_by") ?? "").trim();
+    const idIssuedDate = String(formData.get("new_person_id_issued_date") ?? "").trim();
+    const idExpirationDate = String(formData.get("new_person_id_expiration_date") ?? "").trim();
+    const idVerified = formData.get("new_person_id_verified") === "on";
+
+    if (!assignmentId || !fullName) return;
+
+    const supabase = await createSupabaseServerClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) redirect("/login");
+
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select("id, signing_date, signing_time, signing_address, signing_city, signing_state, signing_zip")
+      .eq("id", assignmentId)
+      .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
+      .single();
+
+    if (!assignment) redirect("/notary/assignments");
+
+    let { data: journalEntry } = await supabase
+      .from("assignment_journal_entries")
+      .select("id")
+      .eq("assignment_id", assignmentId)
+      .eq("notary_id", user.id)
+      .maybeSingle();
+
+    if (!journalEntry) {
+      const { data: insertedJournalEntry } = await supabase
+        .from("assignment_journal_entries")
+        .insert({
+          assignment_id: assignmentId,
+          notary_id: user.id,
+          journal_date: assignment.signing_date,
+          journal_time: assignment.signing_time,
+          journal_type: "In-Person",
+          location_mode: "address",
+          address: assignment.signing_address,
+          city: assignment.signing_city,
+          state: assignment.signing_state ?? "IN",
+          zip: assignment.signing_zip,
+          status: "open",
+        })
+        .select("id")
+        .single();
+
+      journalEntry = insertedJournalEntry;
+    }
+
+    if (!journalEntry?.id) return;
+
+    const { count } = await supabase
+      .from("assignment_journal_people")
+      .select("id", { count: "exact", head: true })
+      .eq("journal_entry_id", journalEntry.id);
+
+    await supabase.from("assignment_journal_people").insert({
+      journal_entry_id: journalEntry.id,
+      assignment_id: assignmentId,
+      notary_id: user.id,
+      person_type: personType === "witness" ? "witness" : "signer",
+      full_name: fullName,
+      address: address || null,
+      city: city || null,
+      state: state || "IN",
+      zip: zip || null,
+      id_verification_type: idVerificationType || null,
+      id_number: idNumber || null,
+      id_issued_by: idIssuedBy || null,
+      id_issued_date: idIssuedDate || null,
+      id_expiration_date: idExpirationDate || null,
+      id_verified: idVerified,
+      sort_order: count ?? 0,
+    });
+
+    revalidatePath(`/notary/assignments/${assignmentId}`);
+    redirect(`/notary/assignments/${assignmentId}#journal-people`);
+  }
+
+  async function deleteJournalPerson(formData: FormData) {
+    "use server";
+
+    const assignmentId = String(formData.get("assignment_id") ?? "").trim();
+    const personId = String(formData.get("person_id") ?? "").trim();
+
+    if (!assignmentId || !personId) return;
+
+    const supabase = await createSupabaseServerClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) redirect("/login");
+
+    await supabase
+      .from("assignment_journal_people")
+      .delete()
+      .eq("id", personId)
+      .eq("assignment_id", assignmentId)
+      .eq("notary_id", user.id);
+
+    revalidatePath(`/notary/assignments/${assignmentId}`);
+    redirect(`/notary/assignments/${assignmentId}#journal-people`);
+  }
+
 
   async function saveJournalEntry(formData: FormData) {
     "use server";
@@ -1010,6 +1132,84 @@ const hasActiveProSubscription =
 
 const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
 
+  let { data: journalEntry } = await supabase
+    .from("assignment_journal_entries")
+    .select("id, status")
+    .eq("assignment_id", assignment.id)
+    .eq("notary_id", user.id)
+    .maybeSingle();
+
+  if (!journalEntry) {
+    const { data: insertedJournalEntry } = await supabase
+      .from("assignment_journal_entries")
+      .insert({
+        assignment_id: assignment.id,
+        notary_id: user.id,
+        journal_date: assignment.signing_date,
+        journal_time: assignment.signing_time,
+        journal_type: "In-Person",
+        location_mode: "address",
+        address: assignment.signing_address,
+        city: assignment.signing_city,
+        state: assignment.signing_state ?? "IN",
+        zip: assignment.signing_zip,
+        status: "open",
+      })
+      .select("id, status")
+      .single();
+
+    journalEntry = insertedJournalEntry;
+  }
+
+  const { data: savedJournalPeople } = journalEntry?.id
+    ? await supabase
+        .from("assignment_journal_people")
+        .select("*")
+        .eq("journal_entry_id", journalEntry.id)
+        .eq("notary_id", user.id)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true })
+    : { data: [] };
+
+  const journalPeople = savedJournalPeople ?? [];
+
+  const primaryJournalPerson = {
+    id: "primary-signer",
+    person_type: "signer",
+    full_name: assignment.borrower_name ?? "Primary Signer",
+    address: assignment.signing_address,
+    city: assignment.signing_city,
+    state: assignment.signing_state ?? "IN",
+    zip: assignment.signing_zip,
+    id_verification_type: "Driver's License",
+    id_number: null,
+    id_issued_by: "Indiana BMV",
+    id_issued_date: null,
+    id_expiration_date: null,
+    id_verified: false,
+    sort_order: 0,
+  };
+
+  const primaryBorrowerName = String(assignment.borrower_name ?? "")
+    .trim()
+    .toLowerCase();
+
+  const savedJournalPeopleWithoutPrimary = journalPeople.filter((person) => {
+    const savedPersonName = String(person.full_name ?? "").trim().toLowerCase();
+    const savedPersonType = String(person.person_type ?? "signer").toLowerCase();
+
+    return !(
+      primaryBorrowerName &&
+      savedPersonName === primaryBorrowerName &&
+      savedPersonType === "signer"
+    );
+  });
+
+  const displayJournalPeople = [
+    primaryJournalPerson,
+    ...savedJournalPeopleWithoutPrimary,
+  ];
+
   const workspaceTabs = [
     "Journal",
     "Invoice",
@@ -1706,7 +1906,7 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                                   </label>
 
                                   <p className="text-sm font-bold uppercase tracking-wide text-slate-500">
-                                    UI only — database save comes next
+                                    Save to this journal
                                   </p>
                                 </div>
 
@@ -1854,12 +2054,25 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                                     Cancel
                                   </label>
 
-                                  <label
-                                    htmlFor="journal-person-modal"
-                                    className="cursor-pointer rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                                  <button
+                                    type="submit"
+                                    formAction={saveJournalPerson}
+                                    name="new_person_type"
+                                    value="signer"
+                                    className="peer-checked/signer:inline-flex hidden rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
                                   >
-                                    Save Person
-                                  </label>
+                                    Save Signer
+                                  </button>
+
+                                  <button
+                                    type="submit"
+                                    formAction={saveJournalPerson}
+                                    name="new_person_type"
+                                    value="witness"
+                                    className="peer-checked/witness:inline-flex hidden rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                                  >
+                                    Save Witness
+                                  </button>
                                 </div>
                               </div>
                             </div>
@@ -1868,9 +2081,9 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                       </div>
                     </div>
 
-                    <div className="mt-5 flex items-center justify-between gap-3">
+                    <div id="journal-people" className="mt-5 flex items-center justify-between gap-3">
                       <a
-                        href="#journal-person-card-1"
+                        href={`#journal-person-card-${Math.max(displayJournalPeople.length - 1, 0)}`}
                         className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-xl font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:flex"
                         aria-label="Previous person"
                       >
@@ -1878,64 +2091,111 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                       </a>
 
                       <div className="flex flex-1 snap-x gap-4 overflow-x-auto pb-2">
-                        <div
-                          id="journal-person-card-1"
-                          className="min-w-full snap-center rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:min-w-[320px]"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-                                Person 1 of 1
-                              </p>
-                              <h5 className="mt-2 text-xl font-black text-slate-950">
-                                {assignment.borrower_name ?? "Primary Signer"}
-                              </h5>
-                              <p className="mt-1 text-sm font-bold text-slate-600">
-                                Signer
-                              </p>
-                            </div>
+                        {displayJournalPeople.map((person, index) => {
+                          const personType = String(person.person_type ?? "signer").toLowerCase();
+                          const isWitness = personType === "witness";
+                          const isSavedPerson = person.id !== "primary-signer";
+                          const addressLine = [
+                            person.address,
+                            person.city,
+                            person.state ?? "IN",
+                            person.zip,
+                          ]
+                            .filter(Boolean)
+                            .join(", ");
 
-                            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-200">
-                              ID Pending
-                            </span>
-                          </div>
-
-                          <div className="mt-4 grid gap-3 text-sm text-slate-700">
-                            <div>
-                              <p className="font-bold text-slate-500">Verification</p>
-                              <p className="font-semibold text-slate-950">Driver&apos;s License</p>
-                            </div>
-
-                            <div>
-                              <p className="font-bold text-slate-500">Address</p>
-                              <p className="font-semibold text-slate-950">
-                                {[assignment.signing_address, assignment.signing_city, assignment.signing_state ?? "IN", assignment.signing_zip]
-                                  .filter(Boolean)
-                                  .join(", ") || "—"}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            <a
-                              href="#primary-signer-verification"
-                              className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-950"
+                          return (
+                            <div
+                              id={`journal-person-card-${index}`}
+                              key={String(person.id)}
+                              className={`min-w-full snap-center rounded-2xl border p-5 sm:min-w-[320px] ${
+                                isWitness
+                                  ? "border-amber-200 bg-amber-50"
+                                  : "border-blue-200 bg-blue-50"
+                              }`}
                             >
-                              Edit Person
-                            </a>
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p
+                                    className={`text-xs font-black uppercase tracking-wide ${
+                                      isWitness ? "text-amber-700" : "text-blue-700"
+                                    }`}
+                                  >
+                                    Person {index + 1} of {displayJournalPeople.length}
+                                  </p>
+                                  <h5 className="mt-2 text-xl font-black text-slate-950">
+                                    {person.full_name ?? "Unnamed Person"}
+                                  </h5>
+                                  <p className="mt-1 text-sm font-bold text-slate-600">
+                                    {isWitness ? "Witness" : "Signer"}
+                                  </p>
+                                </div>
 
-                            <button
-                              type="button"
-                              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
+                                <span
+                                  className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${
+                                    person.id_verified
+                                      ? "bg-green-50 text-green-700 ring-green-200"
+                                      : "bg-amber-50 text-amber-700 ring-amber-200"
+                                  }`}
+                                >
+                                  {person.id_verified ? "ID Verified" : "ID Pending"}
+                                </span>
+                              </div>
+
+                              <div className="mt-4 grid gap-3 text-sm text-slate-700">
+                                <div>
+                                  <p className="font-bold text-slate-500">Verification</p>
+                                  <p className="font-semibold text-slate-950">
+                                    {person.id_verification_type ?? "Driver's License"}
+                                  </p>
+                                </div>
+
+                                <div>
+                                  <p className="font-bold text-slate-500">ID Number</p>
+                                  <p className="font-semibold text-slate-950">
+                                    {person.id_number || "—"}
+                                  </p>
+                                </div>
+
+                                <div>
+                                  <p className="font-bold text-slate-500">Address</p>
+                                  <p className="font-semibold text-slate-950">
+                                    {addressLine || "—"}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                <a
+                                  href="#primary-signer-verification"
+                                  className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-950"
+                                >
+                                  Edit Person
+                                </a>
+
+                                {isSavedPerson ? (
+                                  <button
+                                    type="submit"
+                                    formAction={deleteJournalPerson}
+                                    name="person_id"
+                                    value={String(person.id)}
+                                    className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50"
+                                  >
+                                    Remove
+                                  </button>
+                                ) : (
+                                  <span className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-400">
+                                    Primary
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
 
                       <a
-                        href="#journal-person-card-1"
+                        href="#journal-person-card-0"
                         className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-xl font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:flex"
                         aria-label="Next person"
                       >
@@ -1944,7 +2204,7 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                     </div>
 
                     <p className="mt-3 text-xs text-slate-500">
-                      Mobile users can swipe between people. Database-backed add/edit/delete comes next.
+                      Mobile users can swipe between people. Saved people now reload from the journal database.
                     </p>
                   </div>
 
