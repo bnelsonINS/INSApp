@@ -7,10 +7,8 @@ import CloseDetailsButton from "./CloseDetailsButton";
 import SubmitButton from "../../../components/SubmitButton";
 import Link from "next/link";
 
-
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
 
 function getBaseUrl() {
   return (
@@ -74,7 +72,6 @@ function formatMoney(value: number | string | null | undefined) {
 
   return `$${amount.toFixed(2)}`;
 }
-
 
 function calendarDatePart(date: Date) {
   const year = date.getFullYear();
@@ -147,7 +144,6 @@ function buildCalendarData({
   };
 }
 
-
 function firstTextValue(...values: Array<string | number | null | undefined>) {
   for (const value of values) {
     if (value === null || value === undefined) continue;
@@ -158,7 +154,6 @@ function firstTextValue(...values: Array<string | number | null | undefined>) {
 
   return "—";
 }
-
 
 const UUID_PATTERN =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
@@ -171,7 +166,7 @@ function extractProfileIdsFromText(value: string | null | undefined) {
 
 function formatActivityDetails(
   value: string | null | undefined,
-  profileNameById: Map<string, string>
+  profileNameById: Map<string, string>,
 ) {
   if (!value) return "—";
 
@@ -187,13 +182,19 @@ function formatActivityDetails(
 function statusBadge(status: string | null) {
   const normalized = (status ?? "").toLowerCase();
 
-  if (normalized === "not confirmed") return "bg-yellow-100 text-yellow-800 ring-yellow-200";
-  if (normalized === "confirmed") return "bg-blue-100 text-blue-800 ring-blue-200";
-  if (normalized === "in progress") return "bg-purple-100 text-purple-800 ring-purple-200";
+  if (normalized === "not confirmed")
+    return "bg-yellow-100 text-yellow-800 ring-yellow-200";
+  if (normalized === "confirmed")
+    return "bg-blue-100 text-blue-800 ring-blue-200";
+  if (normalized === "in progress")
+    return "bg-purple-100 text-purple-800 ring-purple-200";
   if (normalized === "late") return "bg-red-100 text-red-800 ring-red-200";
-  if (normalized === "signing complete") return "bg-orange-100 text-orange-800 ring-orange-200";
-  if (normalized === "did not sign") return "bg-red-100 text-red-800 ring-red-200";
-  if (normalized === "closed") return "bg-green-100 text-green-800 ring-green-200";
+  if (normalized === "signing complete")
+    return "bg-orange-100 text-orange-800 ring-orange-200";
+  if (normalized === "did not sign")
+    return "bg-red-100 text-red-800 ring-red-200";
+  if (normalized === "closed")
+    return "bg-green-100 text-green-800 ring-green-200";
   if (normalized === "cancelled") return "bg-red-100 text-red-800 ring-red-200";
 
   return "bg-slate-100 text-slate-800 ring-slate-200";
@@ -229,7 +230,7 @@ type AssignmentActionData = {
 function nextAction(
   assignment: AssignmentActionData,
   signingDate: string,
-  signingTime: string
+  signingTime: string,
 ) {
   const normalized = (assignment.status ?? "").toLowerCase();
 
@@ -288,17 +289,27 @@ export default async function AssignmentDetailPage({
     "use server";
 
     const assignmentId = String(formData.get("assignment_id") ?? "").trim();
-    const personType = String(formData.get("new_person_type") ?? "signer").trim().toLowerCase();
+    const personType = String(formData.get("new_person_type") ?? "signer")
+      .trim()
+      .toLowerCase();
     const fullName = String(formData.get("new_person_name") ?? "").trim();
     const address = String(formData.get("new_person_address") ?? "").trim();
     const city = String(formData.get("new_person_city") ?? "").trim();
     const state = String(formData.get("new_person_state") ?? "IN").trim();
     const zip = String(formData.get("new_person_zip") ?? "").trim();
-    const idVerificationType = String(formData.get("new_person_verification_type") ?? "Driver's License").trim();
+    const idVerificationType = String(
+      formData.get("new_person_verification_type") ?? "Driver's License",
+    ).trim();
     const idNumber = String(formData.get("new_person_id_number") ?? "").trim();
-    const idIssuedBy = String(formData.get("new_person_id_issued_by") ?? "").trim();
-    const idIssuedDate = String(formData.get("new_person_id_issued_date") ?? "").trim();
-    const idExpirationDate = String(formData.get("new_person_id_expiration_date") ?? "").trim();
+    const idIssuedBy = String(
+      formData.get("new_person_id_issued_by") ?? "",
+    ).trim();
+    const idIssuedDate = String(
+      formData.get("new_person_id_issued_date") ?? "",
+    ).trim();
+    const idExpirationDate = String(
+      formData.get("new_person_id_expiration_date") ?? "",
+    ).trim();
     const idVerified = formData.get("new_person_id_verified") === "on";
 
     if (!assignmentId || !fullName) return;
@@ -313,7 +324,9 @@ export default async function AssignmentDetailPage({
 
     const { data: assignment } = await supabase
       .from("assignments")
-      .select("id, signing_date, signing_time, signing_address, signing_city, signing_state, signing_zip")
+      .select(
+        "id, signing_date, signing_time, signing_address, signing_city, signing_state, signing_zip",
+      )
       .eq("id", assignmentId)
       .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
       .single();
@@ -406,6 +419,92 @@ export default async function AssignmentDetailPage({
     redirect(`/notary/assignments/${assignmentId}#journal-people`);
   }
 
+  async function saveJournalDocuments(formData: FormData) {
+    "use server";
+
+    const assignmentId = String(formData.get("assignment_id") ?? "").trim();
+    const documentNames = formData
+      .getAll("journal_documents")
+      .map((value) => String(value).trim())
+      .filter(Boolean);
+    const defaultNotarialAct = String(
+      formData.get("journal_default_notarial_act") ?? "",
+    ).trim();
+
+    if (!assignmentId) return;
+
+    const supabase = await createSupabaseServerClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) redirect("/login");
+
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select(
+        "id, signing_date, signing_time, signing_address, signing_city, signing_state, signing_zip",
+      )
+      .eq("id", assignmentId)
+      .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
+      .single();
+
+    if (!assignment) redirect("/notary/assignments");
+
+    let { data: journalEntry } = await supabase
+      .from("assignment_journal_entries")
+      .select("id")
+      .eq("assignment_id", assignmentId)
+      .eq("notary_id", user.id)
+      .maybeSingle();
+
+    if (!journalEntry) {
+      const { data: insertedJournalEntry } = await supabase
+        .from("assignment_journal_entries")
+        .insert({
+          assignment_id: assignmentId,
+          notary_id: user.id,
+          journal_date: assignment.signing_date,
+          journal_time: assignment.signing_time,
+          journal_type: "In-Person",
+          location_mode: "address",
+          address: assignment.signing_address,
+          city: assignment.signing_city,
+          state: assignment.signing_state ?? "IN",
+          zip: assignment.signing_zip,
+          status: "open",
+        })
+        .select("id")
+        .single();
+
+      journalEntry = insertedJournalEntry;
+    }
+
+    if (!journalEntry?.id) return;
+
+    await supabase
+      .from("assignment_journal_documents")
+      .delete()
+      .eq("journal_entry_id", journalEntry.id)
+      .eq("notary_id", user.id);
+
+    if (documentNames.length > 0) {
+      await supabase.from("assignment_journal_documents").insert(
+        documentNames.map((documentName, index) => ({
+          journal_entry_id: journalEntry!.id,
+          assignment_id: assignmentId,
+          notary_id: user.id,
+          document_name: documentName,
+          notarial_act: defaultNotarialAct || null,
+          sort_order: index,
+        })),
+      );
+    }
+
+    revalidatePath(`/notary/assignments/${assignmentId}`);
+    redirect(`/notary/assignments/${assignmentId}#journal-documents`);
+  }
 
   async function saveJournalEntry(formData: FormData) {
     "use server";
@@ -413,8 +512,12 @@ export default async function AssignmentDetailPage({
     const assignmentId = String(formData.get("assignment_id") ?? "");
     const journalDate = String(formData.get("journal_date") ?? "").trim();
     const journalTime = String(formData.get("journal_time") ?? "").trim();
-    const journalType = String(formData.get("journal_type") ?? "In-Person").trim();
-    const locationMode = String(formData.get("location_mode") ?? "address").trim();
+    const journalType = String(
+      formData.get("journal_type") ?? "In-Person",
+    ).trim();
+    const locationMode = String(
+      formData.get("location_mode") ?? "address",
+    ).trim();
     const address = String(formData.get("journal_address") ?? "").trim();
     const city = String(formData.get("journal_city") ?? "").trim();
     const state = String(formData.get("journal_state") ?? "IN").trim();
@@ -425,11 +528,15 @@ export default async function AssignmentDetailPage({
     const signerCity = String(formData.get("signer_city") ?? "").trim();
     const signerState = String(formData.get("signer_state") ?? "IN").trim();
     const signerZip = String(formData.get("signer_zip") ?? "").trim();
-    const idVerificationType = String(formData.get("id_verification_type") ?? "Driver's License").trim();
+    const idVerificationType = String(
+      formData.get("id_verification_type") ?? "Driver's License",
+    ).trim();
     const idNumber = String(formData.get("id_number") ?? "").trim();
     const idIssuedBy = String(formData.get("id_issued_by") ?? "").trim();
     const idIssuedDate = String(formData.get("id_issued_date") ?? "").trim();
-    const idExpirationDate = String(formData.get("id_expiration_date") ?? "").trim();
+    const idExpirationDate = String(
+      formData.get("id_expiration_date") ?? "",
+    ).trim();
     const idVerified = formData.get("id_verified") === "on";
     const documentNames = formData
       .getAll("journal_documents")
@@ -448,7 +555,9 @@ export default async function AssignmentDetailPage({
 
     const { data: assignment } = await supabase
       .from("assignments")
-      .select("id, borrower_name")
+      .select(
+        "id, borrower_name, signing_date, signing_time, signing_address, signing_city, signing_state, signing_zip",
+      )
       .eq("id", assignmentId)
       .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
       .single();
@@ -481,6 +590,78 @@ export default async function AssignmentDetailPage({
     ]
       .filter(Boolean)
       .join("\n");
+
+    let { data: journalEntry } = await supabase
+      .from("assignment_journal_entries")
+      .select("id")
+      .eq("assignment_id", assignmentId)
+      .eq("notary_id", user.id)
+      .maybeSingle();
+
+    if (!journalEntry) {
+      const { data: insertedJournalEntry } = await supabase
+        .from("assignment_journal_entries")
+        .insert({
+          assignment_id: assignmentId,
+          notary_id: user.id,
+          journal_date: journalDate || assignment.signing_date,
+          journal_time: journalTime || assignment.signing_time,
+          journal_type: journalType || "In-Person",
+          location_mode: locationMode || "address",
+          address: address || assignment.signing_address,
+          city: city || assignment.signing_city,
+          state: state || assignment.signing_state || "IN",
+          zip: zip || assignment.signing_zip,
+          notes: notes || null,
+          status: "open",
+        })
+        .select("id")
+        .single();
+
+      journalEntry = insertedJournalEntry;
+    } else {
+      await supabase
+        .from("assignment_journal_entries")
+        .update({
+          journal_date: journalDate || null,
+          journal_time: journalTime || null,
+          journal_type: journalType || "In-Person",
+          location_mode: locationMode || "address",
+          address: address || null,
+          city: city || null,
+          state: state || "IN",
+          zip: zip || null,
+          notes: notes || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", journalEntry.id)
+        .eq("notary_id", user.id);
+    }
+
+    if (journalEntry?.id) {
+      const defaultNotarialAct = String(
+        formData.get("journal_default_notarial_act") ?? "",
+      ).trim();
+
+      await supabase
+        .from("assignment_journal_documents")
+        .delete()
+        .eq("journal_entry_id", journalEntry.id)
+        .eq("notary_id", user.id);
+
+      if (documentNames.length > 0) {
+        await supabase.from("assignment_journal_documents").insert(
+          documentNames.map((documentName, index) => ({
+            journal_entry_id: journalEntry!.id,
+            assignment_id: assignmentId,
+            notary_id: user.id,
+            document_name: documentName,
+            notarial_act: defaultNotarialAct || null,
+            sort_order: index,
+          })),
+        );
+      }
+    }
 
     await supabase.from("assignment_activity").insert({
       assignment_id: assignmentId,
@@ -618,7 +799,10 @@ Indiana Notary Solutions
           .insert(notifications);
 
         if (notificationError) {
-          console.error("Notary note notification insert error:", notificationError);
+          console.error(
+            "Notary note notification insert error:",
+            notificationError,
+          );
         }
 
         try {
@@ -721,7 +905,7 @@ Indiana Notary Solutions
         actor_role: "notary",
         action: "Returned Documents Uploaded",
         details: `The notary uploaded ${uploadedNames.length} file(s): ${uploadedNames.join(
-          ", "
+          ", ",
         )}`,
       });
     }
@@ -731,98 +915,108 @@ Indiana Notary Solutions
   }
 
   async function markScanbacksComplete(formData: FormData) {
-  "use server";
+    "use server";
 
-  const assignmentId = String(formData.get("assignment_id") ?? "");
-  const signingStatus = String(formData.get("signing_status") ?? "");
-  const shippingCarrier = String(formData.get("shipping_carrier") ?? "").trim();
-  const trackingNumber = String(formData.get("tracking_number") ?? "").trim();
-  const completionNotes = String(formData.get("completion_notes") ?? "").trim();
-  const notifyClient = formData.get("notify_client") === "on";
+    const assignmentId = String(formData.get("assignment_id") ?? "");
+    const signingStatus = String(formData.get("signing_status") ?? "");
+    const shippingCarrier = String(
+      formData.get("shipping_carrier") ?? "",
+    ).trim();
+    const trackingNumber = String(formData.get("tracking_number") ?? "").trim();
+    const completionNotes = String(
+      formData.get("completion_notes") ?? "",
+    ).trim();
+    const notifyClient = formData.get("notify_client") === "on";
 
-  if (!assignmentId) return;
+    if (!assignmentId) return;
 
-  const supabase = await createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+    if (!user) redirect("/login");
 
-  const { data: assignment } = await supabase
-    .from("assignments")
-    .select("id, status, signing_date, client_id, control_number, borrower_name")
-    .eq("id", assignmentId)
-    .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
-    .single();
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select(
+        "id, status, signing_date, client_id, control_number, borrower_name",
+      )
+      .eq("id", assignmentId)
+      .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
+      .single();
 
-  if (!assignment) redirect("/notary/assignments");
+    if (!assignment) redirect("/notary/assignments");
 
-  const { data: existingDocs } = await supabase
-    .from("assignment_uploaded_documents")
-    .select("id")
-    .eq("assignment_id", assignmentId)
-    .limit(1);
+    const { data: existingDocs } = await supabase
+      .from("assignment_uploaded_documents")
+      .select("id")
+      .eq("assignment_id", assignmentId)
+      .limit(1);
 
-  if (!existingDocs || existingDocs.length === 0) {
-    revalidatePath(`/notary/assignments/${assignmentId}`);
-    return;
-  }
+    if (!existingDocs || existingDocs.length === 0) {
+      revalidatePath(`/notary/assignments/${assignmentId}`);
+      return;
+    }
 
-  const finalStatus =
-    signingStatus === "did_not_sign" ? "Did Not Sign" : "Signing Complete";
+    const finalStatus =
+      signingStatus === "did_not_sign" ? "Did Not Sign" : "Signing Complete";
 
-  const dropDate =
-    finalStatus === "Signing Complete"
-      ? getEstimatedDropDate(assignment.signing_date)
-      : null;
+    const dropDate =
+      finalStatus === "Signing Complete"
+        ? getEstimatedDropDate(assignment.signing_date)
+        : null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, email")
-    .eq("id", user.id)
-    .single();
-
-  const actorName = profile?.full_name || profile?.email || "Notary";
-
-  await supabase
-    .from("assignments")
-    .update({
-      status: finalStatus,
-      shipping_carrier:
-        finalStatus === "Signing Complete" ? shippingCarrier || null : null,
-      tracking_number:
-        finalStatus === "Signing Complete" ? trackingNumber || null : null,
-      drop_date: dropDate,
-      completion_notes: completionNotes || null,
-      completed_at: new Date().toISOString(),
-      client_email_notification_sent:
-        finalStatus === "Signing Complete" ? notifyClient : false,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", assignmentId)
-    .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`);
-
-  if (finalStatus === "Signing Complete" && notifyClient && assignment.client_id) {
-    const { data: clientProfile } = await supabaseAdmin
+    const { data: profile } = await supabase
       .from("profiles")
-      .select("email, full_name")
-      .eq("id", assignment.client_id)
-      .maybeSingle();
+      .select("full_name, email")
+      .eq("id", user.id)
+      .single();
 
-    const clientEmail = String(clientProfile?.email || "").trim();
+    const actorName = profile?.full_name || profile?.email || "Notary";
 
-    if (clientEmail) {
-      await supabaseAdmin.from("notification_queue").insert({
-        user_id: assignment.client_id,
-        channel: "email",
-        type: "signing_package_returned",
-        status: "pending",
-        subject: `Completed Signing Package Received - ${
-          assignment.control_number || "Order"
-        }`,
-        message: `
+    await supabase
+      .from("assignments")
+      .update({
+        status: finalStatus,
+        shipping_carrier:
+          finalStatus === "Signing Complete" ? shippingCarrier || null : null,
+        tracking_number:
+          finalStatus === "Signing Complete" ? trackingNumber || null : null,
+        drop_date: dropDate,
+        completion_notes: completionNotes || null,
+        completed_at: new Date().toISOString(),
+        client_email_notification_sent:
+          finalStatus === "Signing Complete" ? notifyClient : false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", assignmentId)
+      .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`);
+
+    if (
+      finalStatus === "Signing Complete" &&
+      notifyClient &&
+      assignment.client_id
+    ) {
+      const { data: clientProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", assignment.client_id)
+        .maybeSingle();
+
+      const clientEmail = String(clientProfile?.email || "").trim();
+
+      if (clientEmail) {
+        await supabaseAdmin.from("notification_queue").insert({
+          user_id: assignment.client_id,
+          channel: "email",
+          type: "signing_package_returned",
+          status: "pending",
+          subject: `Completed Signing Package Received - ${
+            assignment.control_number || "Order"
+          }`,
+          message: `
 Indiana Notary Solutions has received the completed signing package for the order below.
 
 Control Number: ${assignment.control_number || "—"}
@@ -837,38 +1031,38 @@ You may log in to your client dashboard at any time to view order details, statu
 
 Thank you for choosing Indiana Notary Solutions.
 `.trim(),
-        metadata: {
-          recipient_email: clientEmail,
-          recipient_name: clientProfile?.full_name || "Client",
-        },
-      });
+          metadata: {
+            recipient_email: clientEmail,
+            recipient_name: clientProfile?.full_name || "Client",
+          },
+        });
 
-      await supabaseAdmin.functions.invoke("process-notifications");
+        await supabaseAdmin.functions.invoke("process-notifications");
+      }
     }
+
+    await supabase.from("assignment_activity").insert({
+      assignment_id: assignmentId,
+      actor_id: user.id,
+      actor_name: actorName,
+      actor_role: "notary",
+      action:
+        finalStatus === "Signing Complete"
+          ? "Scanbacks Upload Complete"
+          : "Signing Marked Did Not Sign",
+      details: [
+        `Status updated to ${finalStatus}.`,
+        shippingCarrier ? `Carrier: ${shippingCarrier}` : null,
+        trackingNumber ? `Tracking #: ${trackingNumber}` : null,
+        completionNotes ? `Notes: ${completionNotes}` : null,
+        notifyClient ? "Client notification requested." : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+
+    revalidatePath(`/notary/assignments/${assignmentId}`);
   }
-
-  await supabase.from("assignment_activity").insert({
-    assignment_id: assignmentId,
-    actor_id: user.id,
-    actor_name: actorName,
-    actor_role: "notary",
-    action:
-      finalStatus === "Signing Complete"
-        ? "Scanbacks Upload Complete"
-        : "Signing Marked Did Not Sign",
-    details: [
-      `Status updated to ${finalStatus}.`,
-      shippingCarrier ? `Carrier: ${shippingCarrier}` : null,
-      trackingNumber ? `Tracking #: ${trackingNumber}` : null,
-      completionNotes ? `Notes: ${completionNotes}` : null,
-      notifyClient ? "Client notification requested." : null,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-  });
-
-  revalidatePath(`/notary/assignments/${assignmentId}`);
-}
 
   const supabase = await createSupabaseServerClient();
 
@@ -896,9 +1090,9 @@ Thank you for choosing Indiana Notary Solutions.
   const activityProfileIds = Array.from(
     new Set(
       (activity ?? []).flatMap((item) =>
-        extractProfileIdsFromText(item.details)
-      )
-    )
+        extractProfileIdsFromText(item.details),
+      ),
+    ),
   );
 
   const { data: activityProfiles } = activityProfileIds.length
@@ -912,7 +1106,7 @@ Thank you for choosing Indiana Notary Solutions.
     (activityProfiles ?? []).map((profile) => [
       String(profile.id),
       String(profile.full_name || profile.email || profile.id),
-    ])
+    ]),
   );
 
   const { data: uploadedDocuments } = await supabase
@@ -931,7 +1125,7 @@ Thank you for choosing Indiana Notary Solutions.
         ...doc,
         signedUrl: data?.signedUrl ?? null,
       };
-    })
+    }),
   );
 
   const { data: titleDocuments } = await supabaseAdmin
@@ -961,7 +1155,7 @@ Thank you for choosing Indiana Notary Solutions.
         createdAt: null,
         signedUrl: data?.signedUrl ?? null,
       };
-    })
+    }),
   );
 
   const signingDate = formatDate(assignment.signing_date);
@@ -977,7 +1171,7 @@ Thank you for choosing Indiana Notary Solutions.
     clientProfile?.company_name,
     clientProfile?.business_name,
     clientProfile?.company,
-    clientProfile?.organization_name
+    clientProfile?.organization_name,
   );
 
   const titleCompanyContact = firstTextValue(
@@ -990,7 +1184,7 @@ Thank you for choosing Indiana Notary Solutions.
     clientProfile?.primary_contact,
     clientProfile?.primary_contact_name,
     clientProfile?.full_name,
-    clientProfile?.name
+    clientProfile?.name,
   );
 
   const titleCompanyPhone = firstTextValue(
@@ -1001,7 +1195,7 @@ Thank you for choosing Indiana Notary Solutions.
     clientProfile?.company_phone,
     clientProfile?.business_phone,
     clientProfile?.phone,
-    clientProfile?.phone_number
+    clientProfile?.phone_number,
   );
 
   const titleCompanyEmail = firstTextValue(
@@ -1011,14 +1205,14 @@ Thank you for choosing Indiana Notary Solutions.
     assignment.contact_email,
     clientProfile?.company_email,
     clientProfile?.business_email,
-    clientProfile?.email
+    clientProfile?.email,
   );
 
   const fileNumber = firstTextValue(
     assignment.file_number,
     assignment.file_no,
     assignment.client_file_number,
-    assignment.control_number
+    assignment.control_number,
   );
 
   const productName = firstTextValue(
@@ -1027,7 +1221,7 @@ Thank you for choosing Indiana Notary Solutions.
     assignment.loan_type,
     assignment.transaction_type,
     assignment.order_type,
-    assignment.signing_type
+    assignment.signing_type,
   );
 
   const titleCompanyContactLines = [
@@ -1038,7 +1232,11 @@ Thank you for choosing Indiana Notary Solutions.
 
   const signingLocation = [
     assignment.signing_address,
-    [assignment.signing_city, assignment.signing_state ?? "IN", assignment.signing_zip]
+    [
+      assignment.signing_city,
+      assignment.signing_state ?? "IN",
+      assignment.signing_zip,
+    ]
       .filter(Boolean)
       .join(" "),
   ]
@@ -1047,7 +1245,7 @@ Thank you for choosing Indiana Notary Solutions.
 
   const mapHref = signingLocation
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-        signingLocation
+        signingLocation,
       )}`
     : null;
 
@@ -1090,7 +1288,7 @@ Thank you for choosing Indiana Notary Solutions.
     normalizedStatus === "late"
       ? progressSteps.findIndex((step) => step === "In Progress")
       : progressSteps.findIndex(
-          (step) => step.toLowerCase() === normalizedStatus
+          (step) => step.toLowerCase() === normalizedStatus,
         );
 
   const showUploadDocuments =
@@ -1102,35 +1300,36 @@ Thank you for choosing Indiana Notary Solutions.
   const canMarkScanbacksComplete =
     showUploadDocuments && documentsWithUrls.length > 0;
 
-  const devUnlockInsPro =
-  process.env.NEXT_PUBLIC_INS_PRO_DEV_UNLOCK === "true";
+  const devUnlockInsPro = process.env.NEXT_PUBLIC_INS_PRO_DEV_UNLOCK === "true";
 
-const userEmail = String(user.email ?? "").toLowerCase();
+  const userEmail = String(user.email ?? "").toLowerCase();
 
-const { data: subscription } = await supabaseAdmin
-  .from("profiles")
-  .select(`
+  const { data: subscription } = await supabaseAdmin
+    .from("profiles")
+    .select(
+      `
     id,
     email,
     notary_subscriptions (
       plan,
       status
     )
-  `)
-  .ilike("email", userEmail)
-  .maybeSingle();
+  `,
+    )
+    .ilike("email", userEmail)
+    .maybeSingle();
 
-const subscriptionRecord = Array.isArray(subscription?.notary_subscriptions)
-  ? subscription.notary_subscriptions[0]
-  : subscription?.notary_subscriptions;
+  const subscriptionRecord = Array.isArray(subscription?.notary_subscriptions)
+    ? subscription.notary_subscriptions[0]
+    : subscription?.notary_subscriptions;
 
-const hasActiveProSubscription =
-  subscriptionRecord?.plan === "pro" &&
-  ["active", "trialing"].includes(
-    String(subscriptionRecord?.status ?? "").toLowerCase()
-  );
+  const hasActiveProSubscription =
+    subscriptionRecord?.plan === "pro" &&
+    ["active", "trialing"].includes(
+      String(subscriptionRecord?.status ?? "").toLowerCase(),
+    );
 
-const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
+  const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
 
   let { data: journalEntry } = await supabase
     .from("assignment_journal_entries")
@@ -1171,6 +1370,21 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
         .order("created_at", { ascending: true })
     : { data: [] };
 
+  const { data: savedJournalDocuments } = journalEntry?.id
+    ? await supabase
+        .from("assignment_journal_documents")
+        .select("*")
+        .eq("journal_entry_id", journalEntry.id)
+        .eq("notary_id", user.id)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true })
+    : { data: [] };
+
+  const journalDocuments = savedJournalDocuments ?? [];
+  const savedJournalDocumentNames = journalDocuments
+    .map((document) => String(document.document_name ?? "").trim())
+    .filter(Boolean);
+
   const journalPeople = savedJournalPeople ?? [];
 
   const primaryJournalPerson = {
@@ -1195,8 +1409,12 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
     .toLowerCase();
 
   const savedJournalPeopleWithoutPrimary = journalPeople.filter((person) => {
-    const savedPersonName = String(person.full_name ?? "").trim().toLowerCase();
-    const savedPersonType = String(person.person_type ?? "signer").toLowerCase();
+    const savedPersonName = String(person.full_name ?? "")
+      .trim()
+      .toLowerCase();
+    const savedPersonType = String(
+      person.person_type ?? "signer",
+    ).toLowerCase();
 
     return !(
       primaryBorrowerName &&
@@ -1308,177 +1526,177 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
     <main className="space-y-6 bg-slate-50 p-4 sm:p-6">
       <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
         <div className="p-6">
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-blue-100">
-              Control # {assignment.control_number ?? "—"}
-            </p>
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-blue-100">
+                Control # {assignment.control_number ?? "—"}
+              </p>
 
-            <h1 className="mt-2 text-2xl font-bold sm:text-3xl">
-              {assignment.borrower_name ?? "Assignment"}
-            </h1>
+              <h1 className="mt-2 text-2xl font-bold sm:text-3xl">
+                {assignment.borrower_name ?? "Assignment"}
+              </h1>
 
-            <p className="mt-2 text-blue-100/90">
-              {clientProfile?.id ? (
-                <Link
-                  href={`/notary/clients/${clientProfile.id}`}
-                  className="font-semibold text-red-400 underline decoration-red-400 underline-offset-4 transition hover:text-red-300"
-                >
-                  {titleCompanyName}
-                </Link>
-              ) : (
-                <span>{titleCompanyName}</span>
-              )}{" "}
-              • {signingDate} {signingTime && `at ${signingTime}`}
-            </p>
+              <p className="mt-2 text-blue-100/90">
+                {clientProfile?.id ? (
+                  <Link
+                    href={`/notary/clients/${clientProfile.id}`}
+                    className="font-semibold text-red-400 underline decoration-red-400 underline-offset-4 transition hover:text-red-300"
+                  >
+                    {titleCompanyName}
+                  </Link>
+                ) : (
+                  <span>{titleCompanyName}</span>
+                )}{" "}
+                • {signingDate} {signingTime && `at ${signingTime}`}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
+                  assignment.status,
+                )}`}
+              >
+                {assignment.status ?? "Unknown"}
+              </span>
+
+              {nextAction(assignment, signingDate, signingTime)}
+            </div>
           </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
-                assignment.status
-              )}`}
-            >
-              {assignment.status ?? "Unknown"}
-            </span>
-
-            {nextAction(assignment, signingDate, signingTime)}
-          </div>
-        </div>
         </div>
       </section>
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
         <aside className="min-w-0 space-y-6">
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-  <h2 className="text-2xl font-bold text-slate-900">
-    Assignment Summary
-  </h2>
+            <h2 className="text-2xl font-bold text-slate-900">
+              Assignment Summary
+            </h2>
 
-  <div className="mt-6 space-y-6">
-    <div>
-  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-    Signer / Borrower
-  </p>
+            <div className="mt-6 space-y-6">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Signer / Borrower
+                </p>
 
-  <p className="mt-2 text-2xl font-semibold text-slate-800">
-    {assignment.borrower_name || "—"}
-  </p>
+                <p className="mt-2 text-2xl font-semibold text-slate-800">
+                  {assignment.borrower_name || "—"}
+                </p>
 
-  {assignment.borrower_phone && (
-  <a
-    href={`tel:${assignment.borrower_phone.replace(/\D/g, "")}`}
-    className="mt-2 block text-base font-medium text-[#0B1F4D] transition hover:text-blue-700 hover:underline"
-  >
-    {assignment.borrower_phone.replace(
-      /(\d{3})(\d{3})(\d{4})/,
-      "($1) $2-$3"
-    )}
-  </a>
-)}
-</div>
+                {assignment.borrower_phone && (
+                  <a
+                    href={`tel:${assignment.borrower_phone.replace(/\D/g, "")}`}
+                    className="mt-2 block text-base font-medium text-[#0B1F4D] transition hover:text-blue-700 hover:underline"
+                  >
+                    {assignment.borrower_phone.replace(
+                      /(\d{3})(\d{3})(\d{4})/,
+                      "($1) $2-$3",
+                    )}
+                  </a>
+                )}
+              </div>
 
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Appointment
-        </p>
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                    Appointment
+                  </p>
 
-        {calendarData && (
-          <details className="relative">
-            <summary className="cursor-pointer list-none text-sm font-bold text-[#f20511] transition hover:text-blue-700 hover:underline [&::-webkit-details-marker]:hidden">
-              Add to Calendar
-            </summary>
+                  {calendarData && (
+                    <details className="relative">
+                      <summary className="cursor-pointer list-none text-sm font-bold text-[#f20511] transition hover:text-blue-700 hover:underline [&::-webkit-details-marker]:hidden">
+                        Add to Calendar
+                      </summary>
 
-            <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
-              <a
-                href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodedCalendarTitle}&dates=${calendarData.googleDates}&details=${encodedCalendarDescription}&location=${encodedCalendarLocation}`}
-                target="_blank"
-                rel="noreferrer"
-                className="block px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-[#0B1F4D]"
-              >
-                Google
-              </a>
+                      <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+                        <a
+                          href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodedCalendarTitle}&dates=${calendarData.googleDates}&details=${encodedCalendarDescription}&location=${encodedCalendarLocation}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-[#0B1F4D]"
+                        >
+                          Google
+                        </a>
 
-              <a
-                href={`https://outlook.office.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodedCalendarTitle}&startdt=${encodeURIComponent(calendarData.startIso)}&enddt=${encodeURIComponent(calendarData.endIso)}&body=${encodedCalendarDescription}&location=${encodedCalendarLocation}`}
-                target="_blank"
-                rel="noreferrer"
-                className="block px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-[#0B1F4D]"
-              >
-                Microsoft 365
-              </a>
+                        <a
+                          href={`https://outlook.office.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodedCalendarTitle}&startdt=${encodeURIComponent(calendarData.startIso)}&enddt=${encodeURIComponent(calendarData.endIso)}&body=${encodedCalendarDescription}&location=${encodedCalendarLocation}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-[#0B1F4D]"
+                        >
+                          Microsoft 365
+                        </a>
 
-              <a
-                href={`https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodedCalendarTitle}&startdt=${encodeURIComponent(calendarData.startIso)}&enddt=${encodeURIComponent(calendarData.endIso)}&body=${encodedCalendarDescription}&location=${encodedCalendarLocation}`}
-                target="_blank"
-                rel="noreferrer"
-                className="block px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-[#0B1F4D]"
-              >
-                Outlook.com
-              </a>
+                        <a
+                          href={`https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodedCalendarTitle}&startdt=${encodeURIComponent(calendarData.startIso)}&enddt=${encodeURIComponent(calendarData.endIso)}&body=${encodedCalendarDescription}&location=${encodedCalendarLocation}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-[#0B1F4D]"
+                        >
+                          Outlook.com
+                        </a>
 
-              <a
-                href={calendarData.icsHref}
-                download="ins-signing.ics"
-                className="block px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-[#0B1F4D]"
-              >
-                Apple / Outlook
-              </a>
+                        <a
+                          href={calendarData.icsHref}
+                          download="ins-signing.ics"
+                          className="block px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-[#0B1F4D]"
+                        >
+                          Apple / Outlook
+                        </a>
+                      </div>
+                    </details>
+                  )}
+                </div>
+
+                <p className="mt-1 text-lg font-medium text-slate-700">
+                  {signingDate}
+                </p>
+
+                <p className="text-lg font-medium text-slate-700">
+                  {signingTime || "Time not set"}
+                </p>
+              </div>
+
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                    Signing Location
+                  </p>
+
+                  {mapHref && (
+                    <a
+                      href={mapHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm font-bold text-[#f20511] transition hover:text-blue-700 hover:underline"
+                    >
+                      Show Map
+                    </a>
+                  )}
+                </div>
+
+                <p className="mt-1 text-lg font-medium text-slate-700">
+                  {assignment.signing_address ?? "—"}
+                </p>
+
+                <p className="text-lg font-medium text-slate-700">
+                  {assignment.signing_city ?? "—"},{" "}
+                  {assignment.signing_state ?? "IN"}{" "}
+                  {assignment.signing_zip ?? ""}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                  Notary Fee
+                </p>
+
+                <p className="mt-2 text-xl font-bold text-[#0B1F4D]">
+                  {formatMoney(notaryFee)}
+                </p>
+              </div>
             </div>
-          </details>
-        )}
-      </div>
-
-      <p className="mt-1 text-lg font-medium text-slate-700">
-        {signingDate}
-      </p>
-
-      <p className="text-lg font-medium text-slate-700">
-        {signingTime || "Time not set"}
-      </p>
-    </div>
-
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Signing Location
-        </p>
-
-        {mapHref && (
-          <a
-            href={mapHref}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm font-bold text-[#f20511] transition hover:text-blue-700 hover:underline"
-          >
-            Show Map
-          </a>
-        )}
-      </div>
-
-      <p className="mt-1 text-lg font-medium text-slate-700">
-        {assignment.signing_address ?? "—"}
-      </p>
-
-      <p className="text-lg font-medium text-slate-700">
-        {assignment.signing_city ?? "—"},{" "}
-        {assignment.signing_state ?? "IN"}{" "}
-        {assignment.signing_zip ?? ""}
-      </p>
-    </div>
-
-    <div>
-      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-        Notary Fee
-      </p>
-
-      <p className="mt-2 text-xl font-bold text-[#0B1F4D]">
-        {formatMoney(notaryFee)}
-      </p>
-    </div>
-  </div>
-</section>
+          </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Progress</h2>
@@ -1521,13 +1739,15 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
             <div className="mt-4 text-sm">
               <p className="font-semibold text-slate-700">Your Fee</p>
               <p className="text-xl font-bold text-slate-900">
-  {formatMoney(notaryFee)}
-</p>
+                {formatMoney(notaryFee)}
+              </p>
             </div>
           </section>
 
           <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">Title Company Info</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              Title Company Info
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
               Reference details for this signing.
             </p>
@@ -1566,7 +1786,11 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                     titleCompanyContactLines.map((line, index) => (
                       <p
                         key={`${line}-${index}`}
-                        className={index === 0 ? "break-words" : "mt-1 break-all text-slate-600"}
+                        className={
+                          index === 0
+                            ? "break-words"
+                            : "mt-1 break-all text-slate-600"
+                        }
                       >
                         {line}
                       </p>
@@ -1589,7 +1813,9 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
 
         <section className="min-w-0 space-y-6">
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">Special Instructions</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              Special Instructions
+            </h2>
 
             <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-slate-700">
               {assignment.special_instructions ? (
@@ -1612,14 +1838,19 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                 Assignment Tools
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Journal, invoices, mileage, expenses, payments, and reporting will all roll into the notary Dashboard.
+                Journal, invoices, mileage, expenses, payments, and reporting
+                will all roll into the notary Dashboard.
               </p>
 
               <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
                 {workspaceTabs.map((tab) => (
                   <a
                     key={tab}
-                    href={tab === "Journal" ? "#journal-workspace" : `#${tab.toLowerCase().replaceAll(" ", "-")}-workspace`}
+                    href={
+                      tab === "Journal"
+                        ? "#journal-workspace"
+                        : `#${tab.toLowerCase().replaceAll(" ", "-")}-workspace`
+                    }
                     className={`shrink-0 rounded-xl px-4 py-2 text-sm font-bold ring-1 transition ${
                       tab === "Journal"
                         ? "bg-[#0B1F4D] text-white ring-[#0B1F4D] hover:bg-blue-950"
@@ -1639,10 +1870,16 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                     INS Pro Feature
                   </p>
                   <h3 className="mt-2 text-xl font-bold text-slate-950">
-                    Journal tools are visible, but locked until the notary upgrades.
+                    Journal tools are visible, but locked until the notary
+                    upgrades.
                   </h3>
                   <p className="mt-2 text-sm leading-6 text-slate-700">
-                    This is where the upgrade modal will open. For development testing, set <span className="font-mono font-bold">NEXT_PUBLIC_INS_PRO_DEV_UNLOCK=true</span> in Vercel/local env.
+                    This is where the upgrade modal will open. For development
+                    testing, set{" "}
+                    <span className="font-mono font-bold">
+                      NEXT_PUBLIC_INS_PRO_DEV_UNLOCK=true
+                    </span>{" "}
+                    in Vercel/local env.
                   </p>
                   <button
                     type="button"
@@ -1660,7 +1897,9 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                       Journal Entry
                     </h3>
                     <p className="mt-1 text-sm text-slate-500">
-                      Pre-filled from this assignment. Verify the details, add ID information, select documents, and save the journal entry.
+                      Pre-filled from this assignment. Verify the details, add
+                      ID information, select documents, and save the journal
+                      entry.
                     </p>
                   </div>
 
@@ -1670,7 +1909,11 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                 </div>
 
                 <form action={saveJournalEntry} className="mt-5 space-y-5">
-                  <input type="hidden" name="assignment_id" value={assignment.id} />
+                  <input
+                    type="hidden"
+                    name="assignment_id"
+                    value={assignment.id}
+                  />
 
                   <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 md:grid-cols-2">
                     <div>
@@ -1803,7 +2046,8 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                           People
                         </h4>
                         <p className="mt-1 text-sm text-slate-500">
-                          Add signers and witnesses for this journal entry. The borrower is pre-filled as the first signer.
+                          Add signers and witnesses for this journal entry. The
+                          borrower is pre-filled as the first signer.
                         </p>
                       </div>
 
@@ -1824,9 +2068,7 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                         <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/50 p-4 peer-checked:flex sm:items-center">
                           <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-xl">
                             <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] p-5 text-white">
-                              <h5 className="text-lg font-bold">
-                                Add Person
-                              </h5>
+                              <h5 className="text-lg font-bold">Add Person</h5>
 
                               <label
                                 htmlFor="journal-person-modal"
@@ -1913,8 +2155,12 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                                 <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 md:grid-cols-2">
                                   <div className="md:col-span-2">
                                     <p className="text-xl font-black text-slate-950">
-                                      <span className="peer-checked/signer:inline hidden">New Signer</span>
-                                      <span className="peer-checked/witness:inline hidden">New Witness</span>
+                                      <span className="peer-checked/signer:inline hidden">
+                                        New Signer
+                                      </span>
+                                      <span className="peer-checked/witness:inline hidden">
+                                        New Witness
+                                      </span>
                                     </p>
                                   </div>
 
@@ -2081,7 +2327,10 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                       </div>
                     </div>
 
-                    <div id="journal-people" className="mt-5 flex items-center justify-between gap-3">
+                    <div
+                      id="journal-people"
+                      className="mt-5 flex items-center justify-between gap-3"
+                    >
                       <a
                         href={`#journal-person-card-${Math.max(displayJournalPeople.length - 1, 0)}`}
                         className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-xl font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:flex"
@@ -2092,7 +2341,9 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
 
                       <div className="flex flex-1 snap-x gap-4 overflow-x-auto pb-2">
                         {displayJournalPeople.map((person, index) => {
-                          const personType = String(person.person_type ?? "signer").toLowerCase();
+                          const personType = String(
+                            person.person_type ?? "signer",
+                          ).toLowerCase();
                           const isWitness = personType === "witness";
                           const isSavedPerson = person.id !== "primary-signer";
                           const addressLine = [
@@ -2118,10 +2369,13 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                                 <div>
                                   <p
                                     className={`text-xs font-black uppercase tracking-wide ${
-                                      isWitness ? "text-amber-700" : "text-blue-700"
+                                      isWitness
+                                        ? "text-amber-700"
+                                        : "text-blue-700"
                                     }`}
                                   >
-                                    Person {index + 1} of {displayJournalPeople.length}
+                                    Person {index + 1} of{" "}
+                                    {displayJournalPeople.length}
                                   </p>
                                   <h5 className="mt-2 text-xl font-black text-slate-950">
                                     {person.full_name ?? "Unnamed Person"}
@@ -2138,27 +2392,36 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                                       : "bg-amber-50 text-amber-700 ring-amber-200"
                                   }`}
                                 >
-                                  {person.id_verified ? "ID Verified" : "ID Pending"}
+                                  {person.id_verified
+                                    ? "ID Verified"
+                                    : "ID Pending"}
                                 </span>
                               </div>
 
                               <div className="mt-4 grid gap-3 text-sm text-slate-700">
                                 <div>
-                                  <p className="font-bold text-slate-500">Verification</p>
+                                  <p className="font-bold text-slate-500">
+                                    Verification
+                                  </p>
                                   <p className="font-semibold text-slate-950">
-                                    {person.id_verification_type ?? "Driver's License"}
+                                    {person.id_verification_type ??
+                                      "Driver's License"}
                                   </p>
                                 </div>
 
                                 <div>
-                                  <p className="font-bold text-slate-500">ID Number</p>
+                                  <p className="font-bold text-slate-500">
+                                    ID Number
+                                  </p>
                                   <p className="font-semibold text-slate-950">
                                     {person.id_number || "—"}
                                   </p>
                                 </div>
 
                                 <div>
-                                  <p className="font-bold text-slate-500">Address</p>
+                                  <p className="font-bold text-slate-500">
+                                    Address
+                                  </p>
                                   <p className="font-semibold text-slate-950">
                                     {addressLine || "—"}
                                   </p>
@@ -2204,18 +2467,24 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                     </div>
 
                     <p className="mt-3 text-xs text-slate-500">
-                      Mobile users can swipe between people. Saved people now reload from the journal database.
+                      Mobile users can swipe between people. Saved people now
+                      reload from the journal database.
                     </p>
                   </div>
 
-                  <div id="primary-signer-verification" className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div
+                    id="primary-signer-verification"
+                    className="rounded-2xl border border-slate-200 bg-white p-5"
+                  >
                     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                       <div>
                         <h4 className="text-lg font-bold text-slate-950">
                           Signer ID Verification
                         </h4>
                         <p className="mt-1 text-sm text-slate-500">
-                          Scan will read the PDF417 barcode on the back of an Indiana driver's license. The button is wired as UI now; scanner component comes next.
+                          Scan will read the PDF417 barcode on the back of an
+                          Indiana driver's license. The button is wired as UI
+                          now; scanner component comes next.
                         </p>
                       </div>
 
@@ -2362,7 +2631,9 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                           Documents / Notarial Acts
                         </h4>
                         <p className="mt-1 text-sm text-slate-500">
-                          Add documents from the full journal document list. Selected documents will be saved with this journal entry.
+                          Add documents from the full journal document list.
+                          Selected documents will be saved with this journal
+                          entry.
                         </p>
                       </div>
 
@@ -2406,17 +2677,24 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                                   name="journal_documents"
                                   multiple
                                   size={16}
+                                  defaultValue={savedJournalDocumentNames}
                                   className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                 >
-                                  {journalDocumentOptions.map((documentName) => (
-                                    <option key={documentName} value={documentName}>
-                                      {documentName}
-                                    </option>
-                                  ))}
+                                  {journalDocumentOptions.map(
+                                    (documentName) => (
+                                      <option
+                                        key={documentName}
+                                        value={documentName}
+                                      >
+                                        {documentName}
+                                      </option>
+                                    ),
+                                  )}
                                 </select>
 
                                 <p className="mt-2 text-xs text-slate-500">
-                                  Hold Ctrl on Windows or Command on Mac to select multiple documents.
+                                  Hold Ctrl on Windows or Command on Mac to
+                                  select multiple documents.
                                 </p>
                               </div>
 
@@ -2425,14 +2703,22 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                                   Default Notarization
                                   <select
                                     name="journal_default_notarial_act"
-                                    defaultValue=""
+                                    defaultValue={
+                                      journalDocuments[0]?.notarial_act ?? ""
+                                    }
                                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                   >
                                     <option value="">Select later</option>
-                                    <option value="Acknowledgment">Acknowledgment</option>
+                                    <option value="Acknowledgment">
+                                      Acknowledgment
+                                    </option>
                                     <option value="Jurat">Jurat</option>
-                                    <option value="Oath/Affirmation">Oath / Affirmation</option>
-                                    <option value="Copy Certification">Copy Certification</option>
+                                    <option value="Oath/Affirmation">
+                                      Oath / Affirmation
+                                    </option>
+                                    <option value="Copy Certification">
+                                      Copy Certification
+                                    </option>
                                   </select>
                                 </label>
 
@@ -2440,7 +2726,9 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                                   Default Signer
                                   <input
                                     name="journal_document_signer"
-                                    defaultValue={assignment.borrower_name ?? ""}
+                                    defaultValue={
+                                      assignment.borrower_name ?? ""
+                                    }
                                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                   />
                                 </label>
@@ -2450,18 +2738,21 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                                     Coming next
                                   </p>
                                   <p className="mt-1">
-                                    Per-document Ack/Jurat, signer, and witness selection.
+                                    Per-document Ack/Jurat, signer, and witness
+                                    selection.
                                   </p>
                                 </div>
                               </div>
 
                               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
-                                <label
-                                  htmlFor="journal-document-selector-modal"
-                                  className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                <button
+                                  type="submit"
+                                  formAction={saveJournalDocuments}
+                                  formNoValidate
+                                  className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
                                 >
                                   Done
-                                </label>
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -2469,8 +2760,48 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                       </div>
                     </div>
 
-                    <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
-                      Use <span className="font-bold text-slate-700">Add / Edit Documents</span> to select one or more documents for this journal entry.
+                    <div
+                      id="journal-documents"
+                      className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm"
+                    >
+                      {journalDocuments.length === 0 ? (
+                        <p className="text-slate-500">
+                          Use{" "}
+                          <span className="font-bold text-slate-700">
+                            Add / Edit Documents
+                          </span>{" "}
+                          to select one or more documents for this journal
+                          entry.
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="font-bold text-slate-900">
+                              Selected Documents
+                            </p>
+                            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 ring-1 ring-blue-200">
+                              {journalDocuments.length} selected
+                            </span>
+                          </div>
+
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {journalDocuments.map((document) => (
+                              <div
+                                key={document.id}
+                                className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+                              >
+                                <p className="font-bold text-slate-950">
+                                  {document.document_name}
+                                </p>
+                                <p className="mt-1 text-xs font-semibold text-slate-500">
+                                  {document.notarial_act ||
+                                    "Notarial act not selected"}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -2507,12 +2838,36 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
 
             <div className="grid gap-4 border-t border-slate-200 p-5 md:grid-cols-2 xl:grid-cols-3">
               {[
-                ["invoice-workspace", "Invoice", "Create invoices and email clients from this assignment."],
-                ["mileage-workspace", "Mileage", "Track trips and push mileage into Dashboard totals."],
-                ["notarial-acts-workspace", "Notarial Acts", "Track acknowledgments, jurats, signers, and witnesses."],
-                ["expenses-workspace", "Expenses", "Log printing, parking, tolls, shipping, and supplies."],
-                ["payments-workspace", "Payments", "Track paid, unpaid, method, and outstanding balance."],
-                ["print-workspace", "Print", "Generate assignment, journal, invoice, and report printouts."],
+                [
+                  "invoice-workspace",
+                  "Invoice",
+                  "Create invoices and email clients from this assignment.",
+                ],
+                [
+                  "mileage-workspace",
+                  "Mileage",
+                  "Track trips and push mileage into Dashboard totals.",
+                ],
+                [
+                  "notarial-acts-workspace",
+                  "Notarial Acts",
+                  "Track acknowledgments, jurats, signers, and witnesses.",
+                ],
+                [
+                  "expenses-workspace",
+                  "Expenses",
+                  "Log printing, parking, tolls, shipping, and supplies.",
+                ],
+                [
+                  "payments-workspace",
+                  "Payments",
+                  "Track paid, unpaid, method, and outstanding balance.",
+                ],
+                [
+                  "print-workspace",
+                  "Print",
+                  "Generate assignment, journal, invoice, and report printouts.",
+                ],
               ].map(([sectionId, title, description]) => (
                 <div
                   id={sectionId}
@@ -2543,7 +2898,9 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">Title Documents</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              Title Documents
+            </h2>
             <p className="text-sm text-slate-500">
               Documents provided for this signing.
             </p>
@@ -2587,7 +2944,9 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
             id="upload-documents"
             className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
           >
-            <h2 className="text-lg font-bold text-slate-900">Returned Documents</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              Returned Documents
+            </h2>
             <p className="text-sm text-slate-500">
               Signed documents you have uploaded.
             </p>
@@ -2595,23 +2954,27 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
             {showUploadDocuments && (
               <>
                 <form
-  id="returned-documents-upload-form"
-  action={uploadReturnedDocuments}
-  className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5"
->
-  <input type="hidden" name="assignment_id" value={assignment.id} />
+                  id="returned-documents-upload-form"
+                  action={uploadReturnedDocuments}
+                  className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5"
+                >
+                  <input
+                    type="hidden"
+                    name="assignment_id"
+                    value={assignment.id}
+                  />
 
-  <label className="block text-sm font-bold text-slate-700">
-    Upload signed documents
-  </label>
+                  <label className="block text-sm font-bold text-slate-700">
+                    Upload signed documents
+                  </label>
 
-  <input
-    type="file"
-    name="returned_documents"
-    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-    multiple
-    required
-    className="
+                  <input
+                    type="file"
+                    name="returned_documents"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    multiple
+                    required
+                    className="
       mt-2 w-full rounded-xl border border-slate-300 bg-white p-3
       text-sm font-medium text-slate-900 shadow-sm outline-none
       file:mr-4 file:rounded-lg file:border-0
@@ -2620,22 +2983,22 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
       hover:file:bg-blue-950
       focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100
     "
-  />
+                  />
 
-  <p className="mt-2 text-xs text-slate-500">
-    Upload the signed package, scanbacks, or completed documents.
-  </p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Upload the signed package, scanbacks, or completed
+                    documents.
+                  </p>
 
-  <SubmitButton
-    pendingText="Uploading documents..."
-    className="mt-4 rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-  >
-    Upload Completed Documents
-  </SubmitButton>
-</form>
+                  <SubmitButton
+                    pendingText="Uploading documents..."
+                    className="mt-4 rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                  >
+                    Upload Completed Documents
+                  </SubmitButton>
+                </form>
 
-<div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
                   {canMarkScanbacksComplete && (
                     <details className="group">
                       <summary className="list-none cursor-pointer rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700">
@@ -2649,7 +3012,9 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                               Signing Status
                             </h3>
 
-                            <span className="text-sm font-medium text-slate-500">Complete before closing</span>
+                            <span className="text-sm font-medium text-slate-500">
+                              Complete before closing
+                            </span>
                           </div>
 
                           <form
@@ -2734,22 +3099,22 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                             </div>
 
                             <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-  <input
-    type="hidden"
-    name="notify_client"
-    value="on"
-  />
+                              <input
+                                type="hidden"
+                                name="notify_client"
+                                value="on"
+                              />
 
-  <input
-    type="checkbox"
-    checked
-    readOnly
-    aria-readonly="true"
-    className="h-4 w-4 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
-  />
+                              <input
+                                type="checkbox"
+                                checked
+                                readOnly
+                                aria-readonly="true"
+                                className="h-4 w-4 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+                              />
 
-  <span>Notify Client</span>
-</label>
+                              <span>Notify Client</span>
+                            </label>
 
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
                               <p className="font-semibold text-slate-900">
@@ -2771,9 +3136,7 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                                 {signingTime && `at ${signingTime}`}
                               </p>
                               <p>
-                                <span className="font-semibold">
-                                  Location:
-                                </span>{" "}
+                                <span className="font-semibold">Location:</span>{" "}
                                 {assignment.signing_address ?? "—"},{" "}
                                 {assignment.signing_city ?? "—"},{" "}
                                 {assignment.signing_state ?? "IN"}{" "}
@@ -2785,11 +3148,11 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                               <CloseDetailsButton />
 
                               <SubmitButton
-  pendingText="Updating status..."
-  className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
->
-  Save
-</SubmitButton>
+                                pendingText="Updating status..."
+                                className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                              >
+                                Save
+                              </SubmitButton>
                             </div>
                           </form>
                         </div>
@@ -2864,14 +3227,13 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
               />
 
               <SubmitButton
-  pendingText="Adding note..."
-  className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
->
-  Add Note
-</SubmitButton>
+                pendingText="Adding note..."
+                className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+              >
+                Add Note
+              </SubmitButton>
             </form>
           </section>
-
         </section>
       </div>
 
