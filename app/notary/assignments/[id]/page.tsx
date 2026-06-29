@@ -981,18 +981,34 @@ Thank you for choosing Indiana Notary Solutions.
     showUploadDocuments && documentsWithUrls.length > 0;
 
   const devUnlockInsPro =
-    process.env.NEXT_PUBLIC_INS_PRO_DEV_UNLOCK === "true";
+  process.env.NEXT_PUBLIC_INS_PRO_DEV_UNLOCK === "true";
 
-  const { data: subscription } = await supabase
-    .from("notary_subscriptions")
-    .select("plan, status")
-    .eq("notary_id", user.id)
-    .maybeSingle();
+const userEmail = String(user.email ?? "").toLowerCase();
 
-  const hasInsPro =
-    devUnlockInsPro ||
-    (subscription?.plan === "pro" &&
-      ["active", "trialing"].includes(subscription.status));
+const { data: subscription } = await supabaseAdmin
+  .from("profiles")
+  .select(`
+    id,
+    email,
+    notary_subscriptions (
+      plan,
+      status
+    )
+  `)
+  .ilike("email", userEmail)
+  .maybeSingle();
+
+const subscriptionRows = Array.isArray(subscription?.notary_subscriptions)
+  ? subscription.notary_subscriptions
+  : [];
+
+const hasActiveProSubscription = subscriptionRows.some(
+  (item) =>
+    item?.plan === "pro" &&
+    ["active", "trialing"].includes(String(item?.status ?? "").toLowerCase())
+);
+
+const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
 
   const workspaceTabs = [
     "Journal",
