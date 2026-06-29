@@ -1397,7 +1397,7 @@ Thank you for choosing Indiana Notary Solutions.
     zip: assignment.signing_zip,
     id_verification_type: "Driver's License",
     id_number: null,
-    id_issued_by: "Indiana BMV",
+    id_issued_by: "",
     id_issued_date: null,
     id_expiration_date: null,
     id_verified: false,
