@@ -998,9 +998,6 @@ const { data: subscription } = await supabaseAdmin
   .ilike("email", userEmail)
   .maybeSingle();
 
-  console.log("User Email:", userEmail);
-console.log("Subscription:", JSON.stringify(subscription, null, 2));
-
 const subscriptionRecord = Array.isArray(subscription?.notary_subscriptions)
   ? subscription.notary_subscriptions[0]
   : subscription?.notary_subscriptions;
@@ -1023,19 +1020,88 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
     "Print",
   ];
 
-  const commonDocumentOptions = [
-    "Acknowledgment",
-    "Affidavit",
-    "Deed",
+  const journalDocumentOptions = [
+    "Assumption of Mortgage / Loan",
+    "Buyer/ & Seller, 1st Only",
+    "Car Title",
+    "Debt Settlement",
+    "Divorce Decree",
+    "Estoppel Certificate",
+    "Gap Mortgage",
+    "Gap Mortgage Note",
+    "General Warranty Deed",
+    "Georgia Foreclosure Discl",
+    "Grant Deed",
+    "Grant Warranty Deed",
+    "Grant, Bargain, Sale Deed",
+    "Guarantee of Funds",
+    "Guaranty Agreement",
+    "Guaranty of Recourse Care",
+    "Hazardous Substances Agreement",
     "HELOC",
+    "HOA Affidavit",
+    "Hold Harmless Agreement",
+    "Hybrid Loan",
+    "Identification Letter",
+    "Identity Affidavit",
+    "Indemnity & Hold Harmless",
+    "Indenture",
+    "Last Will And Testament",
+    "Limited Guaranty",
+    "Limited Power of Attorney",
+    "Limited Power of Representation",
+    "Limited Warranty Deed",
+    "LLC Affidavit",
+    "LLC Borrowing Resolution",
+    "Loan Application",
+    "Loan Modification",
+    "Marital Status Affidavit",
+    "Marriage And Homestead",
+    "Mechanic Lien Indemnity",
+    "Memorandum of Occupancy Agreement",
+    "Modification of Dot",
     "Mortgage",
+    "Mortgagors Affidavit",
+    "No Escrow Affidavit",
+    "No Florida Estate Tax Due",
+    "No Lien Affidavit",
+    "Non-Applicant Affidavit",
+    "Non-Foreign Affidavit",
+    "Nonresident Withholding",
+    "Notice To Mortgagor",
+    "Occupancy Affidavit",
+    "Open End Mortgage",
+    "Owners/Sellers Affidavit",
+    "Personal Guaranty",
     "Power of Attorney",
-    "Purchase Agreement",
+    "Privacy Policy",
+    "Property Affidavit",
+    "Purchase Money Dot",
+    "Purchasers Affidavit",
     "Quitclaim Deed",
-    "Refinance Package",
-    "Seller Package",
+    "Refinance",
+    "Rent Roll Certification",
+    "Residential Affidavit",
+    "Restated & Consolidated Note",
+    "Restated Mortgage",
+    "Reverse Mortgage",
+    "Reverse refinance",
+    "Sales Agreement Addendum",
+    "Same Name Affidavit",
+    "Security Deed",
+    "Shortfall Affidavit",
     "Signature/Name Affidavit",
+    "Statutory Warranty Deed",
+    "Survey Affidavit",
+    "Tax Proration Agreement",
+    "Taxable Or Exempt Transfer",
+    "Title Affidavit",
+    "Vehicle Title",
+    "Waiver of Borrowers Right",
+    "Waiver of Counsel",
+    "Warranty Bill of Sale",
     "Warranty Deed",
+    "Wire Funds Authorization",
   ];
 
   return (
@@ -1678,28 +1744,108 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <h4 className="text-lg font-bold text-slate-950">
-                      Documents / Notarial Acts
-                    </h4>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Select common documents for now. The full master document library and per-document acts come in the next pass.
-                    </p>
+                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-950">
+                          Documents / Notarial Acts
+                        </h4>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Add documents from the full journal document list. Selected documents will be saved with this journal entry.
+                        </p>
+                      </div>
 
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {commonDocumentOptions.map((documentName) => (
-                        <label
-                          key={documentName}
-                          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-700"
-                        >
-                          <input
-                            type="checkbox"
-                            name="journal_documents"
-                            value={documentName}
-                            className="h-4 w-4 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
-                          />
-                          {documentName}
-                        </label>
-                      ))}
+                      <details className="group">
+                        <summary className="list-none cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 [&::-webkit-details-marker]:hidden">
+                          Add / Edit Documents
+                        </summary>
+
+                        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
+                          <div className="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white shadow-xl">
+                            <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] p-5 text-white">
+                              <h5 className="text-lg font-bold">
+                                Document Selector
+                              </h5>
+
+                              <span className="text-2xl font-black leading-none">
+                                ×
+                              </span>
+                            </div>
+
+                            <div className="space-y-5 p-5">
+                              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <label className="block text-sm font-bold text-slate-700">
+                                  Select Documents
+                                </label>
+
+                                <select
+                                  name="journal_documents"
+                                  multiple
+                                  size={16}
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                >
+                                  {journalDocumentOptions.map((documentName) => (
+                                    <option key={documentName} value={documentName}>
+                                      {documentName}
+                                    </option>
+                                  ))}
+                                </select>
+
+                                <p className="mt-2 text-xs text-slate-500">
+                                  Hold Ctrl on Windows or Command on Mac to select multiple documents.
+                                </p>
+                              </div>
+
+                              <div className="grid gap-3 md:grid-cols-3">
+                                <label className="rounded-xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-700">
+                                  Default Notarization
+                                  <select
+                                    name="journal_default_notarial_act"
+                                    defaultValue=""
+                                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                  >
+                                    <option value="">Select later</option>
+                                    <option value="Acknowledgment">Acknowledgment</option>
+                                    <option value="Jurat">Jurat</option>
+                                    <option value="Oath/Affirmation">Oath / Affirmation</option>
+                                    <option value="Copy Certification">Copy Certification</option>
+                                  </select>
+                                </label>
+
+                                <label className="rounded-xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-700">
+                                  Default Signer
+                                  <input
+                                    name="journal_document_signer"
+                                    defaultValue={assignment.borrower_name ?? ""}
+                                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                  />
+                                </label>
+
+                                <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                                  <p className="font-bold text-slate-900">
+                                    Coming next
+                                  </p>
+                                  <p className="mt-1">
+                                    Per-document Ack/Jurat, signer, and witness selection.
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
+                                <button
+                                  type="button"
+                                  className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                  Done
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </details>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
+                      Use <span className="font-bold text-slate-700">Add / Edit Documents</span> to select one or more documents for this journal entry.
                     </div>
                   </div>
 
