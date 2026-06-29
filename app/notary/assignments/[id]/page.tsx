@@ -998,6 +998,9 @@ const { data: subscription } = await supabaseAdmin
   .ilike("email", userEmail)
   .maybeSingle();
 
+  console.log("User Email:", userEmail);
+console.log("Subscription:", JSON.stringify(subscription, null, 2));
+
 const subscriptionRows = Array.isArray(subscription?.notary_subscriptions)
   ? subscription.notary_subscriptions
   : [];
