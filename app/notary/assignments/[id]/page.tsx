@@ -1001,15 +1001,15 @@ const { data: subscription } = await supabaseAdmin
   console.log("User Email:", userEmail);
 console.log("Subscription:", JSON.stringify(subscription, null, 2));
 
-const subscriptionRows = Array.isArray(subscription?.notary_subscriptions)
-  ? subscription.notary_subscriptions
-  : [];
+const subscriptionRecord = Array.isArray(subscription?.notary_subscriptions)
+  ? subscription.notary_subscriptions[0]
+  : subscription?.notary_subscriptions;
 
-const hasActiveProSubscription = subscriptionRows.some(
-  (item) =>
-    item?.plan === "pro" &&
-    ["active", "trialing"].includes(String(item?.status ?? "").toLowerCase())
-);
+const hasActiveProSubscription =
+  subscriptionRecord?.plan === "pro" &&
+  ["active", "trialing"].includes(
+    String(subscriptionRecord?.status ?? "").toLowerCase()
+  );
 
 const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
 
