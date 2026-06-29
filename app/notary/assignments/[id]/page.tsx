@@ -1754,21 +1754,34 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                         </p>
                       </div>
 
-                      <details className="group">
-                        <summary className="list-none cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 [&::-webkit-details-marker]:hidden">
-                          Add / Edit Documents
-                        </summary>
+                      <div>
+                        <input
+                          id="journal-document-selector-modal"
+                          type="checkbox"
+                          className="peer sr-only"
+                        />
 
-                        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
+                        <label
+                          htmlFor="journal-document-selector-modal"
+                          className="inline-block cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                        >
+                          Add / Edit Documents
+                        </label>
+
+                        <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/50 p-4 peer-checked:flex sm:items-center">
                           <div className="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white shadow-xl">
                             <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] p-5 text-white">
                               <h5 className="text-lg font-bold">
                                 Document Selector
                               </h5>
 
-                              <span className="text-2xl font-black leading-none">
+                              <label
+                                htmlFor="journal-document-selector-modal"
+                                className="cursor-pointer text-2xl font-black leading-none"
+                                aria-label="Close document selector"
+                              >
                                 ×
-                              </span>
+                              </label>
                             </div>
 
                             <div className="space-y-5 p-5">
@@ -1831,17 +1844,17 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                               </div>
 
                               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
-                                <button
-                                  type="button"
-                                  className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                <label
+                                  htmlFor="journal-document-selector-modal"
+                                  className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
                                 >
                                   Done
-                                </button>
+                                </label>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </details>
+                      </div>
                     </div>
 
                     <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
