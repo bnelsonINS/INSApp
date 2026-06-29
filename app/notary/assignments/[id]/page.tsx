@@ -1597,6 +1597,358 @@ const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-950">
+                          People
+                        </h4>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Add signers and witnesses for this journal entry. The borrower is pre-filled as the first signer.
+                        </p>
+                      </div>
+
+                      <div>
+                        <input
+                          id="journal-person-modal"
+                          type="checkbox"
+                          className="peer sr-only"
+                        />
+
+                        <label
+                          htmlFor="journal-person-modal"
+                          className="inline-block cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                        >
+                          + Add Person
+                        </label>
+
+                        <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/50 p-4 peer-checked:flex sm:items-center">
+                          <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-xl">
+                            <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] p-5 text-white">
+                              <h5 className="text-lg font-bold">
+                                Add Person
+                              </h5>
+
+                              <label
+                                htmlFor="journal-person-modal"
+                                className="cursor-pointer text-2xl font-black leading-none"
+                                aria-label="Close add person modal"
+                              >
+                                ×
+                              </label>
+                            </div>
+
+                            <div className="p-5">
+                              <input
+                                id="new-person-choice"
+                                type="radio"
+                                name="new_person_panel"
+                                className="peer/choice sr-only"
+                                defaultChecked
+                              />
+                              <input
+                                id="new-person-signer"
+                                type="radio"
+                                name="new_person_panel"
+                                className="peer/signer sr-only"
+                              />
+                              <input
+                                id="new-person-witness"
+                                type="radio"
+                                name="new_person_panel"
+                                className="peer/witness sr-only"
+                              />
+
+                              <div className="peer-checked/choice:block hidden">
+                                <p className="text-center text-lg font-bold text-slate-950">
+                                  Who are you adding?
+                                </p>
+
+                                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                                  <label
+                                    htmlFor="new-person-signer"
+                                    className="cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center transition hover:border-blue-300 hover:bg-blue-50"
+                                  >
+                                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-3xl">
+                                      👤
+                                    </div>
+                                    <p className="mt-4 text-lg font-black text-slate-950">
+                                      New Signer
+                                    </p>
+                                    <p className="mt-1 text-sm text-slate-500">
+                                      Add another signer with ID verification.
+                                    </p>
+                                  </label>
+
+                                  <label
+                                    htmlFor="new-person-witness"
+                                    className="cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center transition hover:border-blue-300 hover:bg-blue-50"
+                                  >
+                                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-3xl">
+                                      👁️
+                                    </div>
+                                    <p className="mt-4 text-lg font-black text-slate-950">
+                                      New Witness
+                                    </p>
+                                    <p className="mt-1 text-sm text-slate-500">
+                                      Add a witness for this journal entry.
+                                    </p>
+                                  </label>
+                                </div>
+                              </div>
+
+                              <div className="peer-checked/signer:block peer-checked/witness:block hidden">
+                                <div className="mb-5 flex items-center justify-between gap-3">
+                                  <label
+                                    htmlFor="new-person-choice"
+                                    className="cursor-pointer text-sm font-bold text-[#0B1F4D] hover:underline"
+                                  >
+                                    ← Back
+                                  </label>
+
+                                  <p className="text-sm font-bold uppercase tracking-wide text-slate-500">
+                                    UI only — database save comes next
+                                  </p>
+                                </div>
+
+                                <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 md:grid-cols-2">
+                                  <div className="md:col-span-2">
+                                    <p className="text-xl font-black text-slate-950">
+                                      <span className="peer-checked/signer:inline hidden">New Signer</span>
+                                      <span className="peer-checked/witness:inline hidden">New Witness</span>
+                                    </p>
+                                  </div>
+
+                                  <div className="md:col-span-2">
+                                    <label className="block text-sm font-bold text-slate-700">
+                                      Name
+                                    </label>
+                                    <input
+                                      name="new_person_name"
+                                      placeholder="Full name"
+                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+                                  </div>
+
+                                  <div className="md:col-span-2">
+                                    <label className="block text-sm font-bold text-slate-700">
+                                      Address
+                                    </label>
+                                    <input
+                                      name="new_person_address"
+                                      placeholder="Street address"
+                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-bold text-slate-700">
+                                      City
+                                    </label>
+                                    <input
+                                      name="new_person_city"
+                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+                                  </div>
+
+                                  <div className="grid grid-cols-[1fr_1fr] gap-3">
+                                    <div>
+                                      <label className="block text-sm font-bold text-slate-700">
+                                        State
+                                      </label>
+                                      <input
+                                        name="new_person_state"
+                                        defaultValue="IN"
+                                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className="block text-sm font-bold text-slate-700">
+                                        ZIP
+                                      </label>
+                                      <input
+                                        name="new_person_zip"
+                                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-bold text-slate-700">
+                                      Verification Type
+                                    </label>
+                                    <select
+                                      name="new_person_verification_type"
+                                      defaultValue="Driver's License"
+                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    >
+                                      <option>Driver's License</option>
+                                      <option>State ID</option>
+                                      <option>Passport</option>
+                                      <option>Military ID</option>
+                                      <option>Permanent Resident Card</option>
+                                      <option>Other</option>
+                                    </select>
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-bold text-slate-700">
+                                      ID Number
+                                    </label>
+                                    <input
+                                      name="new_person_id_number"
+                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-bold text-slate-700">
+                                      ID Issued By
+                                    </label>
+                                    <input
+                                      name="new_person_id_issued_by"
+                                      defaultValue="Indiana BMV"
+                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+                                  </div>
+
+                                  <div className="grid grid-cols-[1fr_1fr] gap-3">
+                                    <div>
+                                      <label className="block text-sm font-bold text-slate-700">
+                                        ID Issued
+                                      </label>
+                                      <input
+                                        type="date"
+                                        name="new_person_id_issued_date"
+                                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className="block text-sm font-bold text-slate-700">
+                                        ID Expires
+                                      </label>
+                                      <input
+                                        type="date"
+                                        name="new_person_id_expiration_date"
+                                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <label className="md:col-span-2 flex items-center gap-3 text-sm font-bold text-slate-700">
+                                    <input
+                                      type="checkbox"
+                                      name="new_person_id_verified"
+                                      className="h-5 w-5 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+                                    />
+                                    I have verified this person&apos;s ID.
+                                  </label>
+                                </div>
+
+                                <div className="mt-5 flex justify-end gap-3 border-t border-slate-200 pt-5">
+                                  <label
+                                    htmlFor="journal-person-modal"
+                                    className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                  >
+                                    Cancel
+                                  </label>
+
+                                  <label
+                                    htmlFor="journal-person-modal"
+                                    className="cursor-pointer rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                                  >
+                                    Save Person
+                                  </label>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex items-center justify-between gap-3">
+                      <a
+                        href="#journal-person-card-1"
+                        className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-xl font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:flex"
+                        aria-label="Previous person"
+                      >
+                        ‹
+                      </a>
+
+                      <div className="flex flex-1 snap-x gap-4 overflow-x-auto pb-2">
+                        <div
+                          id="journal-person-card-1"
+                          className="min-w-full snap-center rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:min-w-[320px]"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                                Person 1 of 1
+                              </p>
+                              <h5 className="mt-2 text-xl font-black text-slate-950">
+                                {assignment.borrower_name ?? "Primary Signer"}
+                              </h5>
+                              <p className="mt-1 text-sm font-bold text-slate-600">
+                                Signer
+                              </p>
+                            </div>
+
+                            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-200">
+                              ID Pending
+                            </span>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 text-sm text-slate-700">
+                            <div>
+                              <p className="font-bold text-slate-500">Verification</p>
+                              <p className="font-semibold text-slate-950">Driver&apos;s License</p>
+                            </div>
+
+                            <div>
+                              <p className="font-bold text-slate-500">Address</p>
+                              <p className="font-semibold text-slate-950">
+                                {[assignment.signing_address, assignment.signing_city, assignment.signing_state ?? "IN", assignment.signing_zip]
+                                  .filter(Boolean)
+                                  .join(", ") || "—"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <a
+                              href="#primary-signer-verification"
+                              className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-950"
+                            >
+                              Edit Person
+                            </a>
+
+                            <button
+                              type="button"
+                              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <a
+                        href="#journal-person-card-1"
+                        className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-xl font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:flex"
+                        aria-label="Next person"
+                      >
+                        ›
+                      </a>
+                    </div>
+
+                    <p className="mt-3 text-xs text-slate-500">
+                      Mobile users can swipe between people. Database-backed add/edit/delete comes next.
+                    </p>
+                  </div>
+
+                  <div id="primary-signer-verification" className="rounded-2xl border border-slate-200 bg-white p-5">
                     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                       <div>
                         <h4 className="text-lg font-bold text-slate-950">
