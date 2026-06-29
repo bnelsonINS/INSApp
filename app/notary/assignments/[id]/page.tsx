@@ -2503,7 +2503,7 @@ Thank you for choosing Indiana Notary Solutions.
                         </label>
                         <input
                           name="signer_name"
-                          defaultValue={assignment.borrower_name ?? ""}
+                          defaultValue={primaryJournalPerson.full_name ?? ""}
                           required
                           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                         />
@@ -2533,6 +2533,7 @@ Thank you for choosing Indiana Notary Solutions.
                         </label>
                         <input
                           name="signer_address"
+                          defaultValue={primaryJournalPerson.address ?? ""}
                           placeholder="Street address from ID"
                           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                         />
@@ -2544,6 +2545,7 @@ Thank you for choosing Indiana Notary Solutions.
                         </label>
                         <input
                           name="signer_city"
+                          defaultValue={primaryJournalPerson.city ?? ""}
                           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                         />
                       </div>
@@ -2555,7 +2557,7 @@ Thank you for choosing Indiana Notary Solutions.
                           </label>
                           <input
                             name="signer_state"
-                            defaultValue="IN"
+                            defaultValue={primaryJournalPerson.state ?? "IN"}
                             className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                           />
                         </div>
@@ -2565,6 +2567,7 @@ Thank you for choosing Indiana Notary Solutions.
                           </label>
                           <input
                             name="signer_zip"
+                            defaultValue={primaryJournalPerson.zip ?? ""}
                             className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                           />
                         </div>
@@ -2586,7 +2589,7 @@ Thank you for choosing Indiana Notary Solutions.
                         </label>
                         <input
                           name="id_issued_by"
-                          defaultValue="Indiana BMV"
+                          defaultValue={primaryJournalPerson.id_issued_by ?? "Indiana BMV"}
                           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                         />
                       </div>
