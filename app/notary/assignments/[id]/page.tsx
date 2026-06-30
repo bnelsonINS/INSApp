@@ -2844,6 +2844,7 @@ Thank you for choosing Indiana Notary Solutions.
                                   <label className="font-bold text-slate-500 sm:text-right">Amount</label>
                                   <div className="flex items-center gap-3">
                                     <input
+                                      id="invoice-payment-amount"
                                       type="number"
                                       step="0.01"
                                       min="0"
@@ -2851,7 +2852,22 @@ Thank you for choosing Indiana Notary Solutions.
                                       defaultValue={invoiceBalanceDue > 0 ? String(invoiceBalanceDue.toFixed(2)) : ""}
                                       className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                     />
-                                    <span className="shrink-0 text-sm font-bold text-blue-600">Use Bal</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const amountInput = document.getElementById(
+                                          "invoice-payment-amount",
+                                        ) as HTMLInputElement | null;
+
+                                        if (amountInput) {
+                                          amountInput.value = "${invoiceBalanceDue.toFixed(2)}";
+                                          amountInput.focus();
+                                        }
+                                      }}
+                                      className="shrink-0 rounded-lg px-2 py-1 text-sm font-bold text-blue-600 transition hover:bg-blue-50 hover:text-blue-700"
+                                    >
+                                      Use Bal
+                                    </button>
                                   </div>
 
                                   <label className="font-bold text-slate-500 sm:text-right">Payment Type</label>
