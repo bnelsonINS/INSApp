@@ -556,6 +556,9 @@ export default async function AssignmentDetailPage({
         key.startsWith("journal_signature_text_") &&
         String(value).startsWith("data:image/"),
     );
+    const primarySignatureData = String(
+      formData.get("journal_signature_text_0") ?? "",
+    ).trim();
     const journalComplete = formData.get("journal_notary_signed") === "on";
 
     if (!assignmentId) return;
@@ -631,7 +634,8 @@ export default async function AssignmentDetailPage({
           state: state || assignment.signing_state || "IN",
           zip: zip || assignment.signing_zip,
           notes: notes || null,
-          status: "open",
+          status: journalComplete ? "completed" : "open",
+          completed_at: journalComplete ? new Date().toISOString() : null,
         })
         .select("id")
         .single();
@@ -650,6 +654,8 @@ export default async function AssignmentDetailPage({
           state: state || "IN",
           zip: zip || null,
           notes: notes || null,
+          status: journalComplete ? "completed" : "open",
+          completed_at: journalComplete ? new Date().toISOString() : null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", journalEntry.id)
@@ -684,6 +690,15 @@ export default async function AssignmentDetailPage({
         id_issued_date: idIssuedDate || null,
         id_expiration_date: idExpirationDate || null,
         id_verified: idVerified,
+        signature_data: primarySignatureData.startsWith("data:image/")
+          ? primarySignatureData
+          : null,
+        signed_at:
+          signedJournalPeople.includes(
+            signerName || assignment.borrower_name || "Primary Signer",
+          ) && primarySignatureData.startsWith("data:image/")
+            ? new Date().toISOString()
+            : null,
         sort_order: 0,
       };
 
@@ -1391,7 +1406,7 @@ Thank you for choosing Indiana Notary Solutions.
 
   let { data: journalEntry } = await supabase
     .from("assignment_journal_entries")
-    .select("id, status, updated_at, journal_date, journal_time, journal_type, location_mode, address, city, state, zip, notes")
+    .select("id, status, updated_at, completed_at, journal_date, journal_time, journal_type, location_mode, address, city, state, zip, notes")
     .eq("assignment_id", assignment.id)
     .eq("notary_id", user.id)
     .maybeSingle();
@@ -1412,7 +1427,7 @@ Thank you for choosing Indiana Notary Solutions.
         zip: assignment.signing_zip,
         status: "open",
       })
-      .select("id, status, updated_at, journal_date, journal_time, journal_type, location_mode, address, city, state, zip, notes")
+      .select("id, status, updated_at, completed_at, journal_date, journal_time, journal_type, location_mode, address, city, state, zip, notes")
       .single();
 
     journalEntry = insertedJournalEntry;
@@ -1495,6 +1510,8 @@ Thank you for choosing Indiana Notary Solutions.
     id_issued_date: savedPrimaryJournalPerson?.id_issued_date ?? null,
     id_expiration_date: savedPrimaryJournalPerson?.id_expiration_date ?? null,
     id_verified: savedPrimaryJournalPerson?.id_verified ?? false,
+    signature_data: savedPrimaryJournalPerson?.signature_data ?? null,
+    signed_at: savedPrimaryJournalPerson?.signed_at ?? null,
     sort_order: 0,
   };
 
@@ -1517,6 +1534,12 @@ Thank you for choosing Indiana Notary Solutions.
     primaryJournalPerson,
     ...savedJournalPeopleWithoutPrimary,
   ];
+
+  const journalStatus = String(journalEntry?.status ?? "open").toLowerCase();
+  const journalIsComplete = journalStatus === "completed";
+  const signedJournalPeopleCount = displayJournalPeople.filter(
+    (person) => String(person.signature_data ?? "").startsWith("data:image/"),
+  ).length;
 
   const workspaceTabs = [
     "Journal",
@@ -1968,17 +1991,51 @@ Thank you for choosing Indiana Notary Solutions.
             ) : (
               <div className="p-5">
                 <details className="group">
-                  <summary className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 [&::-webkit-details-marker]:hidden">
-                    Open Journal Workspace
-                  </summary>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <summary className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 [&::-webkit-details-marker]:hidden">
+                      Open Journal Workspace
+                    </summary>
+
+                    <div className="flex flex-wrap gap-2 text-xs font-bold">
+                      <span
+                        className={`rounded-full px-3 py-1 ring-1 ${
+                          journalIsComplete
+                            ? "bg-green-50 text-green-700 ring-green-200"
+                            : "bg-amber-50 text-amber-700 ring-amber-200"
+                        }`}
+                      >
+                        {journalIsComplete ? "Journal Complete" : "Journal Open"}
+                      </span>
+                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                        {displayJournalPeople.length} people
+                      </span>
+                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                        {journalDocuments.length} documents
+                      </span>
+                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                        {signedJournalPeopleCount} signatures
+                      </span>
+                    </div>
+                  </div>
 
                   <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:items-center">
                     <div className="w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                       <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] px-5 py-4 text-white">
                         <div>
-                          <h4 className="text-lg font-bold">
-                            Journal Entry
-                          </h4>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <h4 className="text-lg font-bold">
+                              Journal Entry
+                            </h4>
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                journalIsComplete
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-white/20 text-white"
+                              }`}
+                            >
+                              {journalIsComplete ? "Complete" : "Open"}
+                            </span>
+                          </div>
                           <p className="text-sm text-white/90">
                             Edit people, ID verification, documents, signatures, and notes.
                           </p>
@@ -2467,17 +2524,30 @@ Thank you for choosing Indiana Notary Solutions.
                                   </p>
                                 </div>
 
-                                <span
-                                  className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${
-                                    person.id_verified
-                                      ? "bg-green-50 text-green-700 ring-green-200"
-                                      : "bg-amber-50 text-amber-700 ring-amber-200"
-                                  }`}
-                                >
-                                  {person.id_verified
-                                    ? "ID Verified"
-                                    : "ID Pending"}
-                                </span>
+                                <div className="flex flex-col items-end gap-2">
+                                  <span
+                                    className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${
+                                      person.id_verified
+                                        ? "bg-green-50 text-green-700 ring-green-200"
+                                        : "bg-amber-50 text-amber-700 ring-amber-200"
+                                    }`}
+                                  >
+                                    {person.id_verified
+                                      ? "ID Verified"
+                                      : "ID Pending"}
+                                  </span>
+                                  <span
+                                    className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${
+                                      String(person.signature_data ?? "").startsWith("data:image/")
+                                        ? "bg-green-50 text-green-700 ring-green-200"
+                                        : "bg-slate-50 text-slate-500 ring-slate-200"
+                                    }`}
+                                  >
+                                    {String(person.signature_data ?? "").startsWith("data:image/")
+                                      ? "Signed"
+                                      : "Unsigned"}
+                                  </span>
+                                </div>
                               </div>
 
                               <div className="mt-4 grid gap-3 text-sm text-slate-700">
@@ -2987,11 +3057,12 @@ Thank you for choosing Indiana Notary Solutions.
                                   </div>
 
                                   <SignaturePad
-  name="Signature Pad"
-  inputName={`journal_signature_text_${index}`}
-  signedPeopleName="journal_signed_people"
-  signedPeopleValue={personName}
-/>
+                                    name="Signature Pad"
+                                    inputName={`journal_signature_text_${index}`}
+                                    defaultValue={person.signature_data ?? ""}
+                                    signedPeopleName="journal_signed_people"
+                                    signedPeopleValue={personName}
+                                  />
 
                                   <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
                                     <label
@@ -3013,6 +3084,7 @@ Thank you for choosing Indiana Notary Solutions.
                       <input
                         type="checkbox"
                         name="journal_notary_signed"
+                        defaultChecked={journalIsComplete}
                         className="mt-1 h-5 w-5 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
                       />
                       <span>
