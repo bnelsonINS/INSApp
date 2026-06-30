@@ -48,26 +48,31 @@ export async function POST(request: NextRequest) {
       });
 
     if (uploadError) {
-  console.error("Logo upload error:", uploadError);
-  redirect("/notary/profile?logo=upload-error");
-}
+      console.error("Logo upload error:", uploadError);
+      redirect("/notary/profile?logo=upload-error");
+    }
 
-const {
-  data: { publicUrl },
-} = supabase.storage.from("profile-logos").getPublicUrl(filePath);
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("profile-logos").getPublicUrl(filePath);
 
-const { error: profileLogoError } = await supabase
-  .from("profiles")
-  .update({
-    logo_url: publicUrl,
-  })
-  .eq("id", user.id);
+    const { error: profileLogoError } = await supabase
+      .from("profiles")
+      .update({
+        logo_url: publicUrl,
+      })
+      .eq("id", user.id);
 
-if (profileLogoError) {
-  console.error("Logo profile update error:", profileLogoError);
-  redirect("/notary/profile?logo=save-error");
-}
+    if (profileLogoError) {
+      console.error("Logo profile update error:", profileLogoError);
+      redirect("/notary/profile?logo=save-error");
+    }
   }
+
+  const businessLocationAddress = value(formData, "business_location_address");
+  const businessLocationCity = value(formData, "business_location_city");
+  const businessLocationState = value(formData, "business_location_state") || "IN";
+  const businessLocationZip = value(formData, "business_location_zip");
 
   const firstName = value(formData, "first_name");
   const lastName = value(formData, "last_name");
@@ -104,7 +109,7 @@ if (profileLogoError) {
   const achRoutingNumber = String(formData.get("ach_routing_number") || "");
   const achAccountNumber = String(formData.get("ach_account_number") || "");
 
-  await supabase.from("notary_profiles").upsert({
+  const { error: notaryProfileError } = await supabase.from("notary_profiles").upsert({
     user_id: user.id,
 
     ach_bank_name: value(formData, "ach_bank_name"),
@@ -162,6 +167,31 @@ if (profileLogoError) {
 
     updated_at: new Date().toISOString(),
   });
+
+  if (notaryProfileError) {
+    console.error("Notary profile update error:", notaryProfileError);
+    redirect("/notary/profile?profile=save-error");
+  }
+
+  const { error: profileBusinessLocationError } = await supabase
+    .from("profiles")
+    .update({
+      business_location_address: businessLocationAddress,
+      business_location_city: businessLocationCity,
+      business_location_state: businessLocationState,
+      business_location_zip: businessLocationZip,
+      business_location_verified_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
+
+  if (profileBusinessLocationError) {
+    console.error(
+      "Business location profile update error:",
+      profileBusinessLocationError
+    );
+    redirect("/notary/profile?business-location=save-error");
+  }
 
   if (!profileRequirementsComplete) {
     await supabase
