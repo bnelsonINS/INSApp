@@ -657,6 +657,46 @@ export default async function AssignmentDetailPage({
     }
 
     if (journalEntry?.id) {
+      const existingPrimaryPerson = signerName
+        ? await supabase
+            .from("assignment_journal_people")
+            .select("id")
+            .eq("journal_entry_id", journalEntry.id)
+            .eq("notary_id", user.id)
+            .eq("person_type", "signer")
+            .ilike("full_name", signerName)
+            .maybeSingle()
+        : { data: null };
+
+      const primaryPersonPayload = {
+        journal_entry_id: journalEntry.id,
+        assignment_id: assignmentId,
+        notary_id: user.id,
+        person_type: "signer",
+        full_name: signerName || assignment.borrower_name || "Primary Signer",
+        address: signerAddress || null,
+        city: signerCity || null,
+        state: signerState || "IN",
+        zip: signerZip || null,
+        id_verification_type: idVerificationType || null,
+        id_number: idNumber || null,
+        id_issued_by: idIssuedBy || null,
+        id_issued_date: idIssuedDate || null,
+        id_expiration_date: idExpirationDate || null,
+        id_verified: idVerified,
+        sort_order: 0,
+      };
+
+      if (existingPrimaryPerson.data?.id) {
+        await supabase
+          .from("assignment_journal_people")
+          .update(primaryPersonPayload)
+          .eq("id", existingPrimaryPerson.data.id)
+          .eq("notary_id", user.id);
+      } else {
+        await supabase.from("assignment_journal_people").insert(primaryPersonPayload);
+      }
+
       const defaultNotarialAct = String(
         formData.get("journal_default_notarial_act") ?? "",
       ).trim();
@@ -1351,7 +1391,7 @@ Thank you for choosing Indiana Notary Solutions.
 
   let { data: journalEntry } = await supabase
     .from("assignment_journal_entries")
-    .select("id, status, updated_at")
+    .select("id, status, updated_at, journal_date, journal_time, journal_type, location_mode, address, city, state, zip, notes")
     .eq("assignment_id", assignment.id)
     .eq("notary_id", user.id)
     .maybeSingle();
@@ -1372,7 +1412,7 @@ Thank you for choosing Indiana Notary Solutions.
         zip: assignment.signing_zip,
         status: "open",
       })
-      .select("id, status, updated_at")
+      .select("id, status, updated_at, journal_date, journal_time, journal_type, location_mode, address, city, state, zip, notes")
       .single();
 
     journalEntry = insertedJournalEntry;
@@ -1405,26 +1445,58 @@ Thank you for choosing Indiana Notary Solutions.
 
   const journalPeople = savedJournalPeople ?? [];
 
-  const primaryJournalPerson = {
-    id: "primary-signer",
-    person_type: "signer",
-    full_name: assignment.borrower_name ?? "Primary Signer",
-    address: assignment.signing_address,
-    city: assignment.signing_city,
-    state: assignment.signing_state ?? "IN",
-    zip: assignment.signing_zip,
-    id_verification_type: "Driver's License",
-    id_number: null,
-    id_issued_by: "Indiana BMV",
-    id_issued_date: null,
-    id_expiration_date: null,
-    id_verified: false,
-    sort_order: 0,
-  };
-
   const primaryBorrowerName = String(assignment.borrower_name ?? "")
     .trim()
     .toLowerCase();
+
+  const savedPrimaryJournalPerson = journalPeople.find((person) => {
+    const savedPersonName = String(person.full_name ?? "")
+      .trim()
+      .toLowerCase();
+    const savedPersonType = String(
+      person.person_type ?? "signer",
+    ).toLowerCase();
+
+    return (
+      primaryBorrowerName &&
+      savedPersonName === primaryBorrowerName &&
+      savedPersonType === "signer"
+    );
+  });
+
+  const primaryJournalPerson = {
+    id: savedPrimaryJournalPerson?.id ?? "primary-signer",
+    person_type: "signer",
+    full_name:
+      savedPrimaryJournalPerson?.full_name ??
+      assignment.borrower_name ??
+      "Primary Signer",
+    address:
+      savedPrimaryJournalPerson?.address ??
+      journalEntry?.address ??
+      assignment.signing_address,
+    city:
+      savedPrimaryJournalPerson?.city ??
+      journalEntry?.city ??
+      assignment.signing_city,
+    state:
+      savedPrimaryJournalPerson?.state ??
+      journalEntry?.state ??
+      assignment.signing_state ??
+      "IN",
+    zip:
+      savedPrimaryJournalPerson?.zip ??
+      journalEntry?.zip ??
+      assignment.signing_zip,
+    id_verification_type:
+      savedPrimaryJournalPerson?.id_verification_type ?? "Driver's License",
+    id_number: savedPrimaryJournalPerson?.id_number ?? null,
+    id_issued_by: savedPrimaryJournalPerson?.id_issued_by ?? "Indiana BMV",
+    id_issued_date: savedPrimaryJournalPerson?.id_issued_date ?? null,
+    id_expiration_date: savedPrimaryJournalPerson?.id_expiration_date ?? null,
+    id_verified: savedPrimaryJournalPerson?.id_verified ?? false,
+    sort_order: 0,
+  };
 
   const savedJournalPeopleWithoutPrimary = journalPeople.filter((person) => {
     const savedPersonName = String(person.full_name ?? "")
@@ -1932,7 +2004,7 @@ Thank you for choosing Indiana Notary Solutions.
                       <input
                         type="date"
                         name="journal_date"
-                        defaultValue={assignment.signing_date ?? ""}
+                        defaultValue={journalEntry?.journal_date ?? assignment.signing_date ?? ""}
                         required
                         className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                       />
@@ -1945,7 +2017,7 @@ Thank you for choosing Indiana Notary Solutions.
                       <input
                         type="time"
                         name="journal_time"
-                        defaultValue={assignment.signing_time ?? ""}
+                        defaultValue={journalEntry?.journal_time ?? assignment.signing_time ?? ""}
                         required
                         className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                       />
@@ -1962,7 +2034,7 @@ Thank you for choosing Indiana Notary Solutions.
                               type="radio"
                               name="journal_type"
                               value={type}
-                              defaultChecked={type === "In-Person"}
+                              defaultChecked={(journalEntry?.journal_type ?? "In-Person") === type}
                               className="h-4 w-4 text-[#0B1F4D] focus:ring-[#0B1F4D]"
                             />
                             {type}
@@ -1981,7 +2053,7 @@ Thank you for choosing Indiana Notary Solutions.
                             type="radio"
                             name="location_mode"
                             value="address"
-                            defaultChecked
+                            defaultChecked={(journalEntry?.location_mode ?? "address") === "address"}
                             className="h-4 w-4 text-[#0B1F4D] focus:ring-[#0B1F4D]"
                           />
                           Address
@@ -1991,6 +2063,7 @@ Thank you for choosing Indiana Notary Solutions.
                             type="radio"
                             name="location_mode"
                             value="gps"
+                            defaultChecked={journalEntry?.location_mode === "gps"}
                             className="h-4 w-4 text-[#0B1F4D] focus:ring-[#0B1F4D]"
                           />
                           GPS
@@ -2004,7 +2077,7 @@ Thank you for choosing Indiana Notary Solutions.
                       </label>
                       <input
                         name="journal_address"
-                        defaultValue={assignment.signing_address ?? ""}
+                        defaultValue={journalEntry?.address ?? assignment.signing_address ?? ""}
                         required
                         className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                       />
@@ -2016,7 +2089,7 @@ Thank you for choosing Indiana Notary Solutions.
                       </label>
                       <input
                         name="journal_city"
-                        defaultValue={assignment.signing_city ?? ""}
+                        defaultValue={journalEntry?.city ?? assignment.signing_city ?? ""}
                         required
                         className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                       />
@@ -2029,7 +2102,7 @@ Thank you for choosing Indiana Notary Solutions.
                         </label>
                         <input
                           name="journal_state"
-                          defaultValue={assignment.signing_state ?? "IN"}
+                          defaultValue={journalEntry?.state ?? assignment.signing_state ?? "IN"}
                           required
                           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                         />
@@ -2040,7 +2113,7 @@ Thank you for choosing Indiana Notary Solutions.
                         </label>
                         <input
                           name="journal_zip"
-                          defaultValue={assignment.signing_zip ?? ""}
+                          defaultValue={journalEntry?.zip ?? assignment.signing_zip ?? ""}
                           required
                           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                         />
@@ -2524,7 +2597,7 @@ Thank you for choosing Indiana Notary Solutions.
                         </label>
                         <select
                           name="id_verification_type"
-                          defaultValue="Driver's License"
+                          defaultValue={primaryJournalPerson.id_verification_type ?? "Driver's License"}
                           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                         >
                           <option>Driver's License</option>
@@ -2588,6 +2661,7 @@ Thank you for choosing Indiana Notary Solutions.
                         </label>
                         <input
                           name="id_number"
+                          defaultValue={primaryJournalPerson.id_number ?? ""}
                           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                         />
                       </div>
@@ -2610,6 +2684,7 @@ Thank you for choosing Indiana Notary Solutions.
                         <input
                           type="date"
                           name="id_issued_date"
+                          defaultValue={primaryJournalPerson.id_issued_date ?? ""}
                           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                         />
                       </div>
@@ -2621,6 +2696,7 @@ Thank you for choosing Indiana Notary Solutions.
                         <input
                           type="date"
                           name="id_expiration_date"
+                          defaultValue={primaryJournalPerson.id_expiration_date ?? ""}
                           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                         />
                       </div>
@@ -2630,6 +2706,7 @@ Thank you for choosing Indiana Notary Solutions.
                       <input
                         type="checkbox"
                         name="id_verified"
+                        defaultChecked={Boolean(primaryJournalPerson.id_verified)}
                         className="h-5 w-5 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
                       />
                       I have verified this signer&apos;s ID.
@@ -2951,6 +3028,7 @@ Thank you for choosing Indiana Notary Solutions.
                     <textarea
                       name="journal_notes"
                       rows={4}
+                      defaultValue={journalEntry?.notes ?? ""}
                       placeholder="Optional journal notes..."
                       className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                     />
