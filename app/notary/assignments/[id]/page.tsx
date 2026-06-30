@@ -74,6 +74,46 @@ function formatMoney(value: number | string | null | undefined) {
   return `$${amount.toFixed(2)}`;
 }
 
+function formatInputDate(date: string | null | undefined) {
+  if (!date) return "";
+  return String(date).slice(0, 10);
+}
+
+function addDaysToDate(date: string | null | undefined, days: number) {
+  if (!date) return "";
+  const nextDate = new Date(`${String(date).slice(0, 10)}T00:00:00`);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate.toISOString().slice(0, 10);
+}
+
+function formatInvoiceNumber(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") return "Draft";
+  const numberText = String(value).padStart(6, "0");
+  return `INS-INV-${numberText}`;
+}
+
+function invoiceStatusBadge(status: string | null | undefined) {
+  const normalized = String(status ?? "draft").toLowerCase();
+
+  if (normalized === "paid") return "bg-green-50 text-green-700 ring-green-200";
+  if (normalized === "not_required") return "bg-slate-50 text-slate-700 ring-slate-200";
+  if (normalized === "sent") return "bg-blue-50 text-blue-700 ring-blue-200";
+  if (normalized === "overdue") return "bg-red-50 text-red-700 ring-red-200";
+  if (normalized === "unpaid") return "bg-amber-50 text-amber-700 ring-amber-200";
+
+  return "bg-slate-50 text-slate-700 ring-slate-200";
+}
+
+function displayInvoiceStatus(status: string | null | undefined) {
+  const normalized = String(status ?? "draft").toLowerCase();
+
+  if (normalized === "not_required") return "Not Required";
+  return normalized
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" " );
+}
+
 function calendarDatePart(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -749,6 +789,276 @@ export default async function AssignmentDetailPage({
     redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
   }
 
+
+
+  async function saveInvoice(formData: FormData) {
+    "use server";
+
+    const assignmentId = String(formData.get("assignment_id") ?? "").trim();
+    const invoiceId = String(formData.get("invoice_id") ?? "").trim();
+    const invoiceDate = String(formData.get("invoice_date") ?? "").trim();
+    const dueDate = String(formData.get("due_date") ?? "").trim();
+    const status = String(formData.get("invoice_status") ?? "draft").trim();
+    const notes = String(formData.get("invoice_notes") ?? "").trim();
+    const description = String(formData.get("invoice_description") ?? "").trim();
+    const feeAmount = Number(formData.get("invoice_fee_amount") ?? 0);
+
+    if (!assignmentId) return;
+
+    const supabase = await createSupabaseServerClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) redirect("/login");
+
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select("id, borrower_name, control_number, notary_fee")
+      .eq("id", assignmentId)
+      .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
+      .single();
+
+    if (!assignment) redirect("/notary/assignments");
+
+    const cleanFeeAmount = Number.isFinite(feeAmount) ? feeAmount : 0;
+    const invoicePayload = {
+      assignment_id: assignmentId,
+      notary_id: user.id,
+      invoice_date: invoiceDate || new Date().toISOString().slice(0, 10),
+      due_date: dueDate || null,
+      status: status || "draft",
+      notes: notes || null,
+      subtotal: cleanFeeAmount,
+      updated_at: new Date().toISOString(),
+    };
+
+    let savedInvoiceId = invoiceId;
+
+    if (savedInvoiceId) {
+      await supabase
+        .from("assignment_invoices")
+        .update(invoicePayload)
+        .eq("id", savedInvoiceId)
+        .eq("notary_id", user.id);
+    } else {
+      const { data: existingInvoice } = await supabase
+        .from("assignment_invoices")
+        .select("id")
+        .eq("assignment_id", assignmentId)
+        .eq("notary_id", user.id)
+        .maybeSingle();
+
+      if (existingInvoice?.id) {
+        savedInvoiceId = existingInvoice.id;
+        await supabase
+          .from("assignment_invoices")
+          .update(invoicePayload)
+          .eq("id", savedInvoiceId)
+          .eq("notary_id", user.id);
+      } else {
+        const { data: insertedInvoice } = await supabase
+          .from("assignment_invoices")
+          .insert(invoicePayload)
+          .select("id")
+          .single();
+
+        savedInvoiceId = insertedInvoice?.id ?? "";
+      }
+    }
+
+    if (!savedInvoiceId) return;
+
+    await supabase
+      .from("assignment_invoice_items")
+      .delete()
+      .eq("invoice_id", savedInvoiceId)
+      .eq("notary_id", user.id);
+
+    if (cleanFeeAmount > 0 || description) {
+      await supabase.from("assignment_invoice_items").insert({
+        invoice_id: savedInvoiceId,
+        assignment_id: assignmentId,
+        notary_id: user.id,
+        description:
+          description ||
+          `Signing fee for ${assignment.borrower_name || assignment.control_number || "assignment"}`,
+        quantity: 1,
+        unit_price: cleanFeeAmount,
+        line_total: cleanFeeAmount,
+        sort_order: 0,
+      });
+    }
+
+    const { data: mileageRows } = await supabase
+      .from("assignment_mileage")
+      .select("amount")
+      .eq("assignment_id", assignmentId)
+      .eq("notary_id", user.id);
+
+    const { data: expenseRows } = await supabase
+      .from("assignment_expenses")
+      .select("amount")
+      .eq("assignment_id", assignmentId)
+      .eq("notary_id", user.id);
+
+    const { data: paymentRows } = await supabase
+      .from("assignment_payments")
+      .select("amount")
+      .eq("invoice_id", savedInvoiceId)
+      .eq("notary_id", user.id);
+
+    const mileageTotal = (mileageRows ?? []).reduce(
+      (sum, row) => sum + Number(row.amount ?? 0),
+      0,
+    );
+    const expensesTotal = (expenseRows ?? []).reduce(
+      (sum, row) => sum + Number(row.amount ?? 0),
+      0,
+    );
+    const paymentsTotal = (paymentRows ?? []).reduce(
+      (sum, row) => sum + Number(row.amount ?? 0),
+      0,
+    );
+    const balanceDue = cleanFeeAmount + mileageTotal + expensesTotal - paymentsTotal;
+    const finalStatus = balanceDue <= 0 && paymentsTotal > 0 ? "paid" : status || "draft";
+
+    await supabase
+      .from("assignment_invoices")
+      .update({
+        subtotal: cleanFeeAmount,
+        mileage_total: mileageTotal,
+        expenses_total: expensesTotal,
+        payments_total: paymentsTotal,
+        balance_due: balanceDue,
+        status: finalStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", savedInvoiceId)
+      .eq("notary_id", user.id);
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .single();
+
+    await supabase.from("assignment_activity").insert({
+      assignment_id: assignmentId,
+      actor_id: user.id,
+      actor_name: profile?.full_name || profile?.email || "Notary",
+      actor_role: "notary",
+      action: "Invoice Saved",
+      details: [
+        `Status: ${displayInvoiceStatus(finalStatus)}`,
+        `Subtotal: ${formatMoney(cleanFeeAmount)}`,
+        `Mileage: ${formatMoney(mileageTotal)}`,
+        `Expenses: ${formatMoney(expensesTotal)}`,
+        `Payments: ${formatMoney(paymentsTotal)}`,
+        `Balance Due: ${formatMoney(balanceDue)}`,
+      ].join("\n"),
+    });
+
+    revalidatePath(`/notary/assignments/${assignmentId}`);
+    redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+  }
+
+  async function addInvoicePayment(formData: FormData) {
+    "use server";
+
+    const assignmentId = String(formData.get("assignment_id") ?? "").trim();
+    const invoiceId = String(formData.get("invoice_id") ?? "").trim();
+    const paymentDate = String(formData.get("payment_date") ?? "").trim();
+    const amount = Number(formData.get("payment_amount") ?? 0);
+    const paymentMethod = String(formData.get("payment_method") ?? "").trim();
+    const reference = String(formData.get("payment_reference") ?? "").trim();
+    const notes = String(formData.get("payment_notes") ?? "").trim();
+
+    if (!assignmentId || !invoiceId || !Number.isFinite(amount) || amount <= 0) return;
+
+    const supabase = await createSupabaseServerClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) redirect("/login");
+
+    const { data: invoice } = await supabase
+      .from("assignment_invoices")
+      .select("id, subtotal, mileage_total, expenses_total")
+      .eq("id", invoiceId)
+      .eq("assignment_id", assignmentId)
+      .eq("notary_id", user.id)
+      .single();
+
+    if (!invoice) redirect(`/notary/assignments/${assignmentId}`);
+
+    await supabase.from("assignment_payments").insert({
+      invoice_id: invoiceId,
+      assignment_id: assignmentId,
+      notary_id: user.id,
+      payment_date: paymentDate || new Date().toISOString().slice(0, 10),
+      amount,
+      payment_method: paymentMethod || null,
+      reference: reference || null,
+      notes: notes || null,
+    });
+
+    const { data: paymentRows } = await supabase
+      .from("assignment_payments")
+      .select("amount")
+      .eq("invoice_id", invoiceId)
+      .eq("notary_id", user.id);
+
+    const paymentsTotal = (paymentRows ?? []).reduce(
+      (sum, row) => sum + Number(row.amount ?? 0),
+      0,
+    );
+    const totalDue =
+      Number(invoice.subtotal ?? 0) +
+      Number(invoice.mileage_total ?? 0) +
+      Number(invoice.expenses_total ?? 0);
+    const balanceDue = totalDue - paymentsTotal;
+
+    await supabase
+      .from("assignment_invoices")
+      .update({
+        payments_total: paymentsTotal,
+        balance_due: balanceDue,
+        status: balanceDue <= 0 ? "paid" : "unpaid",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", invoiceId)
+      .eq("notary_id", user.id);
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .single();
+
+    await supabase.from("assignment_activity").insert({
+      assignment_id: assignmentId,
+      actor_id: user.id,
+      actor_name: profile?.full_name || profile?.email || "Notary",
+      actor_role: "notary",
+      action: "Invoice Payment Added",
+      details: [
+        `Payment: ${formatMoney(amount)}`,
+        paymentMethod ? `Method: ${paymentMethod}` : null,
+        reference ? `Reference: ${reference}` : null,
+        `Balance Due: ${formatMoney(balanceDue)}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+
+    revalidatePath(`/notary/assignments/${assignmentId}`);
+    redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+  }
+
   async function addOrderNote(formData: FormData) {
     "use server";
 
@@ -1404,6 +1714,123 @@ Thank you for choosing Indiana Notary Solutions.
 
   const hasInsPro = devUnlockInsPro || hasActiveProSubscription;
 
+  const todayForInvoice = new Date().toISOString().slice(0, 10);
+  const defaultInvoiceDate = assignment.signing_date ?? todayForInvoice;
+  const defaultInvoiceDueDate = addDaysToDate(defaultInvoiceDate, 14);
+  const startingInvoiceFee = Number(assignment.notary_fee ?? 0);
+
+  let { data: assignmentInvoice } = await supabase
+    .from("assignment_invoices")
+    .select("*")
+    .eq("assignment_id", assignment.id)
+    .eq("notary_id", user.id)
+    .maybeSingle();
+
+  if (!assignmentInvoice && hasInsPro) {
+    const { data: insertedInvoice } = await supabase
+      .from("assignment_invoices")
+      .insert({
+        assignment_id: assignment.id,
+        notary_id: user.id,
+        invoice_date: defaultInvoiceDate,
+        due_date: defaultInvoiceDueDate || null,
+        status: startingInvoiceFee > 0 ? "unpaid" : "draft",
+        subtotal: startingInvoiceFee,
+        balance_due: startingInvoiceFee,
+      })
+      .select("*")
+      .single();
+
+    assignmentInvoice = insertedInvoice;
+
+    if (insertedInvoice?.id && startingInvoiceFee > 0) {
+      await supabase.from("assignment_invoice_items").insert({
+        invoice_id: insertedInvoice.id,
+        assignment_id: assignment.id,
+        notary_id: user.id,
+        description: `Signing fee for ${assignment.borrower_name || assignment.control_number || "assignment"}`,
+        quantity: 1,
+        unit_price: startingInvoiceFee,
+        line_total: startingInvoiceFee,
+        sort_order: 0,
+      });
+    }
+  }
+
+  const { data: invoiceItems } = assignmentInvoice?.id
+    ? await supabase
+        .from("assignment_invoice_items")
+        .select("*")
+        .eq("invoice_id", assignmentInvoice.id)
+        .eq("notary_id", user.id)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true })
+    : { data: [] };
+
+  const { data: invoicePayments } = assignmentInvoice?.id
+    ? await supabase
+        .from("assignment_payments")
+        .select("*")
+        .eq("invoice_id", assignmentInvoice.id)
+        .eq("notary_id", user.id)
+        .order("payment_date", { ascending: false })
+        .order("created_at", { ascending: false })
+    : { data: [] };
+
+  const { data: invoiceExpenses } = await supabase
+    .from("assignment_expenses")
+    .select("*")
+    .eq("assignment_id", assignment.id)
+    .eq("notary_id", user.id)
+    .order("expense_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  const { data: invoiceMileage } = await supabase
+    .from("assignment_mileage")
+    .select("*")
+    .eq("assignment_id", assignment.id)
+    .eq("notary_id", user.id)
+    .order("mileage_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  const invoiceItemRows = invoiceItems ?? [];
+  const invoicePaymentRows = invoicePayments ?? [];
+  const invoiceExpenseRows = invoiceExpenses ?? [];
+  const invoiceMileageRows = invoiceMileage ?? [];
+  const invoiceSubtotal = Number(
+    assignmentInvoice?.subtotal ??
+      invoiceItemRows.reduce((sum, item) => sum + Number(item.line_total ?? 0), 0),
+  );
+  const invoiceMileageTotal = invoiceMileageRows.reduce(
+    (sum, row) => sum + Number(row.amount ?? 0),
+    0,
+  );
+  const invoiceExpensesTotal = invoiceExpenseRows.reduce(
+    (sum, row) => sum + Number(row.amount ?? 0),
+    0,
+  );
+  const invoicePaymentsTotal = invoicePaymentRows.reduce(
+    (sum, row) => sum + Number(row.amount ?? 0),
+    0,
+  );
+  const invoiceBalanceDue =
+    invoiceSubtotal + invoiceMileageTotal + invoiceExpensesTotal - invoicePaymentsTotal;
+  const invoiceDescription =
+    invoiceItemRows[0]?.description ||
+    [
+      `${formatInputDate(assignment.signing_date) || "Signing"} - Signing fee for ${assignment.control_number || "order"} ${assignment.borrower_name || ""}`.trim(),
+      signingLocation ? `(${signingLocation})` : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
+  const billToLines = [
+    titleCompanyName !== "—" ? titleCompanyName : null,
+    titleCompanyContact !== "—" ? titleCompanyContact : null,
+    titleCompanyEmail !== "—" ? titleCompanyEmail : null,
+    titleCompanyPhone !== "—" ? titleCompanyPhone : null,
+  ].filter(Boolean);
+  const invoiceTotalDue = invoiceSubtotal + invoiceMileageTotal + invoiceExpensesTotal;
+
   let { data: journalEntry } = await supabase
     .from("assignment_journal_entries")
     .select("id, status, updated_at, completed_at, journal_date, journal_time, journal_type, location_mode, address, city, state, zip, notes")
@@ -1942,23 +2369,40 @@ Thank you for choosing Indiana Notary Solutions.
               </p>
 
               <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
-                {workspaceTabs.map((tab) => (
-                  <a
-                    key={tab}
-                    href={
-                      tab === "Journal"
-                        ? "#journal-workspace"
-                        : `#${tab.toLowerCase().replaceAll(" ", "-")}-workspace`
-                    }
-                    className={`shrink-0 rounded-xl px-4 py-2 text-sm font-bold ring-1 transition ${
-                      tab === "Journal"
-                        ? "bg-[#0B1F4D] text-white ring-[#0B1F4D] hover:bg-blue-950"
-                        : "bg-slate-50 text-slate-700 ring-slate-200 hover:bg-slate-100"
-                    }`}
-                  >
-                    {tab}
-                  </a>
-                ))}
+                {workspaceTabs.map((tab) => {
+                  if (tab === "Journal") {
+                    return (
+                      <label
+                        key={tab}
+                        htmlFor="journal-workspace-modal"
+                        className="shrink-0 cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950"
+                      >
+                        {tab}
+                      </label>
+                    );
+                  }
+
+                  if (tab === "Invoice") {
+                    return (
+                      <label
+                        key={tab}
+                        htmlFor="invoice-workspace-modal"
+                        className="shrink-0 cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950"
+                      >
+                        {tab}
+                      </label>
+                    );
+                  }
+
+                  return (
+                    <span
+                      key={tab}
+                      className="shrink-0 rounded-xl bg-slate-50 px-4 py-2 text-sm font-bold text-slate-400 ring-1 ring-slate-200"
+                    >
+                      {tab}
+                    </span>
+                  );
+                })}
               </div>
             </div>
 
@@ -1994,18 +2438,40 @@ Thank you for choosing Indiana Notary Solutions.
                   <input
                     id="journal-workspace-modal"
                     type="checkbox"
-                    className="peer sr-only"
+                    className="peer/journal sr-only"
+                  />
+                  <input
+                    id="invoice-workspace-modal"
+                    type="checkbox"
+                    className="peer/invoice sr-only"
                   />
 
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <label
-                      htmlFor="journal-workspace-modal"
-                      className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-                    >
-                      Open Journal Workspace
-                    </label>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex flex-wrap gap-3">
+                      <label
+                        htmlFor="journal-workspace-modal"
+                        className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                      >
+                        Open Journal Workspace
+                      </label>
+
+                      <label
+                        htmlFor="invoice-workspace-modal"
+                        className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                      >
+                        Open Invoice Workspace
+                      </label>
+                    </div>
 
                     <div className="flex flex-wrap gap-2 text-xs font-bold">
+                      <span
+                        className={`rounded-full px-3 py-1 ring-1 ${invoiceStatusBadge(assignmentInvoice?.status)}`}
+                      >
+                        Invoice {displayInvoiceStatus(assignmentInvoice?.status)}
+                      </span>
+                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                        Balance {formatMoney(invoiceBalanceDue)}
+                      </span>
                       <span
                         className={`rounded-full px-3 py-1 ring-1 ${
                           journalIsComplete
@@ -2027,7 +2493,301 @@ Thank you for choosing Indiana Notary Solutions.
                     </div>
                   </div>
 
-                  <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked:flex sm:items-center">
+
+                  <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/invoice:flex sm:items-center">
+                    <div className="w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                      <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] px-5 py-4 text-white">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <h4 className="text-lg font-bold">Invoice</h4>
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${invoiceStatusBadge(
+                                assignmentInvoice?.status,
+                              )}`}
+                            >
+                              {displayInvoiceStatus(assignmentInvoice?.status)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-white/90">
+                            Auto-filled from this assignment. Payments, mileage, and expenses roll into this invoice.
+                          </p>
+                        </div>
+
+                        <label
+                          htmlFor="invoice-workspace-modal"
+                          className="cursor-pointer rounded-xl border border-white/60 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+                        >
+                          Cancel
+                        </label>
+                      </div>
+
+                      <div className="max-h-[82vh] overflow-y-auto p-5">
+                        <div className="mb-5 grid gap-4 md:grid-cols-4">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Invoice #</p>
+                            <p className="mt-2 text-lg font-black text-slate-950">
+                              {formatInvoiceNumber(assignmentInvoice?.invoice_number)}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Total Due</p>
+                            <p className="mt-2 text-lg font-black text-slate-950">{formatMoney(invoiceTotalDue)}</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Payments</p>
+                            <p className="mt-2 text-lg font-black text-green-700">{formatMoney(invoicePaymentsTotal)}</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Balance</p>
+                            <p className="mt-2 text-lg font-black text-[#0B1F4D]">{formatMoney(invoiceBalanceDue)}</p>
+                          </div>
+                        </div>
+
+                        <form action={saveInvoice} className="space-y-5">
+                          <input type="hidden" name="assignment_id" value={assignment.id} />
+                          <input type="hidden" name="invoice_id" value={assignmentInvoice?.id ?? ""} />
+
+                          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+                            <div className="space-y-5">
+                              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                                <h5 className="text-3xl font-light uppercase tracking-wide text-[#5BC0EB]">Invoice</h5>
+
+                                <div className="mt-6 grid gap-4 md:grid-cols-3">
+                                  <div>
+                                    <label className="block text-sm font-bold text-slate-700">Invoice Date</label>
+                                    <input
+                                      type="date"
+                                      name="invoice_date"
+                                      defaultValue={formatInputDate(assignmentInvoice?.invoice_date) || defaultInvoiceDate}
+                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-bold text-slate-700">Due Date</label>
+                                    <input
+                                      type="date"
+                                      name="due_date"
+                                      defaultValue={formatInputDate(assignmentInvoice?.due_date) || defaultInvoiceDueDate}
+                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-bold text-slate-700">Status</label>
+                                    <select
+                                      name="invoice_status"
+                                      defaultValue={assignmentInvoice?.status ?? "draft"}
+                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    >
+                                      <option value="draft">Draft</option>
+                                      <option value="unpaid">Unpaid</option>
+                                      <option value="sent">Sent</option>
+                                      <option value="paid">Paid</option>
+                                      <option value="not_required">Not Required</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                                    <p className="font-black text-slate-950">Order / Escrow #</p>
+                                    <p className="mt-1 text-slate-700">{assignment.control_number || fileNumber}</p>
+                                    <p className="mt-4 font-black text-slate-950">Loan / Signing Type</p>
+                                    <p className="mt-1 text-slate-700">{productName}</p>
+                                    <p className="mt-4 font-black text-slate-950">Property / Signing Address</p>
+                                    <p className="mt-1 text-slate-700">{signingLocation || "—"}</p>
+                                  </div>
+
+                                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                                    <p className="font-black text-slate-950">Bill To</p>
+                                    {billToLines.length ? (
+                                      <div className="mt-1 space-y-1 text-slate-700">
+                                        {billToLines.map((line, index) => (
+                                          <p key={`${line}-${index}`}>{line}</p>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="mt-1 text-slate-700">Client billing info missing.</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                                <div className="grid grid-cols-[minmax(0,1fr)_140px] bg-[#5BC0EB] px-4 py-3 text-sm font-black text-white">
+                                  <p>Description</p>
+                                  <p className="text-right">Amount</p>
+                                </div>
+
+                                <div className="grid grid-cols-[minmax(0,1fr)_140px] border-b border-slate-200">
+                                  <textarea
+                                    name="invoice_description"
+                                    rows={4}
+                                    defaultValue={invoiceDescription}
+                                    className="min-h-28 border-0 px-4 py-4 text-sm text-slate-900 outline-none focus:ring-4 focus:ring-blue-100"
+                                  />
+                                  <div className="border-l border-slate-200 p-4">
+                                    <label className="sr-only">Fee Amount</label>
+                                    <input
+                                      name="invoice_fee_amount"
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      defaultValue={String(invoiceSubtotal || startingInvoiceFee || 0)}
+                                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-right text-sm font-bold text-slate-900 outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+                                  </div>
+                                </div>
+
+                                {invoiceMileageTotal > 0 && (
+                                  <div className="grid grid-cols-[minmax(0,1fr)_140px] border-b border-slate-200 px-4 py-3 text-sm">
+                                    <p className="font-semibold text-slate-700">Mileage total</p>
+                                    <p className="text-right font-bold text-slate-950">{formatMoney(invoiceMileageTotal)}</p>
+                                  </div>
+                                )}
+
+                                {invoiceExpensesTotal > 0 && (
+                                  <div className="grid grid-cols-[minmax(0,1fr)_140px] border-b border-slate-200 px-4 py-3 text-sm">
+                                    <p className="font-semibold text-slate-700">Expenses total</p>
+                                    <p className="text-right font-bold text-slate-950">{formatMoney(invoiceExpensesTotal)}</p>
+                                  </div>
+                                )}
+
+                                {invoicePaymentRows.map((payment) => (
+                                  <div key={payment.id} className="grid grid-cols-[minmax(0,1fr)_140px] border-b border-slate-200 px-4 py-3 text-sm">
+                                    <p className="font-semibold text-slate-700">
+                                      {formatInputDate(payment.payment_date)} - Payment Received{payment.payment_method ? ` - ${payment.payment_method}` : ""}
+                                    </p>
+                                    <p className="text-right font-bold text-green-700">-{formatMoney(payment.amount)}</p>
+                                  </div>
+                                ))}
+
+                                <div className="grid grid-cols-[minmax(0,1fr)_140px] bg-slate-50 text-sm font-black">
+                                  <p className="px-4 py-4 text-right text-slate-950">TOTAL DUE</p>
+                                  <p className="bg-[#5BC0EB] px-4 py-4 text-right text-white">{formatMoney(invoiceBalanceDue)}</p>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700">Invoice Notes</label>
+                                <textarea
+                                  name="invoice_notes"
+                                  rows={3}
+                                  defaultValue={assignmentInvoice?.notes ?? ""}
+                                  placeholder="Optional notes shown on the invoice."
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                />
+                              </div>
+
+                              <div className="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                                <button
+                                  type="button"
+                                  className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                  Generate PDF Soon
+                                </button>
+                                <SubmitButton
+                                  pendingText="Saving invoice..."
+                                  className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                                >
+                                  Save Invoice
+                                </SubmitButton>
+                              </div>
+                            </div>
+
+                            <aside className="space-y-5">
+                              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                                <h5 className="text-lg font-black text-slate-950">Business Footer</h5>
+                                <div className="mt-3 rounded-xl bg-white p-4 text-center text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
+                                  <p>Thank you for your business!</p>
+                                  <p>Indiana Notary Solutions, LLC</p>
+                                  <p>502-807-8123</p>
+                                  <p>BNelson@IndianaNotarySolutions.com</p>
+                                  <p>https://www.IndianaNotarySolutions.com</p>
+                                </div>
+                              </div>
+
+                              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                                <h5 className="text-lg font-black text-slate-950">Record Payment</h5>
+                                <p className="mt-1 text-sm text-slate-500">This updates the invoice balance.</p>
+
+                                <div className="mt-4 space-y-3">
+                                  <div>
+                                    <label className="block text-sm font-bold text-slate-700">Payment Date</label>
+                                    <input
+                                      type="date"
+                                      name="payment_date"
+                                      form="invoice-payment-form"
+                                      defaultValue={todayForInvoice}
+                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-bold text-slate-700">Amount</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      name="payment_amount"
+                                      form="invoice-payment-form"
+                                      defaultValue={invoiceBalanceDue > 0 ? String(invoiceBalanceDue.toFixed(2)) : ""}
+                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-bold text-slate-700">Method</label>
+                                    <select
+                                      name="payment_method"
+                                      form="invoice-payment-form"
+                                      defaultValue="ACH"
+                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    >
+                                      <option>ACH</option>
+                                      <option>Check</option>
+                                      <option>Zelle</option>
+                                      <option>Cash App</option>
+                                      <option>Cash</option>
+                                      <option>Other</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-bold text-slate-700">Reference</label>
+                                    <input
+                                      name="payment_reference"
+                                      form="invoice-payment-form"
+                                      placeholder="Check #, ACH trace, etc."
+                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-bold text-slate-700">Notes</label>
+                                    <textarea
+                                      name="payment_notes"
+                                      form="invoice-payment-form"
+                                      rows={2}
+                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </aside>
+                          </div>
+                        </form>
+
+                        <form id="invoice-payment-form" action={addInvoicePayment} className="mt-5 flex justify-end">
+                          <input type="hidden" name="assignment_id" value={assignment.id} />
+                          <input type="hidden" name="invoice_id" value={assignmentInvoice?.id ?? ""} />
+                          <SubmitButton
+                            pendingText="Saving payment..."
+                            className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                          >
+                            Enter Payment
+                          </SubmitButton>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/journal:flex sm:items-center">
                     <div className="w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                       <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] px-5 py-4 text-white">
                         <div>
