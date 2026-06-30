@@ -2101,6 +2101,22 @@ Thank you for choosing Indiana Notary Solutions.
           `,
         }}
       />
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            document.addEventListener("click", function (event) {
+              var target = event.target;
+              if (!target || target.id !== "invoice-use-balance-button") return;
+
+              var amountInput = document.getElementById("invoice-payment-amount");
+              if (!amountInput) return;
+
+              amountInput.value = target.getAttribute("data-balance") || "0.00";
+              amountInput.focus();
+            });
+          `,
+        }}
+      />
       <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
         <div className="p-6">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
@@ -2853,17 +2869,9 @@ Thank you for choosing Indiana Notary Solutions.
                                       className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                     />
                                     <button
+                                      id="invoice-use-balance-button"
                                       type="button"
-                                      onClick={() => {
-                                        const amountInput = document.getElementById(
-                                          "invoice-payment-amount",
-                                        ) as HTMLInputElement | null;
-
-                                        if (amountInput) {
-                                          amountInput.value = "${invoiceBalanceDue.toFixed(2)}";
-                                          amountInput.focus();
-                                        }
-                                      }}
+                                      data-balance={invoiceBalanceDue > 0 ? invoiceBalanceDue.toFixed(2) : "0.00"}
                                       className="shrink-0 rounded-lg px-2 py-1 text-sm font-bold text-blue-600 transition hover:bg-blue-50 hover:text-blue-700"
                                     >
                                       Use Bal
