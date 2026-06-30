@@ -2831,45 +2831,135 @@ Thank you for choosing Indiana Notary Solutions.
                           Journal Signatures
                         </h4>
                         <p className="mt-1 text-sm text-slate-500">
-                          Mark each signer or witness after they sign the journal. A touch signature pad will replace this temporary checkbox workflow later.
+                          Have each signer or witness open the signature pad and sign the journal entry.
                         </p>
                       </div>
 
-                      <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-200">
-                        Signature pad next
+                      <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 ring-1 ring-blue-200">
+                        Signature pad
                       </span>
                     </div>
 
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                       {displayJournalPeople.map((person, index) => {
-                        const personType = String(person.person_type ?? "signer").toLowerCase();
+                        const personType = String(
+                          person.person_type ?? "signer",
+                        ).toLowerCase();
                         const isWitness = personType === "witness";
-                        const personName = String(person.full_name ?? `Person ${index + 1}`);
+                        const personName = String(
+                          person.full_name ?? `Person ${index + 1}`,
+                        );
+                        const signatureCapturedId = `journal-signature-captured-${index}`;
 
                         return (
-                          <label
+                          <details
                             key={`journal-signature-${String(person.id)}`}
-                            className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                            className="group rounded-2xl border border-slate-200 bg-slate-50 p-4"
                           >
-                            <input
-                              type="checkbox"
-                              name="journal_signed_people"
-                              value={personName}
-                              className="mt-1 h-5 w-5 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
-                            />
+                            <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="font-bold text-slate-950">
+                                    {personName}
+                                  </p>
+                                  <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                    {isWitness ? "Witness" : "Signer"}
+                                  </p>
+                                  <p className="mt-2 text-sm text-slate-600">
+                                    Click to collect this person&apos;s journal signature.
+                                  </p>
+                                </div>
 
-                            <span className="min-w-0">
-                              <span className="block font-bold text-slate-950">
-                                {personName}
-                              </span>
-                              <span className="mt-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
-                                {isWitness ? "Witness" : "Signer"}
-                              </span>
-                              <span className="mt-2 block text-sm text-slate-600">
-                                This person signed the journal entry.
-                              </span>
-                            </span>
-                          </label>
+                                <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
+                                  Open Pad
+                                </span>
+                              </div>
+                            </summary>
+
+                            <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:items-center">
+                              <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                                <div className="flex items-center justify-between bg-[#5BC0EB] px-5 py-4 text-white">
+                                  <h5 className="text-lg font-bold">
+                                    Sign Journal Entry
+                                  </h5>
+
+                                  <CloseDetailsButton />
+                                </div>
+
+                                <div className="space-y-5 p-5">
+                                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <p className="text-sm font-semibold text-slate-600">
+                                      Signing as
+                                    </p>
+                                    <p className="mt-1 text-xl font-black text-slate-950">
+                                      {personName}
+                                    </p>
+                                    <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                      {isWitness ? "Witness" : "Signer"}
+                                    </p>
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-sm font-bold text-slate-700">
+                                      Signature
+                                    </label>
+                                    <div className="mt-2 rounded-2xl border border-slate-300 bg-white p-4 shadow-inner">
+                                      <textarea
+                                        name={`journal_signature_text_${index}`}
+                                        rows={5}
+                                        placeholder="Sign here using a finger, stylus, or mouse. Temporary text capture until the canvas signature pad is wired."
+                                        className="min-h-[160px] w-full resize-none rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-2xl font-semibold italic text-slate-900 outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                      />
+                                    </div>
+
+                                    <p className="mt-2 text-xs text-slate-500">
+                                      This is the journal signature area. The next pass will replace this text box with a true touch canvas pad.
+                                    </p>
+                                  </div>
+
+                                  <label
+                                    htmlFor={signatureCapturedId}
+                                    className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-bold text-slate-700"
+                                  >
+                                    <input
+                                      id={signatureCapturedId}
+                                      type="checkbox"
+                                      name="journal_signed_people"
+                                      value={personName}
+                                      className="mt-1 h-5 w-5 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+                                    />
+                                    <span>
+                                      Signature captured for {personName}.
+                                    </span>
+                                  </label>
+
+                                  <div className="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                                    <button
+                                      type="button"
+                                      className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                    >
+                                      Clear
+                                    </button>
+
+                                    <div className="flex flex-col gap-3 sm:flex-row">
+                                      <CloseDetailsButton />
+
+                                      <SubmitButton
+                                        pendingText="Saving journal..."
+                                        className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                                      >
+                                        Finish Journal Entry
+                                      </SubmitButton>
+                                    </div>
+                                  </div>
+
+                                  <p className="text-center text-xs font-semibold text-red-600">
+                                    Once you click Finish Journal Entry, the journal entry will be saved.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </details>
                         );
                       })}
                     </div>
