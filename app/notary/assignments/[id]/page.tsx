@@ -196,6 +196,49 @@ function firstTextValue(...values: Array<string | number | null | undefined>) {
   return "—";
 }
 
+
+function optionalTextValue(...values: Array<string | number | null | undefined>) {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+
+    const text = String(value).trim();
+    if (text && text !== "—") return text;
+  }
+
+  return "";
+}
+
+function buildBusinessLocation(profile: Record<string, any> | null | undefined) {
+  if (!profile) return "";
+
+  const fullBusinessLocation = optionalTextValue(
+    profile.business_location,
+    profile.business_full_address,
+    profile.business_mailing_address,
+    profile.business_address_full,
+  );
+
+  if (fullBusinessLocation) return fullBusinessLocation;
+
+  const street = optionalTextValue(
+    profile.business_address,
+    profile.business_street_address,
+    profile.business_street,
+    profile.office_address,
+    profile.office_street_address,
+  );
+
+  const cityLine = [
+    optionalTextValue(profile.business_city, profile.office_city),
+    optionalTextValue(profile.business_state, profile.office_state),
+    optionalTextValue(profile.business_zip, profile.business_zip_code, profile.office_zip),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return [street, cityLine].filter(Boolean).join(", ");
+}
+
 const UUID_PATTERN =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 
@@ -1191,11 +1234,21 @@ export default async function AssignmentDetailPage({
 
     if (!assignment) redirect("/notary/assignments");
 
+    const { data: notaryProfile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const defaultStartingLocation = buildBusinessLocation(
+      notaryProfile as Record<string, any> | null,
+    );
+    const finalStartingLocation = startingLocation || defaultStartingLocation;
     const cleanRate = Number.isFinite(rate) && rate >= 0 ? rate : 0;
     const amount = miles * cleanRate;
     const mileageDescription = [
-      startingLocation && destinationLocation
-        ? `${startingLocation} to ${destinationLocation}`
+      finalStartingLocation && destinationLocation
+        ? `${finalStartingLocation} to ${destinationLocation}`
         : null,
       notes,
     ]
@@ -1276,7 +1329,7 @@ export default async function AssignmentDetailPage({
         `Miles: ${miles.toFixed(2)}`,
         `Rate: ${formatMoney(cleanRate)}`,
         `Amount: ${formatMoney(amount)}`,
-        startingLocation ? `From: ${startingLocation}` : null,
+        finalStartingLocation ? `From: ${finalStartingLocation}` : null,
         destinationLocation ? `To: ${destinationLocation}` : null,
         notes ? `Notes: ${notes}` : null,
       ]
@@ -1852,6 +1905,16 @@ Thank you for choosing Indiana Notary Solutions.
         .eq("id", assignment.client_id)
         .maybeSingle()
     : { data: null };
+
+  const { data: notaryProfile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const notaryBusinessLocation = buildBusinessLocation(
+    notaryProfile as Record<string, any> | null,
+  );
 
   const titleDocumentsWithUrls = await Promise.all(
     (titleDocuments ?? []).map(async (doc) => {
@@ -3093,9 +3156,15 @@ Thank you for choosing Indiana Notary Solutions.
                                 <label className="block text-sm font-bold text-slate-700">Starting Location</label>
                                 <input
                                   name="mileage_starting_location"
-                                  placeholder="Home, office, prior signing..."
+                                  defaultValue={notaryBusinessLocation}
+                                  placeholder="Business location, office, prior signing..."
                                   className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                 />
+                                {!notaryBusinessLocation && (
+                                  <p className="mt-2 text-xs text-amber-700">
+                                    Business Location is not set on this profile yet. Once we add it to the profile page, this field will auto-fill.
+                                  </p>
+                                )}
                               </div>
 
                               <div>

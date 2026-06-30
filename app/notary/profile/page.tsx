@@ -111,7 +111,23 @@ export default async function NotaryProfilePage() {
         encType="multipart/form-data"
         className="space-y-6"
       >
+        
         <section className={sectionClass}>
+          <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <h2 className="text-xl font-bold text-slate-950">Business Location <span className="text-red-600">*</span></h2>
+            <p className="mt-2 text-sm text-amber-800">
+              <strong>Required for INS Pro.</strong> This location is used as the starting point for mileage calculations, routing, travel estimates, and future assignment optimization. It is not shown to customers.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <input name="business_location_address" placeholder="Business Address" defaultValue={(profile as any)?.business_location_address || ""} className={inputClass}/>
+            <input name="business_location_city" placeholder="City" defaultValue={(profile as any)?.business_location_city || ""} className={inputClass}/>
+            <input name="business_location_state" placeholder="State" defaultValue={(profile as any)?.business_location_state || ""} className={inputClass}/>
+            <input name="business_location_zip" placeholder="ZIP Code" defaultValue={(profile as any)?.business_location_zip || ""} className={inputClass}/>
+          </div>
+        </section>
+
+<section className={sectionClass}>
           <div className="mb-5">
             <h2 className="text-xl font-bold text-slate-950">Company Logo</h2>
             <p className="mt-1 text-sm text-slate-500">
