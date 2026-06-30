@@ -542,6 +542,11 @@ export default async function AssignmentDetailPage({
       .getAll("journal_documents")
       .map((value) => String(value).trim())
       .filter(Boolean);
+    const signedJournalPeople = formData
+      .getAll("journal_signed_people")
+      .map((value) => String(value).trim())
+      .filter(Boolean);
+    const notarySignedJournal = formData.get("journal_notary_signed") === "on";
 
     if (!assignmentId) return;
 
@@ -586,6 +591,8 @@ export default async function AssignmentDetailPage({
       `ID Expires: ${idExpirationDate || "—"}`,
       `ID Verified: ${idVerified ? "Yes" : "No"}`,
       `Documents: ${documentNames.length ? documentNames.join(", ") : "None selected"}`,
+      `Journal Signatures: ${signedJournalPeople.length ? signedJournalPeople.join(", ") : "None marked"}`,
+      `Notary Signed Journal: ${notarySignedJournal ? "Yes" : "No"}`,
       notes ? `Notes: ${notes}` : null,
     ]
       .filter(Boolean)
@@ -1333,7 +1340,7 @@ Thank you for choosing Indiana Notary Solutions.
 
   let { data: journalEntry } = await supabase
     .from("assignment_journal_entries")
-    .select("id, status")
+    .select("id, status, updated_at")
     .eq("assignment_id", assignment.id)
     .eq("notary_id", user.id)
     .maybeSingle();
@@ -1354,7 +1361,7 @@ Thank you for choosing Indiana Notary Solutions.
         zip: assignment.signing_zip,
         status: "open",
       })
-      .select("id, status")
+      .select("id, status, updated_at")
       .single();
 
     journalEntry = insertedJournalEntry;
@@ -1397,7 +1404,7 @@ Thank you for choosing Indiana Notary Solutions.
     zip: assignment.signing_zip,
     id_verification_type: "Driver's License",
     id_number: null,
-    id_issued_by: "",
+    id_issued_by: "Indiana BMV",
     id_issued_date: null,
     id_expiration_date: null,
     id_verified: false,
@@ -1901,6 +1908,11 @@ Thank you for choosing Indiana Notary Solutions.
                       ID information, select documents, and save the journal
                       entry.
                     </p>
+                    {journalEntry?.updated_at && (
+                      <p className="mt-2 text-xs font-bold text-emerald-700">
+                        Last saved: {formatActivityDate(journalEntry.updated_at)}
+                      </p>
+                    )}
                   </div>
 
                   <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700 ring-1 ring-green-200">
@@ -2735,6 +2747,16 @@ Thank you for choosing Indiana Notary Solutions.
                                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                   />
                                 </label>
+
+                                <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                                  <p className="font-bold text-slate-900">
+                                    Coming next
+                                  </p>
+                                  <p className="mt-1">
+                                    Per-document Ack/Jurat, signer, and witness
+                                    selection.
+                                  </p>
+                                </div>
                               </div>
 
                               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
@@ -2800,6 +2822,68 @@ Thank you for choosing Indiana Notary Solutions.
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-950">
+                          Journal Signatures
+                        </h4>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Mark each signer or witness after they sign the journal. A touch signature pad will replace this temporary checkbox workflow later.
+                        </p>
+                      </div>
+
+                      <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-200">
+                        Signature pad next
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      {displayJournalPeople.map((person, index) => {
+                        const personType = String(person.person_type ?? "signer").toLowerCase();
+                        const isWitness = personType === "witness";
+                        const personName = String(person.full_name ?? `Person ${index + 1}`);
+
+                        return (
+                          <label
+                            key={`journal-signature-${String(person.id)}`}
+                            className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                          >
+                            <input
+                              type="checkbox"
+                              name="journal_signed_people"
+                              value={personName}
+                              className="mt-1 h-5 w-5 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+                            />
+
+                            <span className="min-w-0">
+                              <span className="block font-bold text-slate-950">
+                                {personName}
+                              </span>
+                              <span className="mt-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+                                {isWitness ? "Witness" : "Signer"}
+                              </span>
+                              <span className="mt-2 block text-sm text-slate-600">
+                                This person signed the journal entry.
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    <label className="mt-4 flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-bold text-slate-700">
+                      <input
+                        type="checkbox"
+                        name="journal_notary_signed"
+                        className="mt-1 h-5 w-5 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+                      />
+                      <span>
+                        I certify this journal entry is complete and ready to save.
+                      </span>
+                    </label>
                   </div>
 
                   <div>
