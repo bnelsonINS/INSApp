@@ -1992,7 +1992,7 @@ Thank you for choosing Indiana Notary Solutions.
               <div className="p-5">
                 <details className="group">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <summary className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 [&::-webkit-details-marker]:hidden">
+                    <summary className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-black shadow-sm transition hover:bg-blue-950 [&::-webkit-details-marker]:hidden">
                       Open Journal Workspace
                     </summary>
 
