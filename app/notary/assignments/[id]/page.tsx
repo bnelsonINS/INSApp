@@ -922,7 +922,7 @@ export default async function AssignmentDetailPage({
       0,
     );
     const balanceDue = cleanFeeAmount + mileageTotal + expensesTotal - paymentsTotal;
-    const finalStatus = balanceDue <= 0 && paymentsTotal > 0 ? "paid" : status || "draft";
+    const finalStatus = status || (balanceDue <= 0 && paymentsTotal > 0 ? "paid" : "draft");
 
     await supabase
       .from("assignment_invoices")
