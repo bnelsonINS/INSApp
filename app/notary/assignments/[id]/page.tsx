@@ -2213,6 +2213,51 @@ Thank you for choosing Indiana Notary Solutions.
               amountInput.value = target.getAttribute("data-balance") || "0.00";
               amountInput.focus();
             });
+
+            document.addEventListener("submit", function (event) {
+              var form = event.target;
+              if (!form || !(form instanceof HTMLFormElement)) return;
+
+              var submitter = event.submitter;
+              if (!submitter || !(submitter instanceof HTMLElement)) return;
+
+              var busyText = submitter.getAttribute("data-busy-text");
+              if (!busyText) return;
+
+              submitter.setAttribute("aria-disabled", "true");
+              if ("disabled" in submitter) {
+                submitter.disabled = true;
+              }
+
+              submitter.classList.add("cursor-wait", "opacity-80");
+
+              var originalText = submitter.textContent || "";
+              submitter.setAttribute("data-original-text", originalText);
+
+              submitter.innerHTML =
+                '<span class="inline-flex items-center gap-2">' +
+                '<span class="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"></span>' +
+                '<span>' + busyText + '</span>' +
+                '</span>';
+
+              var paymentId = submitter.getAttribute("data-busy-payment-id");
+              if (paymentId) {
+                document
+                  .querySelectorAll('[data-payment-container="' + paymentId + '"]')
+                  .forEach(function (container) {
+                    container.classList.add("opacity-50", "pointer-events-none");
+                  });
+
+                document
+                  .querySelectorAll('[data-busy-payment-id="' + paymentId + '"]')
+                  .forEach(function (button) {
+                    if (button !== submitter && "disabled" in button) {
+                      button.disabled = true;
+                    }
+                    button.classList.add("cursor-wait", "opacity-60");
+                  });
+              }
+            }, true);
           `,
         }}
       />
@@ -2805,7 +2850,11 @@ Thank you for choosing Indiana Notary Solutions.
                                 )}
 
                                 {invoicePaymentRows.map((payment) => (
-                                  <div key={payment.id} className="grid grid-cols-[minmax(0,1fr)_140px] border-b border-slate-200 px-4 py-3 text-sm">
+                                  <div
+                                    key={payment.id}
+                                    data-payment-container={String(payment.id)}
+                                    className="grid grid-cols-[minmax(0,1fr)_140px] border-b border-slate-200 px-4 py-3 text-sm transition-opacity"
+                                  >
                                     <p className="font-semibold text-slate-700">
                                       {formatInputDate(payment.payment_date)} - Payment Received{payment.payment_method ? ` - ${payment.payment_method}` : ""}
                                     </p>
@@ -2814,7 +2863,9 @@ Thank you for choosing Indiana Notary Solutions.
                                       <button
                                         type="submit"
                                         form={`delete-invoice-payment-${payment.id}`}
-                                        className="no-print rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-bold text-red-700 transition hover:bg-red-50"
+                                        data-busy-text="Removing..."
+                                        data-busy-payment-id={String(payment.id)}
+                                        className="no-print rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-70"
                                       >
                                         Remove
                                       </button>
@@ -2903,7 +2954,11 @@ Thank you for choosing Indiana Notary Solutions.
                                       Payment History
                                     </p>
                                     {invoicePaymentRows.map((payment) => (
-                                      <div key={`payment-side-${payment.id}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+                                      <div
+                                        key={`payment-side-${payment.id}`}
+                                        data-payment-container={String(payment.id)}
+                                        className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm transition-opacity"
+                                      >
                                         <div className="flex items-start justify-between gap-3">
                                           <div>
                                             <p className="font-bold text-slate-950">{formatMoney(payment.amount)}</p>
@@ -2916,7 +2971,9 @@ Thank you for choosing Indiana Notary Solutions.
                                           <button
                                             type="submit"
                                             form={`delete-invoice-payment-${payment.id}`}
-                                            className="rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-bold text-red-700 transition hover:bg-red-50"
+                                            data-busy-text="Removing..."
+                                            data-busy-payment-id={String(payment.id)}
+                                            className="rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-70"
                                           >
                                             Remove
                                           </button>
