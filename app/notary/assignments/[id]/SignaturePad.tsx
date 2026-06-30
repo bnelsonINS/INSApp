@@ -3,72 +3,68 @@
 import { useEffect, useRef, useState } from "react";
 
 type SignaturePadProps = {
+  name: string;
   inputName: string;
-  signedPeopleName: string;
-  signedPeopleValue: string;
-};
-
-type Point = {
-  x: number;
-  y: number;
+  defaultValue?: string | null;
+  signedPeopleName?: string;
+  signedPeopleValue?: string;
 };
 
 export default function SignaturePad({
+  name,
   inputName,
+  defaultValue = "",
   signedPeopleName,
   signedPeopleValue,
 }: SignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const drawingRef = useRef(false);
-  const lastPointRef = useRef<Point | null>(null);
-  const [signatureDataUrl, setSignatureDataUrl] = useState("");
-  const [hasSignature, setHasSignature] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const isDrawingRef = useRef(false);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
 
-  function resizeCanvas() {
+  const [signatureData, setSignatureData] = useState(defaultValue ?? "");
+  const [hasSignature, setHasSignature] = useState(Boolean(defaultValue));
+
+  function setupCanvas() {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const wrapper = wrapperRef.current;
+    if (!canvas || !wrapper) return;
 
-    const existingSignature = signatureDataUrl;
-    const rect = canvas.getBoundingClientRect();
+    const rect = wrapper.getBoundingClientRect();
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
 
     canvas.width = Math.floor(rect.width * ratio);
-    canvas.height = Math.floor(rect.height * ratio);
+    canvas.height = Math.floor(220 * ratio);
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = "220px";
 
-    const context = canvas.getContext("2d");
-    if (!context) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    context.lineCap = "round";
-    context.lineJoin = "round";
-    context.lineWidth = 3;
-    context.strokeStyle = "#0f172a";
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#0f172a";
 
-    if (existingSignature) {
-      const image = new Image();
-      image.onload = () => {
-        context.drawImage(image, 0, 0, rect.width, rect.height);
-      };
-      image.src = existingSignature;
+    if (signatureData) {
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, rect.width, 220);
+      img.src = signatureData;
     }
   }
 
   useEffect(() => {
-    resizeCanvas();
+    setupCanvas();
+    window.addEventListener("resize", setupCanvas);
 
-    window.addEventListener("resize", resizeCanvas);
-    window.addEventListener("orientationchange", resizeCanvas);
-
-    return () => {
-      window.removeEventListener("resize", resizeCanvas);
-      window.removeEventListener("orientationchange", resizeCanvas);
-    };
+    return () => window.removeEventListener("resize", setupCanvas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function getPoint(event: React.PointerEvent<HTMLCanvasElement>): Point {
+  function getPoint(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
+    if (!canvas) return null;
 
     const rect = canvas.getBoundingClientRect();
 
@@ -78,82 +74,114 @@ export default function SignaturePad({
     };
   }
 
-  function updateSignatureValue() {
+  function saveCanvas() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const dataUrl = canvas.toDataURL("image/png");
-    setSignatureDataUrl(dataUrl);
+    setSignatureData(dataUrl);
     setHasSignature(true);
   }
 
   function startDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
     event.preventDefault();
+
+    const canvas = canvasRef.current;
+    const point = getPoint(event);
+    if (!canvas || !point) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
     canvas.setPointerCapture(event.pointerId);
 
-    drawingRef.current = true;
-    lastPointRef.current = getPoint(event);
+    isDrawingRef.current = true;
+    lastPointRef.current = point;
+
+    ctx.beginPath();
+    ctx.moveTo(point.x, point.y);
   }
 
   function draw(event: React.PointerEvent<HTMLCanvasElement>) {
-    if (!drawingRef.current) return;
-
-    const canvas = canvasRef.current;
-    const previousPoint = lastPointRef.current;
-    if (!canvas || !previousPoint) return;
+    if (!isDrawingRef.current) return;
 
     event.preventDefault();
 
-    const context = canvas.getContext("2d");
-    if (!context) return;
+    const point = getPoint(event);
+    const lastPoint = lastPointRef.current;
+    const canvas = canvasRef.current;
 
-    const nextPoint = getPoint(event);
+    if (!canvas || !point || !lastPoint) return;
 
-    context.beginPath();
-    context.moveTo(previousPoint.x, previousPoint.y);
-    context.lineTo(nextPoint.x, nextPoint.y);
-    context.stroke();
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    lastPointRef.current = nextPoint;
+    ctx.beginPath();
+    ctx.moveTo(lastPoint.x, lastPoint.y);
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+
+    lastPointRef.current = point;
   }
 
   function stopDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
-    if (!drawingRef.current) return;
+    if (!isDrawingRef.current) return;
 
     event.preventDefault();
 
-    drawingRef.current = false;
+    const canvas = canvasRef.current;
+
+    if (canvas?.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+
+    isDrawingRef.current = false;
     lastPointRef.current = null;
-    updateSignatureValue();
+    saveCanvas();
   }
 
   function clearSignature() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const context = canvas.getContext("2d");
-    if (!context) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    const rect = canvas.getBoundingClientRect();
-    context.clearRect(0, 0, rect.width, rect.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    setSignatureDataUrl("");
+    setSignatureData("");
     setHasSignature(false);
+    lastPointRef.current = null;
+    isDrawingRef.current = false;
   }
 
   return (
     <div>
-      <label className="block text-sm font-bold text-slate-700">
-        Signature Pad
-      </label>
+      <input type="hidden" name={inputName} value={signatureData} />
 
-      <div className="mt-2 rounded-2xl border border-slate-300 bg-white p-3 shadow-inner">
+      {signedPeopleName && signedPeopleValue ? (
+        <input
+          type="hidden"
+          name={signedPeopleName}
+          value={hasSignature ? signedPeopleValue : ""}
+        />
+      ) : null}
+
+      <label className="block text-sm font-bold text-slate-700">{name}</label>
+
+      <div
+        ref={wrapperRef}
+        className="mt-2 rounded-2xl border border-slate-300 bg-white p-3 shadow-inner"
+      >
         <canvas
           ref={canvasRef}
-          className="h-56 w-full touch-none rounded-xl border border-dashed border-slate-300 bg-white"
+          className="block w-full cursor-crosshair rounded-xl border border-dashed border-slate-300 bg-white"
+          style={{
+            height: "220px",
+            touchAction: "none",
+            WebkitUserSelect: "none",
+            userSelect: "none",
+          }}
           onPointerDown={startDrawing}
           onPointerMove={draw}
           onPointerUp={stopDrawing}
@@ -162,25 +190,15 @@ export default function SignaturePad({
         />
       </div>
 
-      <input type="hidden" name={inputName} value={signatureDataUrl} />
-
-      {hasSignature && (
-        <input
-          type="hidden"
-          name={signedPeopleName}
-          value={signedPeopleValue}
-        />
-      )}
-
-      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-3 flex items-center justify-between gap-3">
         <p
-          className={`text-sm font-semibold ${
+          className={`text-sm font-bold ${
             hasSignature ? "text-emerald-700" : "text-slate-500"
           }`}
         >
           {hasSignature
             ? "Signature captured."
-            : "Use your finger, stylus, or mouse to sign inside the box."}
+            : "Use finger, stylus, or mouse to sign."}
         </p>
 
         <button

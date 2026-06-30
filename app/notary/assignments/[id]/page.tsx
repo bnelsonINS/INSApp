@@ -2910,10 +2910,11 @@ Thank you for choosing Indiana Notary Solutions.
                                   </div>
 
                                   <SignaturePad
-                                    inputName={`journal_signature_text_${index}`}
-                                    signedPeopleName="journal_signed_people"
-                                    signedPeopleValue={personName}
-                                  />
+  name="Signature Pad"
+  inputName={`journal_signature_text_${index}`}
+  signedPeopleName="journal_signed_people"
+  signedPeopleValue={personName}
+/>
 
                                   <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
                                     <label
