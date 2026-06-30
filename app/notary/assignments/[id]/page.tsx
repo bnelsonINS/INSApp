@@ -971,7 +971,7 @@ export default async function AssignmentDetailPage({
     const invoiceId = String(formData.get("invoice_id") ?? "").trim();
     const paymentDate = String(formData.get("payment_date") ?? "").trim();
     const amount = Number(formData.get("payment_amount") ?? 0);
-    const paymentMethod = String(formData.get("payment_method") ?? "").trim();
+    const paymentMethod = String(formData.get("payment_method_choice") || formData.get("payment_method") || "").trim();
     const reference = String(formData.get("payment_reference") ?? "").trim();
     const notes = String(formData.get("payment_notes") ?? "").trim();
 
@@ -1830,6 +1830,24 @@ Thank you for choosing Indiana Notary Solutions.
     titleCompanyPhone !== "—" ? titleCompanyPhone : null,
   ].filter(Boolean);
   const invoiceTotalDue = invoiceSubtotal + invoiceMileageTotal + invoiceExpensesTotal;
+  const invoiceEmailTo = titleCompanyEmail !== "—" ? titleCompanyEmail : "";
+  const invoiceEmailSubject = `Invoice - ${assignment.borrower_name || "Signing"} - ${assignment.control_number || formatInvoiceNumber(assignmentInvoice?.invoice_number)}`;
+  const invoiceEmailBody = [
+    "Hello,",
+    "",
+    `Please find the invoice for the order for ${assignment.borrower_name || "the signer"}.`,
+    "",
+    "If this order was processed through a signing platform with direct payment, or if payment has already been received, please disregard this email.",
+    "",
+    "Thank you for your business and continued trust in Indiana Notary Solutions, LLC.",
+    "",
+    "Brandon Nelson",
+    "Indiana Notary Solutions, LLC",
+    "502-807-8123",
+    "BNelson@IndianaNotarySolutions.com",
+    "https://www.IndianaNotarySolutions.com",
+  ].join("\n");
+  const invoiceMailtoHref = `mailto:${encodeURIComponent(invoiceEmailTo)}?subject=${encodeURIComponent(invoiceEmailSubject)}&body=${encodeURIComponent(invoiceEmailBody)}`;
 
   let { data: journalEntry } = await supabase
     .from("assignment_journal_entries")
@@ -2063,7 +2081,26 @@ Thank you for choosing Indiana Notary Solutions.
   ];
 
   return (
-    <main className="space-y-6 bg-slate-50 p-4 sm:p-6">
+    <main className="space-y-6 bg-slate-50 p-4 sm:p-6 print:bg-white print:p-0">
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @media print {
+              body * { visibility: hidden !important; }
+              #invoice-print-area, #invoice-print-area * { visibility: visible !important; }
+              #invoice-print-area {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                border: 0 !important;
+                box-shadow: none !important;
+              }
+              .no-print { display: none !important; }
+            }
+          `,
+        }}
+      />
       <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
         <div className="p-6">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
@@ -2549,7 +2586,7 @@ Thank you for choosing Indiana Notary Solutions.
 
                           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
                             <div className="space-y-5">
-                              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                              <div id="invoice-print-area" className="rounded-2xl border border-slate-200 bg-white p-5">
                                 <h5 className="text-3xl font-light uppercase tracking-wide text-[#5BC0EB]">Invoice</h5>
 
                                 <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -2678,13 +2715,19 @@ Thank you for choosing Indiana Notary Solutions.
                                 />
                               </div>
 
-                              <div className="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
-                                <button
-                                  type="button"
-                                  className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                              <div className="no-print flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                                <a
+                                  href="javascript:window.print()"
+                                  className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-50"
                                 >
-                                  Generate PDF Soon
-                                </button>
+                                  Generate PDF / Print
+                                </a>
+                                <a
+                                  href={invoiceMailtoHref}
+                                  className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-center text-sm font-bold text-blue-700 transition hover:bg-blue-100"
+                                >
+                                  Email Invoice
+                                </a>
                                 <SubmitButton
                                   pendingText="Saving invoice..."
                                   className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
@@ -2706,83 +2749,208 @@ Thank you for choosing Indiana Notary Solutions.
                                 </div>
                               </div>
 
-                              <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                                <h5 className="text-lg font-black text-slate-950">Record Payment</h5>
-                                <p className="mt-1 text-sm text-slate-500">This updates the invoice balance.</p>
-
-                                <div className="mt-4 space-y-3">
-                                  <div>
-                                    <label className="block text-sm font-bold text-slate-700">Payment Date</label>
-                                    <input
-                                      type="date"
-                                      name="payment_date"
-                                      form="invoice-payment-form"
-                                      defaultValue={todayForInvoice}
-                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
-                                    />
+                              <div className="no-print rounded-2xl border border-slate-200 bg-white p-5">
+                                <h5 className="text-lg font-black text-slate-950">Payments</h5>
+                                <div className="mt-4 space-y-2 text-sm">
+                                  <div className="flex justify-between gap-3">
+                                    <span className="font-semibold text-slate-600">Invoice Total</span>
+                                    <span className="font-black text-slate-950">{formatMoney(invoiceTotalDue)}</span>
                                   </div>
-                                  <div>
-                                    <label className="block text-sm font-bold text-slate-700">Amount</label>
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      name="payment_amount"
-                                      form="invoice-payment-form"
-                                      defaultValue={invoiceBalanceDue > 0 ? String(invoiceBalanceDue.toFixed(2)) : ""}
-                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
-                                    />
+                                  <div className="flex justify-between gap-3">
+                                    <span className="font-semibold text-slate-600">Payments</span>
+                                    <span className="font-black text-green-700">{invoicePaymentsTotal > 0 ? formatMoney(invoicePaymentsTotal) : "---"}</span>
                                   </div>
-                                  <div>
-                                    <label className="block text-sm font-bold text-slate-700">Method</label>
-                                    <select
-                                      name="payment_method"
-                                      form="invoice-payment-form"
-                                      defaultValue="ACH"
-                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
-                                    >
-                                      <option>ACH</option>
-                                      <option>Check</option>
-                                      <option>Zelle</option>
-                                      <option>Cash App</option>
-                                      <option>Cash</option>
-                                      <option>Other</option>
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-bold text-slate-700">Reference</label>
-                                    <input
-                                      name="payment_reference"
-                                      form="invoice-payment-form"
-                                      placeholder="Check #, ACH trace, etc."
-                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-bold text-slate-700">Notes</label>
-                                    <textarea
-                                      name="payment_notes"
-                                      form="invoice-payment-form"
-                                      rows={2}
-                                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
-                                    />
+                                  <div className="flex justify-between gap-3 border-t border-slate-200 pt-2">
+                                    <span className="font-black text-slate-950">Balance</span>
+                                    <span className="font-black text-[#0B1F4D]">{formatMoney(invoiceBalanceDue)}</span>
                                   </div>
                                 </div>
+
+                                <label
+                                  htmlFor="invoice-payment-modal"
+                                  className="mt-5 inline-flex w-full cursor-pointer items-center justify-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                                >
+                                  Enter Payment
+                                </label>
+
+                                {invoicePaymentRows.length > 0 && (
+                                  <div className="mt-5 space-y-2">
+                                    <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+                                      Payment History
+                                    </p>
+                                    {invoicePaymentRows.map((payment) => (
+                                      <div key={`payment-side-${payment.id}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+                                        <p className="font-bold text-slate-950">{formatMoney(payment.amount)}</p>
+                                        <p className="text-xs text-slate-500">
+                                          {formatInputDate(payment.payment_date)}
+                                          {payment.payment_method ? ` • ${payment.payment_method}` : ""}
+                                        </p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </aside>
                           </div>
                         </form>
 
-                        <form id="invoice-payment-form" action={addInvoicePayment} className="mt-5 flex justify-end">
-                          <input type="hidden" name="assignment_id" value={assignment.id} />
-                          <input type="hidden" name="invoice_id" value={assignmentInvoice?.id ?? ""} />
-                          <SubmitButton
-                            pendingText="Saving payment..."
-                            className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
-                          >
-                            Enter Payment
-                          </SubmitButton>
-                        </form>
+                        <input
+                          id="invoice-payment-modal"
+                          type="checkbox"
+                          className="peer/payment sr-only"
+                        />
+
+                        <div className="fixed inset-0 z-[60] hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/payment:flex sm:items-center">
+                          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                            <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] px-5 py-4 text-white">
+                              <h5 className="text-lg font-bold">New Payment</h5>
+                              <label
+                                htmlFor="invoice-payment-modal"
+                                className="cursor-pointer text-3xl font-black leading-none"
+                                aria-label="Close payment modal"
+                              >
+                                ×
+                              </label>
+                            </div>
+
+                            <form id="invoice-payment-form" action={addInvoicePayment} className="space-y-6 p-5">
+                              <input type="hidden" name="assignment_id" value={assignment.id} />
+                              <input type="hidden" name="invoice_id" value={assignmentInvoice?.id ?? ""} />
+
+                              <div className="space-y-2 text-center text-lg">
+                                <p>
+                                  <span className="text-slate-700">Invoice Total:</span>{" "}
+                                  <span className="font-black text-slate-950">{formatMoney(invoiceTotalDue)}</span>
+                                </p>
+                                <p>
+                                  <span className="text-slate-700">Payments:</span>{" "}
+                                  <span className="font-black text-slate-950">{invoicePaymentsTotal > 0 ? formatMoney(invoicePaymentsTotal) : "---"}</span>
+                                </p>
+                                <p className="font-black text-blue-600">
+                                  Balance: {formatMoney(invoiceBalanceDue)}
+                                </p>
+                              </div>
+
+                              <div className="mx-auto max-w-lg rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                                <div className="grid gap-4 sm:grid-cols-[130px_minmax(0,1fr)] sm:items-center">
+                                  <label className="font-bold text-slate-500 sm:text-right">Date Rec&apos;d</label>
+                                  <input
+                                    type="date"
+                                    name="payment_date"
+                                    defaultValue={todayForInvoice}
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                  />
+
+                                  <label className="font-bold text-slate-500 sm:text-right">Amount</label>
+                                  <div className="flex items-center gap-3">
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      name="payment_amount"
+                                      defaultValue={invoiceBalanceDue > 0 ? String(invoiceBalanceDue.toFixed(2)) : ""}
+                                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+                                    <span className="shrink-0 text-sm font-bold text-blue-600">Use Bal</span>
+                                  </div>
+
+                                  <label className="font-bold text-slate-500 sm:text-right">Payment Type</label>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      name="payment_method"
+                                      defaultValue="ACH"
+                                      placeholder="ACH, Check, Cash..."
+                                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+
+                                    <input
+                                      id="invoice-payment-type-modal"
+                                      type="checkbox"
+                                      className="peer/paytype sr-only"
+                                    />
+
+                                    <label
+                                      htmlFor="invoice-payment-type-modal"
+                                      className="inline-flex h-11 w-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-300 bg-white text-xl font-black text-slate-500 transition hover:bg-slate-50"
+                                      aria-label="Open payment type list"
+                                    >
+                                      …
+                                    </label>
+
+                                    <div className="fixed inset-0 z-[70] hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/paytype:flex sm:items-center">
+                                      <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                                        <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] px-5 py-4 text-white">
+                                          <h6 className="text-lg font-bold">Favorite Payment Types</h6>
+                                          <label
+                                            htmlFor="invoice-payment-type-modal"
+                                            className="cursor-pointer text-3xl font-black leading-none"
+                                            aria-label="Close payment type list"
+                                          >
+                                            ×
+                                          </label>
+                                        </div>
+
+                                        <div className="p-5">
+                                          <div className="mx-auto max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                                            {["ACH", "Cash", "Check", "Credit Card", "E-Check"].map((method) => (
+                                              <label
+                                                key={method}
+                                                className="flex cursor-pointer items-center justify-between border-b border-slate-200 px-5 py-4 text-sm font-bold text-slate-800 last:border-b-0 hover:bg-slate-50"
+                                              >
+                                                <span>{method}</span>
+                                                <input
+                                                  type="radio"
+                                                  name="payment_method_choice"
+                                                  value={method}
+                                                  form="invoice-payment-form"
+                                                  className="h-4 w-4 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+                                                />
+                                              </label>
+                                            ))}
+                                          </div>
+
+                                          <p className="mt-4 text-center text-xs text-slate-500">
+                                            Pick one here, or type your own method in the field behind this popup.
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <label className="font-bold text-slate-500 sm:text-right">Check / Ref #</label>
+                                  <input
+                                    name="payment_reference"
+                                    placeholder="Check #, ACH trace, etc."
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                  />
+                                </div>
+
+                                <textarea
+                                  name="payment_notes"
+                                  rows={2}
+                                  placeholder="Optional notes..."
+                                  className="mt-4 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                />
+                              </div>
+
+                              <div className="flex justify-center gap-3 border-t border-slate-200 pt-5">
+                                <label
+                                  htmlFor="invoice-payment-modal"
+                                  className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                  Cancel
+                                </label>
+
+                                <SubmitButton
+                                  pendingText="Saving payment..."
+                                  className="rounded-xl bg-[#0B1F4D] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                                >
+                                  Save Payment
+                                </SubmitButton>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
