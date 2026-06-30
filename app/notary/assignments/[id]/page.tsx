@@ -1158,6 +1158,235 @@ export default async function AssignmentDetailPage({
     redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
   }
 
+
+
+  async function saveMileageEntry(formData: FormData) {
+    "use server";
+
+    const assignmentId = String(formData.get("assignment_id") ?? "").trim();
+    const invoiceId = String(formData.get("invoice_id") ?? "").trim();
+    const mileageDate = String(formData.get("mileage_date") ?? "").trim();
+    const startingLocation = String(formData.get("mileage_starting_location") ?? "").trim();
+    const destinationLocation = String(formData.get("mileage_destination_location") ?? "").trim();
+    const miles = Number(formData.get("mileage_miles") ?? 0);
+    const rate = Number(formData.get("mileage_rate") ?? 0.67);
+    const notes = String(formData.get("mileage_notes") ?? "").trim();
+
+    if (!assignmentId || !Number.isFinite(miles) || miles <= 0) return;
+
+    const supabase = await createSupabaseServerClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) redirect("/login");
+
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select("id, borrower_name, control_number, notary_fee")
+      .eq("id", assignmentId)
+      .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
+      .single();
+
+    if (!assignment) redirect("/notary/assignments");
+
+    const cleanRate = Number.isFinite(rate) && rate >= 0 ? rate : 0;
+    const amount = miles * cleanRate;
+    const mileageDescription = [
+      startingLocation && destinationLocation
+        ? `${startingLocation} to ${destinationLocation}`
+        : null,
+      notes,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    await supabase.from("assignment_mileage").insert({
+      assignment_id: assignmentId,
+      notary_id: user.id,
+      mileage_date: mileageDate || new Date().toISOString().slice(0, 10),
+      miles,
+      rate: cleanRate,
+      amount,
+      notes: mileageDescription || null,
+    });
+
+    if (invoiceId) {
+      const { data: invoice } = await supabase
+        .from("assignment_invoices")
+        .select("id, subtotal, expenses_total, payments_total, status")
+        .eq("id", invoiceId)
+        .eq("assignment_id", assignmentId)
+        .eq("notary_id", user.id)
+        .maybeSingle();
+
+      if (invoice) {
+        const { data: mileageRows } = await supabase
+          .from("assignment_mileage")
+          .select("amount")
+          .eq("assignment_id", assignmentId)
+          .eq("notary_id", user.id);
+
+        const mileageTotal = (mileageRows ?? []).reduce(
+          (sum, row) => sum + Number(row.amount ?? 0),
+          0,
+        );
+        const totalDue =
+          Number(invoice.subtotal ?? 0) +
+          mileageTotal +
+          Number(invoice.expenses_total ?? 0);
+        const balanceDue = totalDue - Number(invoice.payments_total ?? 0);
+        const currentStatus = String(invoice.status ?? "draft").toLowerCase();
+        const nextStatus =
+          currentStatus === "not_required"
+            ? "not_required"
+            : balanceDue <= 0 && Number(invoice.payments_total ?? 0) > 0
+              ? "paid"
+              : totalDue > 0
+                ? "unpaid"
+                : "draft";
+
+        await supabase
+          .from("assignment_invoices")
+          .update({
+            mileage_total: mileageTotal,
+            balance_due: balanceDue,
+            status: nextStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", invoiceId)
+          .eq("notary_id", user.id);
+      }
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .single();
+
+    await supabase.from("assignment_activity").insert({
+      assignment_id: assignmentId,
+      actor_id: user.id,
+      actor_name: profile?.full_name || profile?.email || "Notary",
+      actor_role: "notary",
+      action: "Mileage Added",
+      details: [
+        `Miles: ${miles.toFixed(2)}`,
+        `Rate: ${formatMoney(cleanRate)}`,
+        `Amount: ${formatMoney(amount)}`,
+        startingLocation ? `From: ${startingLocation}` : null,
+        destinationLocation ? `To: ${destinationLocation}` : null,
+        notes ? `Notes: ${notes}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+
+    revalidatePath(`/notary/assignments/${assignmentId}`);
+    redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+  }
+
+  async function deleteMileageEntry(formData: FormData) {
+    "use server";
+
+    const assignmentId = String(formData.get("assignment_id") ?? "").trim();
+    const invoiceId = String(formData.get("invoice_id") ?? "").trim();
+    const mileageId = String(formData.get("mileage_id") ?? "").trim();
+
+    if (!assignmentId || !mileageId) return;
+
+    const supabase = await createSupabaseServerClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) redirect("/login");
+
+    const { data: deletedMileage } = await supabase
+      .from("assignment_mileage")
+      .delete()
+      .eq("id", mileageId)
+      .eq("assignment_id", assignmentId)
+      .eq("notary_id", user.id)
+      .select("miles, rate, amount, notes")
+      .maybeSingle();
+
+    if (invoiceId) {
+      const { data: invoice } = await supabase
+        .from("assignment_invoices")
+        .select("id, subtotal, expenses_total, payments_total, status")
+        .eq("id", invoiceId)
+        .eq("assignment_id", assignmentId)
+        .eq("notary_id", user.id)
+        .maybeSingle();
+
+      if (invoice) {
+        const { data: mileageRows } = await supabase
+          .from("assignment_mileage")
+          .select("amount")
+          .eq("assignment_id", assignmentId)
+          .eq("notary_id", user.id);
+
+        const mileageTotal = (mileageRows ?? []).reduce(
+          (sum, row) => sum + Number(row.amount ?? 0),
+          0,
+        );
+        const totalDue =
+          Number(invoice.subtotal ?? 0) +
+          mileageTotal +
+          Number(invoice.expenses_total ?? 0);
+        const balanceDue = totalDue - Number(invoice.payments_total ?? 0);
+        const currentStatus = String(invoice.status ?? "draft").toLowerCase();
+        const nextStatus =
+          currentStatus === "not_required"
+            ? "not_required"
+            : balanceDue <= 0 && Number(invoice.payments_total ?? 0) > 0
+              ? "paid"
+              : totalDue > 0
+                ? "unpaid"
+                : "draft";
+
+        await supabase
+          .from("assignment_invoices")
+          .update({
+            mileage_total: mileageTotal,
+            balance_due: balanceDue,
+            status: nextStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", invoiceId)
+          .eq("notary_id", user.id);
+      }
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .single();
+
+    await supabase.from("assignment_activity").insert({
+      assignment_id: assignmentId,
+      actor_id: user.id,
+      actor_name: profile?.full_name || profile?.email || "Notary",
+      actor_role: "notary",
+      action: "Mileage Removed",
+      details: [
+        deletedMileage?.miles ? `Miles: ${Number(deletedMileage.miles).toFixed(2)}` : "Mileage entry removed.",
+        deletedMileage?.amount ? `Amount: ${formatMoney(deletedMileage.amount)}` : null,
+        deletedMileage?.notes ? `Notes: ${deletedMileage.notes}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+
+    revalidatePath(`/notary/assignments/${assignmentId}`);
+    redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+  }
+
   async function addOrderNote(formData: FormData) {
     "use server";
 
@@ -2257,6 +2486,24 @@ Thank you for choosing Indiana Notary Solutions.
                     button.classList.add("cursor-wait", "opacity-60");
                   });
               }
+
+              var mileageId = submitter.getAttribute("data-busy-mileage-id");
+              if (mileageId) {
+                document
+                  .querySelectorAll('[data-mileage-container="' + mileageId + '"]')
+                  .forEach(function (container) {
+                    container.classList.add("opacity-50", "pointer-events-none");
+                  });
+
+                document
+                  .querySelectorAll('[data-busy-mileage-id="' + mileageId + '"]')
+                  .forEach(function (button) {
+                    if (button !== submitter && "disabled" in button) {
+                      button.disabled = true;
+                    }
+                    button.classList.add("cursor-wait", "opacity-60");
+                  });
+              }
             }, true);
           `,
         }}
@@ -2591,6 +2838,18 @@ Thank you for choosing Indiana Notary Solutions.
                     );
                   }
 
+                  if (tab === "Mileage") {
+                    return (
+                      <label
+                        key={tab}
+                        htmlFor="mileage-workspace-modal"
+                        className="shrink-0 cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950"
+                      >
+                        {tab}
+                      </label>
+                    );
+                  }
+
                   return (
                     <span
                       key={tab}
@@ -2643,6 +2902,12 @@ Thank you for choosing Indiana Notary Solutions.
                     className="peer/invoice sr-only"
                   />
 
+                  <input
+                    id="mileage-workspace-modal"
+                    type="checkbox"
+                    className="peer/mileage sr-only"
+                  />
+
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex flex-wrap gap-3">
                       <label
@@ -2658,6 +2923,13 @@ Thank you for choosing Indiana Notary Solutions.
                       >
                         Open Invoice Workspace
                       </label>
+
+                      <label
+                        htmlFor="mileage-workspace-modal"
+                        className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                      >
+                        Open Mileage Workspace
+                      </label>
                     </div>
 
                     <div className="flex flex-wrap gap-2 text-xs font-bold">
@@ -2668,6 +2940,9 @@ Thank you for choosing Indiana Notary Solutions.
                       </span>
                       <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
                         Balance {formatMoney(invoiceBalanceDue)}
+                      </span>
+                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                        Mileage {formatMoney(invoiceMileageTotal)}
                       </span>
                       <span
                         className={`rounded-full px-3 py-1 ring-1 ${
@@ -2690,6 +2965,220 @@ Thank you for choosing Indiana Notary Solutions.
                     </div>
                   </div>
 
+
+
+
+                  <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/mileage:flex sm:items-center">
+                    <div className="w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                      <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] px-5 py-4 text-white">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <h4 className="text-lg font-bold">Mileage</h4>
+                            <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white">
+                              {formatMoney(invoiceMileageTotal)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-white/90">
+                            Track trip mileage without crowding the assignment page. Saved mileage rolls into the invoice.
+                          </p>
+                        </div>
+
+                        <label
+                          htmlFor="mileage-workspace-modal"
+                          className="cursor-pointer rounded-xl border border-white/60 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+                        >
+                          Cancel
+                        </label>
+                      </div>
+
+                      <div className="max-h-[82vh] overflow-y-auto p-5">
+                        <div className="mb-5 grid gap-4 md:grid-cols-4">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Total Miles</p>
+                            <p className="mt-2 text-lg font-black text-slate-950">
+                              {invoiceMileageRows.reduce((sum, row) => sum + Number(row.miles ?? 0), 0).toFixed(2)}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Mileage Total</p>
+                            <p className="mt-2 text-lg font-black text-slate-950">{formatMoney(invoiceMileageTotal)}</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Invoice Balance</p>
+                            <p className="mt-2 text-lg font-black text-[#0B1F4D]">{formatMoney(invoiceBalanceDue)}</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Entries</p>
+                            <p className="mt-2 text-lg font-black text-slate-950">{invoiceMileageRows.length}</p>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+                          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                            <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
+                              <div>
+                                <h5 className="font-black text-slate-950">Mileage History</h5>
+                                <p className="text-xs text-slate-500">
+                                  Keep this list here inside the modal, not as another card on the page.
+                                </p>
+                              </div>
+                            </div>
+
+                            {invoiceMileageRows.length === 0 ? (
+                              <div className="p-5 text-sm text-slate-500">
+                                No mileage has been added yet.
+                              </div>
+                            ) : (
+                              <div className="divide-y divide-slate-200">
+                                {invoiceMileageRows.map((row) => (
+                                  <div
+                                    key={row.id}
+                                    data-mileage-container={String(row.id)}
+                                    className="grid gap-3 px-4 py-4 text-sm transition-opacity md:grid-cols-[130px_minmax(0,1fr)_110px_120px]"
+                                  >
+                                    <div>
+                                      <p className="font-bold text-slate-950">{formatInputDate(row.mileage_date)}</p>
+                                      <p className="text-xs text-slate-500">{Number(row.miles ?? 0).toFixed(2)} mi</p>
+                                    </div>
+
+                                    <div className="min-w-0">
+                                      <p className="break-words font-semibold text-slate-700">
+                                        {row.notes || "Mileage entry"}
+                                      </p>
+                                      <p className="mt-1 text-xs text-slate-500">
+                                        Rate {formatMoney(row.rate)} / mile
+                                      </p>
+                                    </div>
+
+                                    <p className="font-black text-slate-950 md:text-right">
+                                      {formatMoney(row.amount)}
+                                    </p>
+
+                                    <button
+                                      type="submit"
+                                      form={`delete-mileage-${row.id}`}
+                                      data-busy-text="Removing..."
+                                      data-busy-mileage-id={String(row.id)}
+                                      className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-70"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </section>
+
+                          <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <h5 className="text-lg font-black text-slate-950">Add Mileage</h5>
+                            <p className="mt-1 text-sm text-slate-500">
+                              Enter miles manually for now. Auto-calc routing can come later.
+                            </p>
+
+                            <form action={saveMileageEntry} className="mt-5 space-y-4">
+                              <input type="hidden" name="assignment_id" value={assignment.id} />
+                              <input type="hidden" name="invoice_id" value={assignmentInvoice?.id ?? ""} />
+
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700">Date</label>
+                                <input
+                                  type="date"
+                                  name="mileage_date"
+                                  defaultValue={formatInputDate(assignment.signing_date) || todayForInvoice}
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700">Starting Location</label>
+                                <input
+                                  name="mileage_starting_location"
+                                  placeholder="Home, office, prior signing..."
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700">Destination</label>
+                                <input
+                                  name="mileage_destination_location"
+                                  defaultValue={signingLocation}
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-sm font-bold text-slate-700">Miles</label>
+                                  <input
+                                    name="mileage_miles"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    required
+                                    placeholder="0.00"
+                                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-bold text-slate-700">Rate</label>
+                                  <input
+                                    name="mileage_rate"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    defaultValue="0.67"
+                                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700">Notes</label>
+                                <textarea
+                                  name="mileage_notes"
+                                  rows={3}
+                                  placeholder="Optional notes..."
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                />
+                              </div>
+
+                              <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
+                                <label
+                                  htmlFor="mileage-workspace-modal"
+                                  className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                  Cancel
+                                </label>
+
+                                <button
+                                  type="submit"
+                                  data-busy-text="Saving mileage..."
+                                  className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 disabled:cursor-wait disabled:opacity-80"
+                                >
+                                  Save Mileage
+                                </button>
+                              </div>
+                            </form>
+                          </aside>
+                        </div>
+
+                        {invoiceMileageRows.map((row) => (
+                          <form
+                            key={`delete-mileage-form-${row.id}`}
+                            id={`delete-mileage-${row.id}`}
+                            action={deleteMileageEntry}
+                            className="hidden"
+                          >
+                            <input type="hidden" name="assignment_id" value={assignment.id} />
+                            <input type="hidden" name="invoice_id" value={assignmentInvoice?.id ?? ""} />
+                            <input type="hidden" name="mileage_id" value={String(row.id)} />
+                          </form>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
 
                   <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/invoice:flex sm:items-center">
                     <div className="w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
