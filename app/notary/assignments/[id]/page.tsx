@@ -556,7 +556,7 @@ export default async function AssignmentDetailPage({
         key.startsWith("journal_signature_text_") &&
         String(value).startsWith("data:image/"),
     );
-    const notarySignedJournal = formData.get("journal_notary_signed") === "on";
+    const journalComplete = formData.get("journal_notary_signed") === "on";
 
     if (!assignmentId) return;
 
@@ -603,7 +603,7 @@ export default async function AssignmentDetailPage({
       `Documents: ${documentNames.length ? documentNames.join(", ") : "None selected"}`,
       `Journal Signatures: ${signedJournalPeople.length ? signedJournalPeople.join(", ") : "None marked"}`,
       `Signature Images Captured: ${signatureImages.length}`,
-      `Notary Signed Journal: ${notarySignedJournal ? "Yes" : "No"}`,
+      `Notary Signed Journal: ${journalComplete ? "Yes" : "No"}`,
       notes ? `Notes: ${notes}` : null,
     ]
       .filter(Boolean)
