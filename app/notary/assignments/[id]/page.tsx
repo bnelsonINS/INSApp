@@ -2813,10 +2813,7 @@ Thank you for choosing Indiana Notary Solutions.
                                       <p className="font-bold text-green-700">-{formatMoney(payment.amount)}</p>
                                       <button
                                         type="submit"
-                                        formAction={deleteInvoicePayment}
-                                        formNoValidate
-                                        name="payment_id"
-                                        value={String(payment.id)}
+                                        form={`delete-invoice-payment-${payment.id}`}
                                         className="no-print rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-bold text-red-700 transition hover:bg-red-50"
                                       >
                                         Remove
@@ -2918,10 +2915,7 @@ Thank you for choosing Indiana Notary Solutions.
 
                                           <button
                                             type="submit"
-                                            formAction={deleteInvoicePayment}
-                                            formNoValidate
-                                            name="payment_id"
-                                            value={String(payment.id)}
+                                            form={`delete-invoice-payment-${payment.id}`}
                                             className="rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-bold text-red-700 transition hover:bg-red-50"
                                           >
                                             Remove
@@ -2935,6 +2929,19 @@ Thank you for choosing Indiana Notary Solutions.
                             </aside>
                           </div>
                         </form>
+
+                        {invoicePaymentRows.map((payment) => (
+                          <form
+                            key={`delete-payment-form-${payment.id}`}
+                            id={`delete-invoice-payment-${payment.id}`}
+                            action={deleteInvoicePayment}
+                            className="hidden"
+                          >
+                            <input type="hidden" name="assignment_id" value={assignment.id} />
+                            <input type="hidden" name="invoice_id" value={assignmentInvoice?.id ?? ""} />
+                            <input type="hidden" name="payment_id" value={String(payment.id)} />
+                          </form>
+                        ))}
 
                         <input
                           id="invoice-payment-modal"
