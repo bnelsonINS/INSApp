@@ -1059,6 +1059,105 @@ export default async function AssignmentDetailPage({
     redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
   }
 
+  async function deleteInvoicePayment(formData: FormData) {
+    "use server";
+
+    const assignmentId = String(formData.get("assignment_id") ?? "").trim();
+    const invoiceId = String(formData.get("invoice_id") ?? "").trim();
+    const paymentId = String(formData.get("payment_id") ?? "").trim();
+
+    if (!assignmentId || !invoiceId || !paymentId) return;
+
+    const supabase = await createSupabaseServerClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) redirect("/login");
+
+    const { data: invoice } = await supabase
+      .from("assignment_invoices")
+      .select("id, subtotal, mileage_total, expenses_total, status")
+      .eq("id", invoiceId)
+      .eq("assignment_id", assignmentId)
+      .eq("notary_id", user.id)
+      .single();
+
+    if (!invoice) redirect(`/notary/assignments/${assignmentId}`);
+
+    const { data: deletedPayment } = await supabase
+      .from("assignment_payments")
+      .delete()
+      .eq("id", paymentId)
+      .eq("invoice_id", invoiceId)
+      .eq("assignment_id", assignmentId)
+      .eq("notary_id", user.id)
+      .select("amount, payment_method, reference")
+      .maybeSingle();
+
+    const { data: paymentRows } = await supabase
+      .from("assignment_payments")
+      .select("amount")
+      .eq("invoice_id", invoiceId)
+      .eq("notary_id", user.id);
+
+    const paymentsTotal = (paymentRows ?? []).reduce(
+      (sum, row) => sum + Number(row.amount ?? 0),
+      0,
+    );
+    const totalDue =
+      Number(invoice.subtotal ?? 0) +
+      Number(invoice.mileage_total ?? 0) +
+      Number(invoice.expenses_total ?? 0);
+    const balanceDue = totalDue - paymentsTotal;
+    const currentStatus = String(invoice.status ?? "draft").toLowerCase();
+    const nextStatus =
+      currentStatus === "not_required"
+        ? "not_required"
+        : balanceDue <= 0 && paymentsTotal > 0
+          ? "paid"
+          : totalDue > 0
+            ? "unpaid"
+            : "draft";
+
+    await supabase
+      .from("assignment_invoices")
+      .update({
+        payments_total: paymentsTotal,
+        balance_due: balanceDue,
+        status: nextStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", invoiceId)
+      .eq("notary_id", user.id);
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .single();
+
+    await supabase.from("assignment_activity").insert({
+      assignment_id: assignmentId,
+      actor_id: user.id,
+      actor_name: profile?.full_name || profile?.email || "Notary",
+      actor_role: "notary",
+      action: "Invoice Payment Removed",
+      details: [
+        deletedPayment?.amount ? `Removed Payment: ${formatMoney(deletedPayment.amount)}` : "Payment removed.",
+        deletedPayment?.payment_method ? `Method: ${deletedPayment.payment_method}` : null,
+        deletedPayment?.reference ? `Reference: ${deletedPayment.reference}` : null,
+        `Balance Due: ${formatMoney(balanceDue)}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+
+    revalidatePath(`/notary/assignments/${assignmentId}`);
+    redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+  }
+
   async function addOrderNote(formData: FormData) {
     "use server";
 
@@ -2710,7 +2809,19 @@ Thank you for choosing Indiana Notary Solutions.
                                     <p className="font-semibold text-slate-700">
                                       {formatInputDate(payment.payment_date)} - Payment Received{payment.payment_method ? ` - ${payment.payment_method}` : ""}
                                     </p>
-                                    <p className="text-right font-bold text-green-700">-{formatMoney(payment.amount)}</p>
+                                    <div className="flex items-center justify-end gap-2 text-right">
+                                      <p className="font-bold text-green-700">-{formatMoney(payment.amount)}</p>
+                                      <button
+                                        type="submit"
+                                        formAction={deleteInvoicePayment}
+                                        formNoValidate
+                                        name="payment_id"
+                                        value={String(payment.id)}
+                                        className="no-print rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-bold text-red-700 transition hover:bg-red-50"
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
                                   </div>
                                 ))}
 
@@ -2796,11 +2907,26 @@ Thank you for choosing Indiana Notary Solutions.
                                     </p>
                                     {invoicePaymentRows.map((payment) => (
                                       <div key={`payment-side-${payment.id}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-                                        <p className="font-bold text-slate-950">{formatMoney(payment.amount)}</p>
-                                        <p className="text-xs text-slate-500">
-                                          {formatInputDate(payment.payment_date)}
-                                          {payment.payment_method ? ` • ${payment.payment_method}` : ""}
-                                        </p>
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div>
+                                            <p className="font-bold text-slate-950">{formatMoney(payment.amount)}</p>
+                                            <p className="text-xs text-slate-500">
+                                              {formatInputDate(payment.payment_date)}
+                                              {payment.payment_method ? ` • ${payment.payment_method}` : ""}
+                                            </p>
+                                          </div>
+
+                                          <button
+                                            type="submit"
+                                            formAction={deleteInvoicePayment}
+                                            formNoValidate
+                                            name="payment_id"
+                                            value={String(payment.id)}
+                                            className="rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-bold text-red-700 transition hover:bg-red-50"
+                                          >
+                                            Remove
+                                          </button>
+                                        </div>
                                       </div>
                                     ))}
                                   </div>
