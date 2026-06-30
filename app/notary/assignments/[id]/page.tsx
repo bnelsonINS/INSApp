@@ -1904,9 +1904,7 @@ Thank you for choosing Indiana Notary Solutions.
                       Journal Entry
                     </h3>
                     <p className="mt-1 text-sm text-slate-500">
-                      Pre-filled from this assignment. Verify the details, add
-                      ID information, select documents, and save the journal
-                      entry.
+                      Keep the assignment page clean. Open the journal workspace in a modal to edit people, ID verification, documents, signatures, and notes.
                     </p>
                     {journalEntry?.updated_at && (
                       <p className="mt-2 text-xs font-bold text-emerald-700">
@@ -1920,7 +1918,58 @@ Thank you for choosing Indiana Notary Solutions.
                   </span>
                 </div>
 
-                <form action={saveJournalEntry} className="mt-5 space-y-5">
+                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-bold text-slate-500">
+                      People
+                    </p>
+                    <p className="mt-2 text-2xl font-black text-slate-950">
+                      {displayJournalPeople.length}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-bold text-slate-500">
+                      Documents
+                    </p>
+                    <p className="mt-2 text-2xl font-black text-slate-950">
+                      {journalDocuments.length}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-bold text-slate-500">
+                      Status
+                    </p>
+                    <p className="mt-2 text-2xl font-black text-slate-950">
+                      {journalEntry?.status ?? "Open"}
+                    </p>
+                  </div>
+                </div>
+
+                <details className="group mt-5">
+                  <summary className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 [&::-webkit-details-marker]:hidden">
+                    Open Journal Workspace
+                  </summary>
+
+                  <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:items-center">
+                    <div className="w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                      <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] px-5 py-4 text-white">
+                        <div>
+                          <h4 className="text-lg font-bold">
+                            Journal Entry
+                          </h4>
+                          <p className="text-sm text-white/90">
+                            Edit the journal without stretching the assignment page.
+                          </p>
+                        </div>
+
+                        <CloseDetailsButton />
+                      </div>
+
+                      <div className="max-h-[82vh] overflow-y-auto p-5">
+                        <form action={saveJournalEntry} className="space-y-5">
+
                   <input
                     type="hidden"
                     name="assignment_id"
@@ -2849,41 +2898,54 @@ Thank you for choosing Indiana Notary Solutions.
                         const personName = String(
                           person.full_name ?? `Person ${index + 1}`,
                         );
-                        const signatureCapturedId = `journal-signature-captured-${index}`;
+                        const signatureModalId = `journal-signature-modal-${index}`;
 
                         return (
-                          <details
+                          <div
                             key={`journal-signature-${String(person.id)}`}
-                            className="group rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                            className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                           >
-                            <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <p className="font-bold text-slate-950">
-                                    {personName}
-                                  </p>
-                                  <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-500">
-                                    {isWitness ? "Witness" : "Signer"}
-                                  </p>
-                                  <p className="mt-2 text-sm text-slate-600">
-                                    Click to collect this person&apos;s journal signature.
-                                  </p>
-                                </div>
+                            <input
+                              id={signatureModalId}
+                              type="checkbox"
+                              className="peer sr-only"
+                            />
 
-                                <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
-                                  Open Pad
-                                </span>
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-bold text-slate-950">
+                                  {personName}
+                                </p>
+                                <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                  {isWitness ? "Witness" : "Signer"}
+                                </p>
+                                <p className="mt-2 text-sm text-slate-600">
+                                  Open the pad to collect this person&apos;s journal signature.
+                                </p>
                               </div>
-                            </summary>
 
-                            <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:items-center">
+                              <label
+                                htmlFor={signatureModalId}
+                                className="cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-950"
+                              >
+                                Open Pad
+                              </label>
+                            </div>
+
+                            <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked:flex sm:items-center">
                               <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                                 <div className="flex items-center justify-between bg-[#5BC0EB] px-5 py-4 text-white">
                                   <h5 className="text-lg font-bold">
-                                    Sign Journal Entry
+                                    Signature
                                   </h5>
 
-                                  <CloseDetailsButton />
+                                  <label
+                                    htmlFor={signatureModalId}
+                                    className="cursor-pointer text-2xl font-black leading-none"
+                                    aria-label="Close signature pad"
+                                  >
+                                    ×
+                                  </label>
                                 </div>
 
                                 <div className="space-y-5 p-5">
@@ -2901,28 +2963,23 @@ Thank you for choosing Indiana Notary Solutions.
 
                                   <div>
                                     <label className="block text-sm font-bold text-slate-700">
-                                      Signature
+                                      Signature Pad
                                     </label>
-                                    <div className="mt-2 rounded-2xl border border-slate-300 bg-white p-4 shadow-inner">
-                                      <textarea
-                                        name={`journal_signature_text_${index}`}
-                                        rows={5}
-                                        placeholder="Sign here using a finger, stylus, or mouse. Temporary text capture until the canvas signature pad is wired."
-                                        className="min-h-[160px] w-full resize-none rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-2xl font-semibold italic text-slate-900 outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
-                                      />
-                                    </div>
+
+                                    <textarea
+                                      name={`journal_signature_text_${index}`}
+                                      rows={6}
+                                      placeholder="Signer signs here. This is a temporary signature area until the real canvas pad is split into a client component."
+                                      className="mt-2 min-h-[190px] w-full resize-none rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3 text-2xl font-semibold italic text-slate-900 shadow-inner outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
 
                                     <p className="mt-2 text-xs text-slate-500">
-                                      This is the journal signature area. The next pass will replace this text box with a true touch canvas pad.
+                                      Next pass: replace this with a true touch canvas component and save the image data.
                                     </p>
                                   </div>
 
-                                  <label
-                                    htmlFor={signatureCapturedId}
-                                    className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-bold text-slate-700"
-                                  >
+                                  <label className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-bold text-slate-700">
                                     <input
-                                      id={signatureCapturedId}
                                       type="checkbox"
                                       name="journal_signed_people"
                                       value={personName}
@@ -2933,33 +2990,18 @@ Thank you for choosing Indiana Notary Solutions.
                                     </span>
                                   </label>
 
-                                  <div className="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
-                                    <button
-                                      type="button"
-                                      className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                  <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
+                                    <label
+                                      htmlFor={signatureModalId}
+                                      className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
                                     >
-                                      Clear
-                                    </button>
-
-                                    <div className="flex flex-col gap-3 sm:flex-row">
-                                      <CloseDetailsButton />
-
-                                      <SubmitButton
-                                        pendingText="Saving journal..."
-                                        className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-                                      >
-                                        Finish Journal Entry
-                                      </SubmitButton>
-                                    </div>
+                                      Done
+                                    </label>
                                   </div>
-
-                                  <p className="text-center text-xs font-semibold text-red-600">
-                                    Once you click Finish Journal Entry, the journal entry will be saved.
-                                  </p>
                                 </div>
                               </div>
                             </div>
-                          </details>
+                          </div>
                         );
                       })}
                     </div>
@@ -3003,7 +3045,12 @@ Thank you for choosing Indiana Notary Solutions.
                       Save Journal Entry
                     </SubmitButton>
                   </div>
-                </form>
+
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </details>
               </div>
             )}
 
