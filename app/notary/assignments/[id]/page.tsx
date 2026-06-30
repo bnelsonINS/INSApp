@@ -1819,20 +1819,6 @@ Thank you for choosing Indiana Notary Solutions.
         </aside>
 
         <section className="min-w-0 space-y-6">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">
-              Special Instructions
-            </h2>
-
-            <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-slate-700">
-              {assignment.special_instructions ? (
-                <p>{assignment.special_instructions}</p>
-              ) : (
-                <p>No special instructions have been added.</p>
-              )}
-            </div>
-          </section>
-
           <section
             id="assignment-workspace"
             className="rounded-2xl border border-slate-200 bg-white shadow-sm"
@@ -1897,57 +1883,8 @@ Thank you for choosing Indiana Notary Solutions.
                 </div>
               </div>
             ) : (
-              <div id="journal-workspace" className="p-5">
-                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-950">
-                      Journal Entry
-                    </h3>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Keep the assignment page clean. Open the journal workspace in a modal to edit people, ID verification, documents, signatures, and notes.
-                    </p>
-                    {journalEntry?.updated_at && (
-                      <p className="mt-2 text-xs font-bold text-emerald-700">
-                        Last saved: {formatActivityDate(journalEntry.updated_at)}
-                      </p>
-                    )}
-                  </div>
-
-                  <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700 ring-1 ring-green-200">
-                    Open
-                  </span>
-                </div>
-
-                <div className="mt-5 grid gap-4 md:grid-cols-3">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm font-bold text-slate-500">
-                      People
-                    </p>
-                    <p className="mt-2 text-2xl font-black text-slate-950">
-                      {displayJournalPeople.length}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm font-bold text-slate-500">
-                      Documents
-                    </p>
-                    <p className="mt-2 text-2xl font-black text-slate-950">
-                      {journalDocuments.length}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm font-bold text-slate-500">
-                      Status
-                    </p>
-                    <p className="mt-2 text-2xl font-black text-slate-950">
-                      {journalEntry?.status ?? "Open"}
-                    </p>
-                  </div>
-                </div>
-
-                <details className="group mt-5">
+              <div className="p-5">
+                <details className="group">
                   <summary className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 [&::-webkit-details-marker]:hidden">
                     Open Journal Workspace
                   </summary>
@@ -1960,7 +1897,7 @@ Thank you for choosing Indiana Notary Solutions.
                             Journal Entry
                           </h4>
                           <p className="text-sm text-white/90">
-                            Edit the journal without stretching the assignment page.
+                            Edit people, ID verification, documents, signatures, and notes.
                           </p>
                         </div>
 
@@ -3053,6 +2990,80 @@ Thank you for choosing Indiana Notary Solutions.
                 </details>
               </div>
             )}
+
+            <div className="grid gap-4 border-t border-slate-200 p-5 md:grid-cols-2 xl:grid-cols-3">
+              {[
+                [
+                  "invoice-workspace",
+                  "Invoice",
+                  "Create invoices and email clients from this assignment.",
+                ],
+                [
+                  "mileage-workspace",
+                  "Mileage",
+                  "Track trips and push mileage into Dashboard totals.",
+                ],
+                [
+                  "notarial-acts-workspace",
+                  "Notarial Acts",
+                  "Track acknowledgments, jurats, signers, and witnesses.",
+                ],
+                [
+                  "expenses-workspace",
+                  "Expenses",
+                  "Log printing, parking, tolls, shipping, and supplies.",
+                ],
+                [
+                  "payments-workspace",
+                  "Payments",
+                  "Track paid, unpaid, method, and outstanding balance.",
+                ],
+                [
+                  "print-workspace",
+                  "Print",
+                  "Generate assignment, journal, invoice, and report printouts.",
+                ],
+              ].map(([sectionId, title, description]) => (
+                <div
+                  id={sectionId}
+                  key={sectionId}
+                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h4 className="font-bold text-slate-950">{title}</h4>
+                      <p className="mt-1 text-sm leading-5 text-slate-500">
+                        {description}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-200">
+                      PRO
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="mt-4 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Build Next
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900">
+              Special Instructions
+            </h2>
+
+            <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-slate-700">
+              {assignment.special_instructions ? (
+                <p>{assignment.special_instructions}</p>
+              ) : (
+                <p>No special instructions have been added.</p>
+              )}
+            </div>
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
