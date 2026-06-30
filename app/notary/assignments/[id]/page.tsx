@@ -1990,11 +1990,20 @@ Thank you for choosing Indiana Notary Solutions.
               </div>
             ) : (
               <div className="p-5">
-                <details className="group">
+                <div>
+                  <input
+                    id="journal-workspace-modal"
+                    type="checkbox"
+                    className="peer sr-only"
+                  />
+
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <summary className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-black shadow-sm transition hover:bg-blue-950 [&::-webkit-details-marker]:hidden">
+                    <label
+                      htmlFor="journal-workspace-modal"
+                      className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                    >
                       Open Journal Workspace
-                    </summary>
+                    </label>
 
                     <div className="flex flex-wrap gap-2 text-xs font-bold">
                       <span
@@ -2018,7 +2027,7 @@ Thank you for choosing Indiana Notary Solutions.
                     </div>
                   </div>
 
-                  <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:items-center">
+                  <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked:flex sm:items-center">
                     <div className="w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                       <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] px-5 py-4 text-white">
                         <div>
@@ -2041,7 +2050,12 @@ Thank you for choosing Indiana Notary Solutions.
                           </p>
                         </div>
 
-                        <CloseDetailsButton />
+                        <label
+                          htmlFor="journal-workspace-modal"
+                          className="cursor-pointer rounded-xl border border-white/60 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+                        >
+                          Cancel
+                        </label>
                       </div>
 
                       <div className="max-h-[82vh] overflow-y-auto p-5">
@@ -3126,7 +3140,7 @@ Thank you for choosing Indiana Notary Solutions.
                       </div>
                     </div>
                   </div>
-                </details>
+                </div>
               </div>
             )}
             
