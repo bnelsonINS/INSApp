@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../../../../src/lib/supabase-admin";
 import ConfirmAppointmentBox from "./ConfirmAppointmentBox";
 import CloseDetailsButton from "./CloseDetailsButton";
 import SubmitButton from "../../../components/SubmitButton";
+import SignaturePad from "./SignaturePad";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -542,10 +543,19 @@ export default async function AssignmentDetailPage({
       .getAll("journal_documents")
       .map((value) => String(value).trim())
       .filter(Boolean);
-    const signedJournalPeople = formData
-      .getAll("journal_signed_people")
-      .map((value) => String(value).trim())
-      .filter(Boolean);
+    const signedJournalPeople = Array.from(
+      new Set(
+        formData
+          .getAll("journal_signed_people")
+          .map((value) => String(value).trim())
+          .filter(Boolean),
+      ),
+    );
+    const signatureImages = Array.from(formData.entries()).filter(
+      ([key, value]) =>
+        key.startsWith("journal_signature_text_") &&
+        String(value).startsWith("data:image/"),
+    );
     const notarySignedJournal = formData.get("journal_notary_signed") === "on";
 
     if (!assignmentId) return;
@@ -592,6 +602,7 @@ export default async function AssignmentDetailPage({
       `ID Verified: ${idVerified ? "Yes" : "No"}`,
       `Documents: ${documentNames.length ? documentNames.join(", ") : "None selected"}`,
       `Journal Signatures: ${signedJournalPeople.length ? signedJournalPeople.join(", ") : "None marked"}`,
+      `Signature Images Captured: ${signatureImages.length}`,
       `Notary Signed Journal: ${notarySignedJournal ? "Yes" : "No"}`,
       notes ? `Notes: ${notes}` : null,
     ]
@@ -2898,34 +2909,11 @@ Thank you for choosing Indiana Notary Solutions.
                                     </p>
                                   </div>
 
-                                  <div>
-                                    <label className="block text-sm font-bold text-slate-700">
-                                      Signature Pad
-                                    </label>
-
-                                    <textarea
-                                      name={`journal_signature_text_${index}`}
-                                      rows={6}
-                                      placeholder="Signer signs here. This is a temporary signature area until the real canvas pad is split into a client component."
-                                      className="mt-2 min-h-[190px] w-full resize-none rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3 text-2xl font-semibold italic text-slate-900 shadow-inner outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
-                                    />
-
-                                    <p className="mt-2 text-xs text-slate-500">
-                                      Next pass: replace this with a true touch canvas component and save the image data.
-                                    </p>
-                                  </div>
-
-                                  <label className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-bold text-slate-700">
-                                    <input
-                                      type="checkbox"
-                                      name="journal_signed_people"
-                                      value={personName}
-                                      className="mt-1 h-5 w-5 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
-                                    />
-                                    <span>
-                                      Signature captured for {personName}.
-                                    </span>
-                                  </label>
+                                  <SignaturePad
+                                    inputName={`journal_signature_text_${index}`}
+                                    signedPeopleName="journal_signed_people"
+                                    signedPeopleValue={personName}
+                                  />
 
                                   <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
                                     <label
