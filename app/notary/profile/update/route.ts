@@ -124,6 +124,12 @@ export async function POST(request: NextRequest) {
     website: value(formData, "website"),
     bio: value(formData, "bio"),
 
+    business_location_address: businessLocationAddress,
+    business_location_city: businessLocationCity,
+    business_location_state: businessLocationState,
+    business_location_zip: businessLocationZip,
+    business_location_verified_at: null,
+
     address,
     address_line_2: value(formData, "address_line_2"),
     city,
