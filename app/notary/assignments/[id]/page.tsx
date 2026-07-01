@@ -1094,7 +1094,7 @@ export default async function AssignmentDetailPage({
       (sum, row) => sum + Number(row.amount ?? 0),
       0,
     );
-    const balanceDue = cleanFeeAmount + mileageTotal + expensesTotal - paymentsTotal;
+    const balanceDue = cleanFeeAmount - paymentsTotal;
     const finalStatus = status || (balanceDue <= 0 && paymentsTotal > 0 ? "paid" : "draft");
 
     await supabase
@@ -1126,8 +1126,8 @@ export default async function AssignmentDetailPage({
       details: [
         `Status: ${displayInvoiceStatus(finalStatus)}`,
         `Subtotal: ${formatMoney(cleanFeeAmount)}`,
-        `Mileage: ${formatMoney(mileageTotal)}`,
-        `Expenses: ${formatMoney(expensesTotal)}`,
+        `Mileage Tax Record: ${formatMoney(mileageTotal)}`,
+        `Expenses Tax Record: ${formatMoney(expensesTotal)}`,
         `Payments: ${formatMoney(paymentsTotal)}`,
         `Balance Due: ${formatMoney(balanceDue)}`,
       ].join("\n"),
@@ -1189,10 +1189,7 @@ export default async function AssignmentDetailPage({
       (sum, row) => sum + Number(row.amount ?? 0),
       0,
     );
-    const totalDue =
-      Number(invoice.subtotal ?? 0) +
-      Number(invoice.mileage_total ?? 0) +
-      Number(invoice.expenses_total ?? 0);
+    const totalDue = Number(invoice.subtotal ?? 0);
     const balanceDue = totalDue - paymentsTotal;
 
     await supabase
@@ -1279,10 +1276,7 @@ export default async function AssignmentDetailPage({
       (sum, row) => sum + Number(row.amount ?? 0),
       0,
     );
-    const totalDue =
-      Number(invoice.subtotal ?? 0) +
-      Number(invoice.mileage_total ?? 0) +
-      Number(invoice.expenses_total ?? 0);
+    const totalDue = Number(invoice.subtotal ?? 0);
     const balanceDue = totalDue - paymentsTotal;
     const currentStatus = String(invoice.status ?? "draft").toLowerCase();
     const nextStatus =
@@ -1421,10 +1415,7 @@ export default async function AssignmentDetailPage({
           (sum, row) => sum + Number(row.amount ?? 0),
           0,
         );
-        const totalDue =
-          Number(invoice.subtotal ?? 0) +
-          mileageTotal +
-          Number(invoice.expenses_total ?? 0);
+        const totalDue = Number(invoice.subtotal ?? 0);
         const balanceDue = totalDue - Number(invoice.payments_total ?? 0);
         const currentStatus = String(invoice.status ?? "draft").toLowerCase();
         const nextStatus =
@@ -1561,10 +1552,7 @@ export default async function AssignmentDetailPage({
           (sum, row) => sum + Number(row.amount ?? 0),
           0,
         );
-        const totalDue =
-          Number(invoice.subtotal ?? 0) +
-          mileageTotal +
-          Number(invoice.expenses_total ?? 0);
+        const totalDue = Number(invoice.subtotal ?? 0);
         const balanceDue = totalDue - Number(invoice.payments_total ?? 0);
         const currentStatus = String(invoice.status ?? "draft").toLowerCase();
         const nextStatus =
@@ -1897,10 +1885,7 @@ export default async function AssignmentDetailPage({
           (sum, row) => sum + Number(row.amount ?? 0),
           0,
         );
-        const totalDue =
-          Number(invoice.subtotal ?? 0) +
-          Number(invoice.mileage_total ?? 0) +
-          expensesTotal;
+        const totalDue = Number(invoice.subtotal ?? 0);
         const balanceDue = totalDue - Number(invoice.payments_total ?? 0);
         const currentStatus = String(invoice.status ?? "draft").toLowerCase();
         const nextStatus =
@@ -2027,10 +2012,7 @@ export default async function AssignmentDetailPage({
           (sum, row) => sum + Number(row.amount ?? 0),
           0,
         );
-        const totalDue =
-          Number(invoice.subtotal ?? 0) +
-          Number(invoice.mileage_total ?? 0) +
-          expensesTotal;
+        const totalDue = Number(invoice.subtotal ?? 0);
         const balanceDue = totalDue - Number(invoice.payments_total ?? 0);
         const currentStatus = String(invoice.status ?? "draft").toLowerCase();
         const nextStatus =
@@ -2905,18 +2887,14 @@ Thank you for choosing Indiana Notary Solutions.
           0,
         );
         const nextMileageTotal = calculatedMileage.amount;
-        const nextBalanceDue =
-          currentInvoiceSubtotal +
-          nextMileageTotal +
-          currentExpensesTotal -
-          currentPaymentsTotal;
+        const nextBalanceDue = currentInvoiceSubtotal - currentPaymentsTotal;
         const currentStatus = String(assignmentInvoice.status ?? "draft").toLowerCase();
         const nextStatus =
           currentStatus === "not_required"
             ? "not_required"
             : nextBalanceDue <= 0 && currentPaymentsTotal > 0
               ? "paid"
-              : currentInvoiceSubtotal + nextMileageTotal + currentExpensesTotal > 0
+              : currentInvoiceSubtotal > 0
                 ? "unpaid"
                 : "draft";
 
@@ -3025,8 +3003,7 @@ Thank you for choosing Indiana Notary Solutions.
     (sum, row) => sum + Number(row.amount ?? 0),
     0,
   );
-  const invoiceBalanceDue =
-    invoiceSubtotal + invoiceMileageTotal + invoiceExpensesTotal - invoicePaymentsTotal;
+  const invoiceBalanceDue = invoiceSubtotal - invoicePaymentsTotal;
   const invoiceDescription =
     invoiceItemRows[0]?.description ||
     [
@@ -3041,7 +3018,7 @@ Thank you for choosing Indiana Notary Solutions.
     titleCompanyEmail !== "—" ? titleCompanyEmail : null,
     titleCompanyPhone !== "—" ? titleCompanyPhone : null,
   ].filter(Boolean);
-  const invoiceTotalDue = invoiceSubtotal + invoiceMileageTotal + invoiceExpensesTotal;
+  const invoiceTotalDue = invoiceSubtotal;
   const invoiceEmailTo = titleCompanyEmail !== "—" ? titleCompanyEmail : "";
   const invoiceEmailSubject = `Invoice - ${assignment.borrower_name || "Signing"} - ${assignment.control_number || formatInvoiceNumber(assignmentInvoice?.invoice_number)}`;
   const invoiceEmailBody = [
@@ -4120,7 +4097,7 @@ Thank you for choosing Indiana Notary Solutions.
                             </span>
                           </div>
                           <p className="text-sm text-white/90">
-                            Track printing, shipping, postage, parking, software, and other signing expenses. Saved expenses roll into the invoice.
+                            Track printing, shipping, postage, parking, software, and other signing expenses. Saved expenses are kept for tax/business records only.
                           </p>
                         </div>
 
@@ -4143,7 +4120,7 @@ Thank you for choosing Indiana Notary Solutions.
                             <p className="mt-2 text-lg font-black text-slate-950">{invoiceExpenseRows.length}</p>
                           </div>
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Invoice Balance</p>
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Invoice Fee Balance</p>
                             <p className="mt-2 text-lg font-black text-[#0B1F4D]">{formatMoney(invoiceBalanceDue)}</p>
                           </div>
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -4563,7 +4540,7 @@ Thank you for choosing Indiana Notary Solutions.
                             </span>
                           </div>
                           <p className="text-sm text-white/90">
-                            Track trip mileage without crowding the assignment page. Saved mileage rolls into the invoice.
+                            Track trip mileage without crowding the assignment page. Saved mileage is kept for tax/business records only.
                           </p>
                         </div>
 
@@ -4588,7 +4565,7 @@ Thank you for choosing Indiana Notary Solutions.
                             <p className="mt-2 text-lg font-black text-slate-950">{formatMoney(invoiceMileageTotal)}</p>
                           </div>
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Invoice Balance</p>
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Invoice Fee Balance</p>
                             <p className="mt-2 text-lg font-black text-[#0B1F4D]">{formatMoney(invoiceBalanceDue)}</p>
                           </div>
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -4860,7 +4837,7 @@ Thank you for choosing Indiana Notary Solutions.
                       <div className="max-h-[82vh] overflow-y-auto p-5">
                         <div className="mb-5 grid gap-4 md:grid-cols-3">
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Invoice Total</p>
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Notary Fee Invoice</p>
                             <p className="mt-2 text-lg font-black text-slate-950">{formatMoney(invoiceTotalDue)}</p>
                           </div>
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -4877,7 +4854,7 @@ Thank you for choosing Indiana Notary Solutions.
                           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                             <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
                               <h5 className="font-black text-slate-950">Payment History</h5>
-                              <p className="text-xs text-slate-500">Payments entered here also show on the invoice.</p>
+                              <p className="text-xs text-slate-500">Payments entered here reduce the notary-fee invoice balance.</p>
                             </div>
 
                             {invoicePaymentRows.length === 0 ? (
@@ -5091,7 +5068,7 @@ Thank you for choosing Indiana Notary Solutions.
                             </span>
                           </div>
                           <p className="text-sm text-white/90">
-                            Auto-filled from this assignment. Payments, mileage, and expenses roll into this invoice.
+                            Auto-filled from this assignment. Invoice total is the notary fee only. Mileage, expenses, and notarial acts stay as tax/business records.
                           </p>
                         </div>
 
@@ -5219,20 +5196,6 @@ Thank you for choosing Indiana Notary Solutions.
                                     />
                                   </div>
                                 </div>
-
-                                {invoiceMileageTotal > 0 && (
-                                  <div className="grid grid-cols-[minmax(0,1fr)_140px] border-b border-slate-200 px-4 py-3 text-sm">
-                                    <p className="font-semibold text-slate-700">Mileage total</p>
-                                    <p className="text-right font-bold text-slate-950">{formatMoney(invoiceMileageTotal)}</p>
-                                  </div>
-                                )}
-
-                                {invoiceExpensesTotal > 0 && (
-                                  <div className="grid grid-cols-[minmax(0,1fr)_140px] border-b border-slate-200 px-4 py-3 text-sm">
-                                    <p className="font-semibold text-slate-700">Expenses total</p>
-                                    <p className="text-right font-bold text-slate-950">{formatMoney(invoiceExpensesTotal)}</p>
-                                  </div>
-                                )}
 
                                 {invoicePaymentRows.map((payment) => (
                                   <div
