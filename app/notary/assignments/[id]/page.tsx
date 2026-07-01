@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const FEDERAL_MILEAGE_RATE = 0.725;
+const INDIANA_NOTARIAL_ACT_FEE = 10;
 
 function getBaseUrl() {
   return (
@@ -1595,6 +1596,121 @@ export default async function AssignmentDetailPage({
   }
 
 
+  async function saveNotarialActs(formData: FormData) {
+    "use server";
+
+    const assignmentId = String(formData.get("assignment_id") ?? "").trim();
+    const noActs = formData.get("no_notarial_acts") === "on";
+    const dates = formData.getAll("notarial_act_date").map((value) => String(value).trim());
+    const counts = formData.getAll("notarial_act_count").map((value) => Number(value));
+    const fees = formData.getAll("notarial_act_fee").map((value) => Number(value));
+
+    if (!assignmentId) redirect(`/notary/assignments/${id}#assignment-workspace`);
+
+    const supabase = await createSupabaseServerClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) redirect("/login");
+
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select("id, borrower_name, signing_date")
+      .eq("id", assignmentId)
+      .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
+      .maybeSingle();
+
+    if (!assignment) redirect("/notary/assignments");
+
+    const { error: deleteExistingError } = await supabaseAdmin
+      .from("assignment_notarial_acts")
+      .delete()
+      .eq("assignment_id", assignmentId)
+      .eq("notary_id", user.id);
+
+    if (deleteExistingError) {
+      console.error("Notarial acts reset error:", deleteExistingError);
+      revalidatePath(`/notary/assignments/${assignmentId}`);
+      redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+    }
+
+    const rows = noActs
+      ? []
+      : counts
+          .map((count, index) => {
+            const cleanCount = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+            const cleanFee = Number.isFinite(fees[index]) && fees[index] >= 0
+              ? Number(fees[index])
+              : INDIANA_NOTARIAL_ACT_FEE;
+            const amount = Math.round(cleanCount * cleanFee * 100) / 100;
+
+            if (cleanCount <= 0) return null;
+
+            return {
+              assignment_id: assignmentId,
+              notary_id: user.id,
+              act_date: dates[index] || assignment.signing_date || new Date().toISOString().slice(0, 10),
+              acts_count: cleanCount,
+              fee_per_act: cleanFee,
+              amount,
+              sort_order: index,
+            };
+          })
+          .filter(
+            (row): row is {
+              assignment_id: string;
+              notary_id: string;
+              act_date: string;
+              acts_count: number;
+              fee_per_act: number;
+              amount: number;
+              sort_order: number;
+            } => row !== null,
+          );
+
+    if (rows.length > 0) {
+      const { error: insertError } = await supabaseAdmin
+        .from("assignment_notarial_acts")
+        .insert(rows);
+
+      if (insertError) {
+        console.error("Notarial acts insert error:", insertError);
+        revalidatePath(`/notary/assignments/${assignmentId}`);
+        redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+      }
+    }
+
+    const totalActs = rows.reduce((sum, row: any) => sum + Number(row?.acts_count ?? 0), 0);
+    const totalFees = rows.reduce((sum, row: any) => sum + Number(row?.amount ?? 0), 0);
+
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    await supabaseAdmin.from("assignment_activity").insert({
+      assignment_id: assignmentId,
+      actor_id: user.id,
+      actor_name: profile?.full_name || profile?.email || "Notary",
+      actor_role: "notary",
+      action: "Notarial Acts Saved",
+      details: noActs
+        ? "No notarial acts for this signing."
+        : [
+            `Acts: ${totalActs}`,
+            `Fee Per Act: ${formatMoney(INDIANA_NOTARIAL_ACT_FEE)}`,
+            `Total Notarial Fees: ${formatMoney(totalFees)}`,
+          ].join("\n"),
+    });
+
+    revalidatePath(`/notary/assignments/${assignmentId}`);
+    redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+  }
+
+
   async function addOrderNote(formData: FormData) {
     "use server";
 
@@ -2470,10 +2586,29 @@ Thank you for choosing Indiana Notary Solutions.
     .order("mileage_date", { ascending: false })
     .order("created_at", { ascending: false });
 
+  const { data: savedNotarialActs } = await supabase
+    .from("assignment_notarial_acts")
+    .select("*")
+    .eq("assignment_id", assignment.id)
+    .eq("notary_id", user.id)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
   const invoiceItemRows = invoiceItems ?? [];
   const invoicePaymentRows = invoicePayments ?? [];
   const invoiceExpenseRows = invoiceExpenses ?? [];
   const invoiceMileageRows = invoiceMileage ?? [];
+  const notarialActRows = savedNotarialActs ?? [];
+  const notarialActsTotalCount = notarialActRows.reduce(
+    (sum, row) => sum + Number(row.acts_count ?? 0),
+    0,
+  );
+  const notarialActsTotalFees = notarialActRows.reduce(
+    (sum, row) => sum + Number(row.amount ?? 0),
+    0,
+  );
+  const firstNotarialActRow = notarialActRows[0] ?? null;
+  const secondNotarialActRow = notarialActRows[1] ?? null;
   const latestMileageRow = invoiceMileageRows[0] ?? null;
   const latestMileageMiles = Number(latestMileageRow?.miles ?? 0);
   const latestMileageRate = Number(latestMileageRow?.rate ?? FEDERAL_MILEAGE_RATE);
@@ -2815,6 +2950,48 @@ Thank you for choosing Indiana Notary Solutions.
               }
             }
 
+            function updateNotarialActsAmount() {
+              var countInputs = document.querySelectorAll('[data-notarial-count="true"]');
+              var feeInputs = document.querySelectorAll('[data-notarial-fee="true"]');
+              var output = document.getElementById("notarial-acts-total-output");
+              var helper = document.getElementById("notarial-acts-helper");
+              var noActsCheckbox = document.getElementById("notarial-no-acts-checkbox");
+              var total = 0;
+              var totalActs = 0;
+
+              countInputs.forEach(function (input, index) {
+                var count = parseInt(input.value || "0", 10);
+                var fee = parseFloat((feeInputs[index] && feeInputs[index].value) || "0");
+
+                if (!isNaN(count) && !isNaN(fee) && count > 0 && fee >= 0) {
+                  totalActs += count;
+                  total += count * fee;
+                }
+              });
+
+              if (output) output.textContent = "$" + total.toFixed(2);
+              if (helper) {
+                helper.textContent = totalActs > 0
+                  ? totalActs + " act" + (totalActs === 1 ? "" : "s") + " × Indiana max fee"
+                  : "Enter notarial acts to calculate the fee.";
+              }
+
+              if (noActsCheckbox) {
+                var disabled = noActsCheckbox.checked;
+                countInputs.forEach(function (input) {
+                  input.disabled = disabled;
+                  if (disabled) input.value = "";
+                });
+                feeInputs.forEach(function (input) {
+                  input.disabled = disabled;
+                });
+                if (disabled) {
+                  if (output) output.textContent = "$0.00";
+                  if (helper) helper.textContent = "No notarial acts for this signing.";
+                }
+              }
+            }
+
             document.addEventListener("click", async function (event) {
               var target = event.target;
               if (!target) return;
@@ -2891,9 +3068,18 @@ Thank you for choosing Indiana Notary Solutions.
               var target = event.target;
               if (!target) return;
 
-              if (target.id !== "mileage-miles-input" && target.id !== "mileage-rate-input") return;
+              if (target.id === "mileage-miles-input" || target.id === "mileage-rate-input") {
+                updateMileageAmount();
+                return;
+              }
 
-              updateMileageAmount();
+              if (
+                target.getAttribute("data-notarial-count") === "true" ||
+                target.getAttribute("data-notarial-fee") === "true" ||
+                target.id === "notarial-no-acts-checkbox"
+              ) {
+                updateNotarialActsAmount();
+              }
             });
 
             document.addEventListener("submit", function (event) {
@@ -3303,6 +3489,18 @@ Thank you for choosing Indiana Notary Solutions.
                     );
                   }
 
+                  if (tab === "Notarial Acts") {
+                    return (
+                      <label
+                        key={tab}
+                        htmlFor="notarial-acts-workspace-modal"
+                        className="shrink-0 cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950"
+                      >
+                        {tab}
+                      </label>
+                    );
+                  }
+
                   return (
                     <span
                       key={tab}
@@ -3361,6 +3559,12 @@ Thank you for choosing Indiana Notary Solutions.
                     className="peer/mileage sr-only"
                   />
 
+                  <input
+                    id="notarial-acts-workspace-modal"
+                    type="checkbox"
+                    className="peer/notarial sr-only"
+                  />
+
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex flex-wrap gap-3">
                       <label
@@ -3383,6 +3587,13 @@ Thank you for choosing Indiana Notary Solutions.
                       >
                         Open Mileage Workspace
                       </label>
+
+                      <label
+                        htmlFor="notarial-acts-workspace-modal"
+                        className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                      >
+                        Open Notarial Acts Workspace
+                      </label>
                     </div>
 
                     <div className="flex flex-wrap gap-2 text-xs font-bold">
@@ -3396,6 +3607,12 @@ Thank you for choosing Indiana Notary Solutions.
                       </span>
                       <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
                         Mileage {formatMoney(invoiceMileageTotal)}
+                      </span>
+                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                        Notarial Acts {notarialActsTotalCount}
+                      </span>
+                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                        Notarial Fees {formatMoney(notarialActsTotalFees)}
                       </span>
                       <span
                         className={`rounded-full px-3 py-1 ring-1 ${
@@ -3419,6 +3636,152 @@ Thank you for choosing Indiana Notary Solutions.
                   </div>
 
 
+
+                  <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/notarial:flex sm:items-center">
+                    <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                      <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] px-5 py-4 text-white">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <h4 className="text-lg font-bold">Notarial Acts</h4>
+                            <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white">
+                              {notarialActsTotalCount} acts
+                            </span>
+                            <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white">
+                              {formatMoney(notarialActsTotalFees)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-white/90">
+                            Track Indiana notarial acts at the current Indiana max of {formatMoney(INDIANA_NOTARIAL_ACT_FEE)} per act.
+                          </p>
+                        </div>
+
+                        <label
+                          htmlFor="notarial-acts-workspace-modal"
+                          className="cursor-pointer rounded-xl border border-white/60 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+                        >
+                          Cancel
+                        </label>
+                      </div>
+
+                      <div className="max-h-[82vh] overflow-y-auto p-5">
+                        <form action={saveNotarialActs} className="mx-auto max-w-2xl space-y-5">
+                          <input type="hidden" name="assignment_id" value={assignment.id} />
+
+                          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-slate-700">
+                            <p className="font-black text-[#0B1F4D]">Why track notarial acts?</p>
+                            <p className="mt-1 leading-6">
+                              This is separate from mileage and the signing fee. It gives the notary a clean tax/business record of how many notarizations were performed and the max Indiana fee value.
+                            </p>
+                          </div>
+
+                          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                            <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,.8fr)_minmax(0,.8fr)_minmax(0,.9fr)] gap-3 border-b border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                              <p>Date</p>
+                              <p>Not. Acts</p>
+                              <p>Amt Per</p>
+                              <p className="text-right">Notarial Fees</p>
+                            </div>
+
+                            {[firstNotarialActRow, secondNotarialActRow].map((row, index) => {
+                              const rowCount = Number(row?.acts_count ?? 0);
+                              const rowFee = Number(row?.fee_per_act ?? INDIANA_NOTARIAL_ACT_FEE);
+                              const rowAmount = rowCount > 0 ? rowCount * rowFee : 0;
+
+                              return (
+                                <div
+                                  key={`notarial-act-row-${index}`}
+                                  className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,.8fr)_minmax(0,.8fr)_minmax(0,.9fr)] gap-3 px-4 py-3 text-sm"
+                                >
+                                  <input
+                                    type="date"
+                                    name="notarial_act_date"
+                                    defaultValue={formatInputDate(row?.act_date) || formatInputDate(assignment.signing_date) || todayForInvoice}
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                  />
+
+                                  <input
+                                    type="number"
+                                    name="notarial_act_count"
+                                    min="0"
+                                    step="1"
+                                    data-notarial-count="true"
+                                    defaultValue={rowCount > 0 ? String(rowCount) : ""}
+                                    placeholder="0"
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                  />
+
+                                  <input
+                                    type="number"
+                                    name="notarial_act_fee"
+                                    min="0"
+                                    step="0.01"
+                                    data-notarial-fee="true"
+                                    defaultValue={rowFee.toFixed(2)}
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                  />
+
+                                  <p className="flex items-center justify-end font-black text-[#0B1F4D]">
+                                    {formatMoney(rowAmount)}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700">
+                            <input
+                              id="notarial-no-acts-checkbox"
+                              type="checkbox"
+                              name="no_notarial_acts"
+                              className="h-5 w-5 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+                            />
+                            I did not have any notarial acts for this signing.
+                          </label>
+
+                          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                            <div className="flex items-center justify-between gap-4">
+                              <div>
+                                <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                                  Notarial Fee Total
+                                </p>
+                                <p
+                                  id="notarial-acts-helper"
+                                  className="mt-1 text-xs font-semibold text-slate-600"
+                                >
+                                  {notarialActsTotalCount > 0
+                                    ? `${notarialActsTotalCount} act${notarialActsTotalCount === 1 ? "" : "s"} × Indiana max fee`
+                                    : "Enter notarial acts to calculate the fee."}
+                                </p>
+                              </div>
+                              <p
+                                id="notarial-acts-total-output"
+                                className="shrink-0 text-2xl font-black text-[#0B1F4D]"
+                              >
+                                {formatMoney(notarialActsTotalFees)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
+                            <label
+                              htmlFor="notarial-acts-workspace-modal"
+                              className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                            >
+                              Cancel
+                            </label>
+
+                            <button
+                              type="submit"
+                              data-busy-text="Saving acts..."
+                              className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 disabled:cursor-wait disabled:opacity-80"
+                            >
+                              Save Notarial Acts
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
 
 
                   <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/mileage:flex sm:items-center">
