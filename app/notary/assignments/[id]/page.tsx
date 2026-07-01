@@ -4482,35 +4482,8 @@ Thank you for choosing Indiana Notary Solutions.
                           </section>
 
                           <section className="card full">
-                            <div className="card-header"><h2 className="card-title">Appointment Checklist</h2></div>
-                            <div className="card-body checklist">
-                              {["Confirmed appointment", "Printed documents", "Two copies printed", "Stamp packed", "Journal packed", "ID checked", "Scanbacks completed", "Shipment dropped", "Payment recorded", "Journal completed"].map((item) => (
-                                <div className="check-item" key={`print-check-${item}`}><span className="box"></span>{item}</div>
-                              ))}
-                            </div>
-                          </section>
-
-                          <section className="card full">
                             <div className="card-header"><h2 className="card-title">Signing Instructions</h2></div>
                             <div className="card-body instructions">{printInstructions || "No signing instructions were provided."}</div>
-                          </section>
-
-                          <section className="card full">
-                            <div className="card-header"><h2 className="card-title">Notes / Activity Highlights</h2></div>
-                            <div className="card-body">
-                              {printActivityNotes.length > 0 ? (
-                                <div className="notes-list">
-                                  {printActivityNotes.map((item) => (
-                                    <div className="note" key={`print-note-${item.id ?? item.created_at}`}>
-                                      <div className="note-date">{formatActivityDate(item.created_at)} • {item.action || "Note"}</div>
-                                      <div className="note-text">{formatActivityDetails(item.details, profileNameById)}</div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p>No notes recorded.</p>
-                              )}
-                            </div>
                           </section>
 
                           <section className="card full print-invoice-optional">
