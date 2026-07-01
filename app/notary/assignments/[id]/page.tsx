@@ -2298,6 +2298,24 @@ Thank you for choosing Indiana Notary Solutions.
     .eq("assignment_id", assignment.id)
     .eq("notary_id", user.id);
 
+  let automaticMileageStatus:
+    | "saved"
+    | "already_saved"
+    | "missing_addresses"
+    | "not_available"
+    | "failed" = "not_available";
+  let automaticMileageMessage = "Automatic mileage has not run yet.";
+
+  if ((existingMileageCount ?? 0) > 0) {
+    automaticMileageStatus = "already_saved";
+    automaticMileageMessage =
+      "Mileage is already saved for this assignment, so Google was not called again.";
+  } else if (!notaryBusinessLocation || !signingLocation) {
+    automaticMileageStatus = "missing_addresses";
+    automaticMileageMessage =
+      "Automatic mileage needs both a complete Business Location and signing destination.";
+  }
+
   if (
     hasInsPro &&
     assignmentInvoice?.id &&
@@ -2311,25 +2329,91 @@ Thank you for choosing Indiana Notary Solutions.
     });
 
     if (calculatedMileage?.miles) {
-      await supabase.from("assignment_mileage").insert({
-        assignment_id: assignment.id,
-        notary_id: user.id,
-        mileage_date: assignment.signing_date || todayForInvoice,
-        miles: calculatedMileage.miles,
-        rate: FEDERAL_MILEAGE_RATE,
-        amount: calculatedMileage.amount,
-        notes: [
-          `Auto-calculated by Google Maps: ${notaryBusinessLocation} to ${signingLocation}`,
-          calculatedMileage.distanceText
-            ? `Distance: ${calculatedMileage.distanceText}`
-            : null,
+      const mileageNotes = [
+        `Auto-calculated by Google Maps: ${notaryBusinessLocation} to ${signingLocation}`,
+        calculatedMileage.distanceText
+          ? `Distance: ${calculatedMileage.distanceText}`
+          : null,
+        calculatedMileage.durationText
+          ? `Estimated drive time: ${calculatedMileage.durationText}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      const { error: autoMileageInsertError } = await supabaseAdmin
+        .from("assignment_mileage")
+        .insert({
+          assignment_id: assignment.id,
+          notary_id: user.id,
+          mileage_date: assignment.signing_date || todayForInvoice,
+          miles: calculatedMileage.miles,
+          rate: FEDERAL_MILEAGE_RATE,
+          amount: calculatedMileage.amount,
+          notes: mileageNotes,
+        });
+
+      if (autoMileageInsertError) {
+        console.error("Automatic mileage insert error:", autoMileageInsertError);
+        automaticMileageStatus = "failed";
+        automaticMileageMessage =
+          autoMileageInsertError.message ||
+          "Google calculated mileage, but INS Pro could not save it.";
+      } else {
+        const currentInvoiceSubtotal = Number(assignmentInvoice.subtotal ?? 0);
+        const currentExpensesTotal = (invoiceExpenses ?? []).reduce(
+          (sum, row) => sum + Number(row.amount ?? 0),
+          0,
+        );
+        const currentPaymentsTotal = (invoicePayments ?? []).reduce(
+          (sum, row) => sum + Number(row.amount ?? 0),
+          0,
+        );
+        const nextMileageTotal = calculatedMileage.amount;
+        const nextBalanceDue =
+          currentInvoiceSubtotal +
+          nextMileageTotal +
+          currentExpensesTotal -
+          currentPaymentsTotal;
+        const currentStatus = String(assignmentInvoice.status ?? "draft").toLowerCase();
+        const nextStatus =
+          currentStatus === "not_required"
+            ? "not_required"
+            : nextBalanceDue <= 0 && currentPaymentsTotal > 0
+              ? "paid"
+              : currentInvoiceSubtotal + nextMileageTotal + currentExpensesTotal > 0
+                ? "unpaid"
+                : "draft";
+
+        const { error: invoiceMileageUpdateError } = await supabaseAdmin
+          .from("assignment_invoices")
+          .update({
+            mileage_total: nextMileageTotal,
+            balance_due: nextBalanceDue,
+            status: nextStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", assignmentInvoice.id)
+          .eq("notary_id", user.id);
+
+        if (invoiceMileageUpdateError) {
+          console.error(
+            "Automatic mileage invoice update error:",
+            invoiceMileageUpdateError,
+          );
+        }
+
+        automaticMileageStatus = "saved";
+        automaticMileageMessage = `${calculatedMileage.distanceText || `${calculatedMileage.miles.toFixed(2)} mi`} saved from Google Maps${
           calculatedMileage.durationText
-            ? `Estimated drive time: ${calculatedMileage.durationText}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(" | "),
-      });
+            ? ` with estimated drive time ${calculatedMileage.durationText}`
+            : ""
+        }.`;
+      }
+    } else {
+      automaticMileageStatus = "failed";
+      automaticMileageMessage =
+        "Google could not calculate a driving route for these addresses. Check the addresses or enter miles manually.";
     }
   }
 
@@ -3432,10 +3516,35 @@ Thank you for choosing Indiana Notary Solutions.
                                 />
                               </div>
 
-                              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-                                <p className="text-sm font-black text-[#0B1F4D]">Google Maps Mileage</p>
-                                <p className="mt-1 text-xs font-semibold text-slate-600">
-                                  INS Pro calculates mileage automatically the first time this assignment opens, then saves it so Google is not called every visit. Use the manual fields below only if you need to add another trip or correct the saved mileage.
+                              <div
+                                className={`rounded-2xl border p-4 ${
+                                  automaticMileageStatus === "saved" ||
+                                  automaticMileageStatus === "already_saved"
+                                    ? "border-green-200 bg-green-50"
+                                    : automaticMileageStatus === "failed" ||
+                                        automaticMileageStatus === "missing_addresses"
+                                      ? "border-amber-200 bg-amber-50"
+                                      : "border-blue-200 bg-blue-50"
+                                }`}
+                              >
+                                <p
+                                  className={`text-sm font-black ${
+                                    automaticMileageStatus === "saved" ||
+                                    automaticMileageStatus === "already_saved"
+                                      ? "text-green-800"
+                                      : automaticMileageStatus === "failed" ||
+                                          automaticMileageStatus === "missing_addresses"
+                                        ? "text-amber-800"
+                                        : "text-[#0B1F4D]"
+                                  }`}
+                                >
+                                  Google Maps Mileage
+                                </p>
+                                <p className="mt-1 text-xs font-semibold text-slate-700">
+                                  {automaticMileageMessage}
+                                </p>
+                                <p className="mt-2 text-xs font-semibold text-slate-500">
+                                  INS Pro only auto-calculates when there is no saved mileage entry. Manual fields below are for corrections or extra trips.
                                 </p>
                               </div>
 
