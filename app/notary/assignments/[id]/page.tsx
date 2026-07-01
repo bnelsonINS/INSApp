@@ -2528,23 +2528,7 @@ Thank you for choosing Indiana Notary Solutions.
       <script
         dangerouslySetInnerHTML={{
           __html: `
-            document.addEventListener("click", function (event) {
-              var target = event.target;
-              if (!target || target.id !== "invoice-use-balance-button") return;
-
-              var amountInput = document.getElementById("invoice-payment-amount");
-              if (!amountInput) return;
-
-              amountInput.value = target.getAttribute("data-balance") || "0.00";
-              amountInput.focus();
-            });
-
-            document.addEventListener("input", function (event) {
-              var target = event.target;
-              if (!target) return;
-
-              if (target.id !== "mileage-miles-input" && target.id !== "mileage-rate-input") return;
-
+            function updateMileageAmount() {
               var milesInput = document.getElementById("mileage-miles-input");
               var rateInput = document.getElementById("mileage-rate-input");
               var amountOutput = document.getElementById("mileage-amount-output");
@@ -2566,9 +2550,90 @@ Thank you for choosing Indiana Notary Solutions.
                 if (miles > 0 && rate >= 0) {
                   amountHelper.textContent = miles.toFixed(2) + " miles × $" + rate.toFixed(3) + " per mile";
                 } else {
-                  amountHelper.textContent = "Enter miles to calculate the mileage deduction amount.";
+                  amountHelper.textContent = "Click Calculate Miles or enter miles manually.";
                 }
               }
+            }
+
+            document.addEventListener("click", async function (event) {
+              var target = event.target;
+              if (!target) return;
+
+              if (target.id === "invoice-use-balance-button") {
+                var amountInput = document.getElementById("invoice-payment-amount");
+                if (!amountInput) return;
+
+                amountInput.value = target.getAttribute("data-balance") || "0.00";
+                amountInput.focus();
+                return;
+              }
+
+              if (target.id === "calculate-mileage-button") {
+                var originInput = document.getElementById("mileage-origin-input");
+                var destinationInput = document.getElementById("mileage-destination-input");
+                var milesInput = document.getElementById("mileage-miles-input");
+                var routeHelper = document.getElementById("mileage-route-helper");
+                var driveTimeOutput = document.getElementById("mileage-drive-time-output");
+
+                if (!originInput || !destinationInput || !milesInput) return;
+
+                var origin = (originInput.value || "").trim();
+                var destination = (destinationInput.value || "").trim();
+
+                if (!origin || !destination) {
+                  if (routeHelper) routeHelper.textContent = "Enter both starting location and destination first.";
+                  return;
+                }
+
+                var originalText = target.textContent || "Calculate Miles";
+                target.disabled = true;
+                target.classList.add("cursor-wait", "opacity-80");
+                target.textContent = "Calculating...";
+
+                if (routeHelper) routeHelper.textContent = "Getting driving distance from Google Maps...";
+                if (driveTimeOutput) driveTimeOutput.textContent = "—";
+
+                try {
+                  var response = await fetch("/api/mileage/route", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ origin: origin, destination: destination }),
+                  });
+
+                  var data = await response.json();
+
+                  if (!response.ok) {
+                    throw new Error(data.error || "Unable to calculate route.");
+                  }
+
+                  milesInput.value = Number(data.miles || 0).toFixed(2);
+
+                  if (driveTimeOutput) {
+                    driveTimeOutput.textContent = data.durationText || "—";
+                  }
+
+                  if (routeHelper) {
+                    routeHelper.textContent = (data.distanceText || (Number(data.miles || 0).toFixed(2) + " mi")) + " driving distance";
+                  }
+
+                  updateMileageAmount();
+                } catch (error) {
+                  if (routeHelper) routeHelper.textContent = error.message || "Unable to calculate mileage.";
+                } finally {
+                  target.disabled = false;
+                  target.classList.remove("cursor-wait", "opacity-80");
+                  target.textContent = originalText;
+                }
+              }
+            });
+
+            document.addEventListener("input", function (event) {
+              var target = event.target;
+              if (!target) return;
+
+              if (target.id !== "mileage-miles-input" && target.id !== "mileage-rate-input") return;
+
+              updateMileageAmount();
             });
 
             document.addEventListener("submit", function (event) {
@@ -3200,7 +3265,7 @@ Thank you for choosing Indiana Notary Solutions.
                           <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                             <h5 className="text-lg font-black text-slate-950">Add Mileage</h5>
                             <p className="mt-1 text-sm text-slate-500">
-                              Enter trip miles manually for now. Auto-calc routing can come later.
+                              Calculate the driving miles with Google Maps, or enter miles manually if needed.
                             </p>
 
                             <form action={saveMileageEntry} className="mt-5 space-y-4">
@@ -3220,6 +3285,7 @@ Thank you for choosing Indiana Notary Solutions.
                               <div>
                                 <label className="block text-sm font-bold text-slate-700">Starting Location</label>
                                 <input
+                                  id="mileage-origin-input"
                                   name="mileage_starting_location"
                                   defaultValue={notaryBusinessLocation}
                                   placeholder="Business location, office, prior signing..."
@@ -3235,10 +3301,43 @@ Thank you for choosing Indiana Notary Solutions.
                               <div>
                                 <label className="block text-sm font-bold text-slate-700">Destination</label>
                                 <input
+                                  id="mileage-destination-input"
                                   name="mileage_destination_location"
                                   defaultValue={signingLocation}
                                   className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                 />
+                              </div>
+
+                              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                  <div>
+                                    <p className="text-sm font-black text-slate-950">Google Maps Route</p>
+                                    <p
+                                      id="mileage-route-helper"
+                                      className="mt-1 text-xs font-semibold text-slate-500"
+                                    >
+                                      Click Calculate Miles to get the driving distance.
+                                    </p>
+                                  </div>
+
+                                  <button
+                                    id="calculate-mileage-button"
+                                    type="button"
+                                    className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-100 disabled:cursor-wait disabled:opacity-70"
+                                  >
+                                    Calculate Miles
+                                  </button>
+                                </div>
+
+                                <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-sm">
+                                  <span className="font-bold text-slate-600">Estimated Drive Time</span>
+                                  <span
+                                    id="mileage-drive-time-output"
+                                    className="font-black text-slate-950"
+                                  >
+                                    —
+                                  </span>
+                                </div>
                               </div>
 
                               <div className="grid grid-cols-2 gap-3">
@@ -3280,7 +3379,7 @@ Thank you for choosing Indiana Notary Solutions.
                                       id="mileage-amount-helper"
                                       className="mt-1 text-xs font-semibold text-slate-600"
                                     >
-                                      Enter miles to calculate the mileage deduction amount.
+                                      Click Calculate Miles or enter miles manually.
                                     </p>
                                   </div>
                                   <p
