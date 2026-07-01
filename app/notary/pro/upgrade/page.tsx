@@ -11,13 +11,21 @@ export default function UpgradePage() {
           </p>
 
           <h1 className="mt-2 text-4xl font-bold">
-            Upgrade Your Notary Business
+            Save Thousands on Taxes Every Year
           </h1>
 
           <p className="mt-4 max-w-3xl text-lg text-blue-100">
-            INS Pro gives you the tools professional signing agents use every
-            day to manage their business, track assignments, complete journals,
-            generate invoices, monitor mileage, and prepare for tax season.
+            Turn Every Signing Into Better Tax Records
+
+INS Pro automatically tracks your mileage, notarial acts, and business expenses for every assignment. Throughout the year you'll build organized records that can help maximize legitimate business deductions and make tax season dramatically easier.
+
+Built for Professional Notaries
+
+Instead of juggling spreadsheets, receipts, and multiple apps, INS Pro keeps everything connected to each assignment—from your journal and invoices to expenses, mileage, payments, and reports—all in one place.
+
+An Investment That Pays for Itself
+
+Many full-time signing agents recover far more in tax deductions than the cost of INS Pro. Better records, fewer missed deductions, and less time spent on bookkeeping mean you can focus on completing more signings and growing your business.
           </p>
         </div>
 
