@@ -488,10 +488,14 @@ function nextAction(
 
 export default async function AssignmentDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ workspace?: string }>;
 }) {
   const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const activeWorkspace = String(resolvedSearchParams.workspace ?? "").toLowerCase();
 
   async function saveJournalPerson(formData: FormData) {
     "use server";
@@ -1855,7 +1859,7 @@ export default async function AssignmentDetailPage({
     });
 
     revalidatePath(`/notary/assignments/${assignmentId}`);
-    redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+    redirect(`/notary/assignments/${assignmentId}?workspace=expenses#assignment-workspace`);
   }
 
   async function deleteExpenseEntry(formData: FormData) {
@@ -1866,7 +1870,7 @@ export default async function AssignmentDetailPage({
     const expenseId = String(formData.get("expense_id") ?? "").trim();
 
     if (!assignmentId || !expenseId) {
-      redirect(`/notary/assignments/${assignmentId || id}#assignment-workspace`);
+      redirect(`/notary/assignments/${assignmentId || id}?workspace=expenses#assignment-workspace`);
     }
 
     const supabase = await createSupabaseServerClient();
@@ -1898,7 +1902,7 @@ export default async function AssignmentDetailPage({
     if (deleteExpenseError) {
       console.error("Expense delete error:", deleteExpenseError);
       revalidatePath(`/notary/assignments/${assignmentId}`);
-      redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+      redirect(`/notary/assignments/${assignmentId}?workspace=expenses#assignment-workspace`);
     }
 
     if (invoiceId) {
@@ -1972,7 +1976,7 @@ export default async function AssignmentDetailPage({
     });
 
     revalidatePath(`/notary/assignments/${assignmentId}`);
-    redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+    redirect(`/notary/assignments/${assignmentId}?workspace=expenses#assignment-workspace`);
   }
 
 
@@ -3906,6 +3910,7 @@ Thank you for choosing Indiana Notary Solutions.
                   <input
                     id="expenses-workspace-modal"
                     type="checkbox"
+                    defaultChecked={activeWorkspace === "expenses"}
                     className="peer/expenses sr-only"
                   />
 
@@ -3992,7 +3997,7 @@ Thank you for choosing Indiana Notary Solutions.
 
 
                   <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/expenses:flex sm:items-center">
-                    <div className="w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                    <div className="w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                       <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] px-5 py-4 text-white">
                         <div>
                           <div className="flex flex-wrap items-center gap-3">
@@ -4037,7 +4042,7 @@ Thank you for choosing Indiana Notary Solutions.
                           </div>
                         </div>
 
-                        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+                        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_460px]">
                           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                             <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
                               <div>
@@ -4093,13 +4098,13 @@ Thank you for choosing Indiana Notary Solutions.
                             )}
                           </section>
 
-                          <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                          <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                             <h5 className="text-lg font-black text-slate-950">New Expense</h5>
                             <p className="mt-1 text-sm text-slate-500">
-                              Add one expense at a time. Categories match the Notary Gadget-style expense flow.
+                              Compact entry form. Save keeps this workspace open so you can add another expense.
                             </p>
 
-                            <form action={saveExpenseEntry} className="mt-5 space-y-4">
+                            <form action={saveExpenseEntry} className="mt-4 grid gap-3 sm:grid-cols-2">
                               <input type="hidden" name="assignment_id" value={assignment.id} />
                               <input type="hidden" name="invoice_id" value={assignmentInvoice?.id ?? ""} />
 
@@ -4128,7 +4133,7 @@ Thank you for choosing Indiana Notary Solutions.
                                 </select>
                               </div>
 
-                              <div>
+                              <div className="sm:col-span-2">
                                 <label className="block text-sm font-bold text-slate-700">New / Custom Category</label>
                                 <input
                                   name="expense_custom_category"
@@ -4162,7 +4167,7 @@ Thank you for choosing Indiana Notary Solutions.
                                 />
                               </div>
 
-                              <div>
+                              <div className="sm:col-span-2">
                                 <label className="block text-sm font-bold text-slate-700">Notes</label>
                                 <textarea
                                   name="expense_notes"
@@ -4172,11 +4177,11 @@ Thank you for choosing Indiana Notary Solutions.
                                 />
                               </div>
 
-                              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-semibold text-amber-800">
+                              <div className="sm:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
                                 Receipt upload is intentionally left as a later step. This saves the expense data now without risking a storage/schema mismatch.
                               </div>
 
-                              <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
+                              <div className="sm:col-span-2 flex justify-end gap-3 border-t border-slate-200 pt-4">
                                 <label
                                   htmlFor="expenses-workspace-modal"
                                   className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
@@ -4186,10 +4191,12 @@ Thank you for choosing Indiana Notary Solutions.
 
                                 <button
                                   type="submit"
+                                  name="expense_save_mode"
+                                  value="add_another"
                                   data-busy-text="Saving expense..."
                                   className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 disabled:cursor-wait disabled:opacity-80"
                                 >
-                                  Save Expense
+                                  Save + Add Another
                                 </button>
                               </div>
                             </form>
@@ -4623,7 +4630,7 @@ Thank you for choosing Indiana Notary Solutions.
                                 </div>
                               </div>
 
-                              <div>
+                              <div className="sm:col-span-2">
                                 <label className="block text-sm font-bold text-slate-700">Notes</label>
                                 <textarea
                                   name="mileage_notes"
