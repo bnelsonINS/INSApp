@@ -4166,12 +4166,12 @@ Thank you for choosing Indiana Notary Solutions.
                   <h3 className="mt-2 text-xl font-bold text-slate-950">
                     Please upgrade to use INS Pro features
                   </h3>
-                  <button
-                    type="button"
-                    className="mt-4 rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-                  >
-                    Upgrade to INS Pro
-                  </button>
+                  <Link
+  href="/notary/pro/upgrade"
+  className="mt-4 inline-flex rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+>
+  Upgrade to INS Pro
+</Link>
                 </div>
               </div>
             ) : (
