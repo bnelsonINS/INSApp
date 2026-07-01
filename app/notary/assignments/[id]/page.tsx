@@ -11,6 +11,8 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const FEDERAL_MILEAGE_RATE = 0.725;
+
 function getBaseUrl() {
   return (
     process.env.NEXT_PUBLIC_SITE_URL ||
@@ -212,6 +214,7 @@ function buildBusinessLocation(profile: Record<string, any> | null | undefined) 
   if (!profile) return "";
 
   const fullBusinessLocation = optionalTextValue(
+    profile.business_location_full_address,
     profile.business_location,
     profile.business_full_address,
     profile.business_mailing_address,
@@ -247,6 +250,10 @@ function buildBusinessLocation(profile: Record<string, any> | null | undefined) 
     profile.business_zip_code,
     profile.office_zip,
   );
+
+  // Do not treat state alone (example: "IN") as a usable business location.
+  // Mileage needs an actual starting address, not just a state value.
+  if (!street && !city && !zip) return "";
 
   const cityStateZip = [city, state, zip].filter(Boolean).join(" ");
 
@@ -1226,7 +1233,7 @@ export default async function AssignmentDetailPage({
     const startingLocation = String(formData.get("mileage_starting_location") ?? "").trim();
     const destinationLocation = String(formData.get("mileage_destination_location") ?? "").trim();
     const miles = Number(formData.get("mileage_miles") ?? 0);
-    const rate = Number(formData.get("mileage_rate") ?? 0.67);
+    const rate = Number(formData.get("mileage_rate") ?? FEDERAL_MILEAGE_RATE);
     const notes = String(formData.get("mileage_notes") ?? "").trim();
 
     if (!assignmentId || !Number.isFinite(miles) || miles <= 0) return;
@@ -1254,9 +1261,15 @@ export default async function AssignmentDetailPage({
       .eq("id", user.id)
       .maybeSingle();
 
-    const defaultStartingLocation = buildBusinessLocation(
-      notaryProfile as Record<string, any> | null,
-    );
+    const { data: notaryProfileDetails } = await supabase
+      .from("notary_profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const defaultStartingLocation =
+      buildBusinessLocation(notaryProfile as Record<string, any> | null) ||
+      buildBusinessLocation(notaryProfileDetails as Record<string, any> | null);
     const finalStartingLocation = startingLocation || defaultStartingLocation;
     const cleanRate = Number.isFinite(rate) && rate >= 0 ? rate : 0;
     const amount = miles * cleanRate;
@@ -1926,9 +1939,15 @@ Thank you for choosing Indiana Notary Solutions.
     .eq("id", user.id)
     .maybeSingle();
 
-  const notaryBusinessLocation = buildBusinessLocation(
-    notaryProfile as Record<string, any> | null,
-  );
+  const { data: notaryProfileDetails } = await supabase
+    .from("notary_profiles")
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const notaryBusinessLocation =
+    buildBusinessLocation(notaryProfile as Record<string, any> | null) ||
+    buildBusinessLocation(notaryProfileDetails as Record<string, any> | null);
 
   const titleDocumentsWithUrls = await Promise.all(
     (titleDocuments ?? []).map(async (doc) => {
@@ -3176,7 +3195,7 @@ Thank you for choosing Indiana Notary Solutions.
                                 />
                                 {!notaryBusinessLocation && (
                                   <p className="mt-2 text-xs text-amber-700">
-                                    Business Location is not set on this profile yet. Once we add it to the profile page, this field will auto-fill.
+                                    Business Location is not complete on this profile yet. Add the full street address, city, state, and ZIP on the profile page and this field will auto-fill.
                                   </p>
                                 )}
                               </div>
@@ -3199,7 +3218,7 @@ Thank you for choosing Indiana Notary Solutions.
                                     step="0.01"
                                     min="0"
                                     required
-                                    placeholder="0.00"
+                                    placeholder="Enter miles"
                                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                   />
                                 </div>
@@ -3211,7 +3230,7 @@ Thank you for choosing Indiana Notary Solutions.
                                     type="number"
                                     step="0.01"
                                     min="0"
-                                    defaultValue="0.67"
+                                    defaultValue={String(FEDERAL_MILEAGE_RATE)}
                                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                   />
                                 </div>
