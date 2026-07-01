@@ -3543,35 +3543,53 @@ Thank you for choosing Indiana Notary Solutions.
                 return;
               }
 
-              if (target.id === "print-signing-button") {
+              var printButton = target.closest ? target.closest("#print-signing-button") : null;
+              if (printButton) {
                 var includeInvoice = document.getElementById("print-include-invoice");
                 var source = document.getElementById("signing-print-area");
 
-                if (!source) return;
+                if (!source) {
+                  alert("Printout content is missing. Refresh the page and try again.");
+                  return;
+                }
 
-                var printWindow = window.open("", "_blank", "width=1100,height=900");
+                var clonedSource = source.cloneNode(true);
+
+                if (!(includeInvoice && includeInvoice.checked)) {
+                  clonedSource
+                    .querySelectorAll(".print-invoice-optional")
+                    .forEach(function (section) {
+                      section.remove();
+                    });
+                }
+
+                var printHtml =
+                  "<!doctype html>" +
+                  "<html>" +
+                  "<head>" +
+                  "<title>Signing Summary - " +
+                  (source.getAttribute("data-control-number") || "Assignment") +
+                  "</title>" +
+                  "<meta name='viewport' content='width=device-width, initial-scale=1' />" +
+                  "</head>" +
+                  "<body>" +
+                  clonedSource.innerHTML +
+                  "</body>" +
+                  "</html>";
+
+                var printBlob = new Blob([printHtml], { type: "text/html" });
+                var printUrl = URL.createObjectURL(printBlob);
+                var printWindow = window.open(printUrl, "_blank", "noopener,noreferrer,width=1100,height=900");
 
                 if (!printWindow) {
+                  URL.revokeObjectURL(printUrl);
                   alert("Popup blocked. Allow popups for Indiana Notary Solutions, then try again.");
                   return;
                 }
 
-                var html = source.innerHTML;
-
-                if (!(includeInvoice && includeInvoice.checked)) {
-                  html = html.replace(/<section class=\"print-invoice-optional[\s\S]*?<\/section>/, "");
-                }
-
-                printWindow.document.open();
-                printWindow.document.write(
-                  "<!doctype html><html><head><title>Signing Summary - " +
-                    (source.getAttribute("data-control-number") || "Assignment") +
-                    "</title><meta name='viewport' content='width=device-width, initial-scale=1' /></head><body>" +
-                    html +
-                    "</body></html>"
-                );
-                printWindow.document.close();
-                printWindow.focus();
+                setTimeout(function () {
+                  URL.revokeObjectURL(printUrl);
+                }, 60000);
 
                 return;
               }
