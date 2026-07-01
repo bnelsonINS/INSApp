@@ -221,6 +221,7 @@ function buildBusinessLocation(profile: Record<string, any> | null | undefined) 
   if (fullBusinessLocation) return fullBusinessLocation;
 
   const street = optionalTextValue(
+    profile.business_location_address,
     profile.business_address,
     profile.business_street_address,
     profile.business_street,
@@ -228,15 +229,28 @@ function buildBusinessLocation(profile: Record<string, any> | null | undefined) 
     profile.office_street_address,
   );
 
-  const cityLine = [
-    optionalTextValue(profile.business_city, profile.office_city),
-    optionalTextValue(profile.business_state, profile.office_state),
-    optionalTextValue(profile.business_zip, profile.business_zip_code, profile.office_zip),
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const city = optionalTextValue(
+    profile.business_location_city,
+    profile.business_city,
+    profile.office_city,
+  );
 
-  return [street, cityLine].filter(Boolean).join(", ");
+  const state = optionalTextValue(
+    profile.business_location_state,
+    profile.business_state,
+    profile.office_state,
+  );
+
+  const zip = optionalTextValue(
+    profile.business_location_zip,
+    profile.business_zip,
+    profile.business_zip_code,
+    profile.office_zip,
+  );
+
+  const cityStateZip = [city, state, zip].filter(Boolean).join(" ");
+
+  return [street, cityStateZip].filter(Boolean).join(", ");
 }
 
 const UUID_PATTERN =
