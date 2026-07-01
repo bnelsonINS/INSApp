@@ -3419,6 +3419,27 @@ Thank you for choosing Indiana Notary Solutions.
                 return;
               }
 
+              if (target.getAttribute && target.getAttribute("data-payment-method-save")) {
+                var pickerName = target.getAttribute("data-payment-method-save");
+                var targetInputId = target.getAttribute("data-payment-method-target");
+                var modalId = target.getAttribute("data-payment-method-modal");
+                var methodInput = targetInputId ? document.getElementById(targetInputId) : null;
+                var selectedMethod = document.querySelector('input[data-payment-method-picker="' + pickerName + '"]:checked');
+
+                if (methodInput && selectedMethod) {
+                  methodInput.value = selectedMethod.value || "";
+                  methodInput.dispatchEvent(new Event("input", { bubbles: true }));
+                  methodInput.dispatchEvent(new Event("change", { bubbles: true }));
+                }
+
+                if (modalId) {
+                  var modalCheckbox = document.getElementById(modalId);
+                  if (modalCheckbox) modalCheckbox.checked = false;
+                }
+
+                return;
+              }
+
               if (target.id === "calculate-mileage-button") {
                 var originInput = document.getElementById("mileage-origin-input");
                 var destinationInput = document.getElementById("mileage-destination-input");
@@ -4951,6 +4972,7 @@ Thank you for choosing Indiana Notary Solutions.
                                 <label className="block text-sm font-bold text-slate-700">Payment Type</label>
                                 <div className="mt-2 flex items-center gap-2">
                                   <input
+                                    id="payments-workspace-payment-method-input"
                                     name="payment_method"
                                     defaultValue="ACH"
                                     placeholder="ACH, Check, Cash..."
@@ -4994,9 +5016,9 @@ Thank you for choosing Indiana Notary Solutions.
                                               <span>{method}</span>
                                               <input
                                                 type="radio"
-                                                name="payment_method_choice"
+                                                name="payments_workspace_payment_method_picker"
                                                 value={method}
-                                                form="payments-workspace-payment-form"
+                                                data-payment-method-picker="payments-workspace"
                                                 className="h-4 w-4 text-[#0B1F4D] focus:ring-[#0B1F4D]"
                                               />
                                             </label>
@@ -5004,8 +5026,26 @@ Thank you for choosing Indiana Notary Solutions.
                                         </div>
 
                                         <p className="mt-4 text-center text-xs text-slate-500">
-                                          Pick one here, or type your own method in the field behind this popup.
+                                          Pick one here, then click Save to update the payment type field.
                                         </p>
+
+                                        <div className="mt-5 flex justify-center gap-3">
+                                          <label
+                                            htmlFor="payments-workspace-payment-type-modal"
+                                            className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                          >
+                                            Cancel
+                                          </label>
+                                          <button
+                                            type="button"
+                                            data-payment-method-save="payments-workspace"
+                                            data-payment-method-target="payments-workspace-payment-method-input"
+                                            data-payment-method-modal="payments-workspace-payment-type-modal"
+                                            className="rounded-xl bg-[#0B1F4D] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                                          >
+                                            Save
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -5419,6 +5459,7 @@ Thank you for choosing Indiana Notary Solutions.
                                   <label className="font-bold text-slate-500 sm:text-right">Payment Type</label>
                                   <div className="flex items-center gap-2">
                                     <input
+                                      id="invoice-payment-method-input"
                                       name="payment_method"
                                       defaultValue="ACH"
                                       placeholder="ACH, Check, Cash..."
@@ -5462,9 +5503,9 @@ Thank you for choosing Indiana Notary Solutions.
                                                 <span>{method}</span>
                                                 <input
                                                   type="radio"
-                                                  name="payment_method_choice"
+                                                  name="invoice_payment_method_picker"
                                                   value={method}
-                                                  form="invoice-payment-form"
+                                                  data-payment-method-picker="invoice"
                                                   className="h-4 w-4 text-[#0B1F4D] focus:ring-[#0B1F4D]"
                                                 />
                                               </label>
@@ -5472,8 +5513,26 @@ Thank you for choosing Indiana Notary Solutions.
                                           </div>
 
                                           <p className="mt-4 text-center text-xs text-slate-500">
-                                            Pick one here, or type your own method in the field behind this popup.
+                                            Pick one here, then click Save to update the payment type field.
                                           </p>
+
+                                          <div className="mt-5 flex justify-center gap-3">
+                                            <label
+                                              htmlFor="invoice-payment-type-modal"
+                                              className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                            >
+                                              Cancel
+                                            </label>
+                                            <button
+                                              type="button"
+                                              data-payment-method-save="invoice"
+                                              data-payment-method-target="invoice-payment-method-input"
+                                              data-payment-method-modal="invoice-payment-type-modal"
+                                              className="rounded-xl bg-[#0B1F4D] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                                            >
+                                              Save
+                                            </button>
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
