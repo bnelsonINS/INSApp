@@ -3905,14 +3905,14 @@ Thank you for choosing Indiana Notary Solutions.
                 will all roll into the notary Dashboard.
               </p>
 
-              <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
+              <div className="mt-5 grid grid-cols-2 gap-2 min-[420px]:grid-cols-3 md:flex md:flex-wrap">
                 {workspaceTabs.map((tab) => {
                   if (tab === "Journal") {
                     return (
                       <label
                         key={tab}
                         htmlFor="journal-workspace-modal"
-                        className="shrink-0 cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950"
+                        className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-[#0B1F4D] px-3 py-2 text-center text-sm font-bold leading-tight text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950 md:shrink-0 md:px-4"
                       >
                         {tab}
                       </label>
@@ -3924,7 +3924,7 @@ Thank you for choosing Indiana Notary Solutions.
                       <label
                         key={tab}
                         htmlFor="invoice-workspace-modal"
-                        className="shrink-0 cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950"
+                        className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-[#0B1F4D] px-3 py-2 text-center text-sm font-bold leading-tight text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950 md:shrink-0 md:px-4"
                       >
                         {tab}
                       </label>
@@ -3936,7 +3936,7 @@ Thank you for choosing Indiana Notary Solutions.
                       <label
                         key={tab}
                         htmlFor="mileage-workspace-modal"
-                        className="shrink-0 cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950"
+                        className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-[#0B1F4D] px-3 py-2 text-center text-sm font-bold leading-tight text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950 md:shrink-0 md:px-4"
                       >
                         {tab}
                       </label>
@@ -3948,7 +3948,7 @@ Thank you for choosing Indiana Notary Solutions.
                       <label
                         key={tab}
                         htmlFor="notarial-acts-workspace-modal"
-                        className="shrink-0 cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950"
+                        className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-[#0B1F4D] px-3 py-2 text-center text-sm font-bold leading-tight text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950 md:shrink-0 md:px-4"
                       >
                         {tab}
                       </label>
@@ -3960,7 +3960,7 @@ Thank you for choosing Indiana Notary Solutions.
                       <label
                         key={tab}
                         htmlFor="expenses-workspace-modal"
-                        className="shrink-0 cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950"
+                        className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-[#0B1F4D] px-3 py-2 text-center text-sm font-bold leading-tight text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950 md:shrink-0 md:px-4"
                       >
                         {tab}
                       </label>
@@ -3970,7 +3970,7 @@ Thank you for choosing Indiana Notary Solutions.
                   return (
                     <span
                       key={tab}
-                      className="shrink-0 rounded-xl bg-slate-50 px-4 py-2 text-sm font-bold text-slate-400 ring-1 ring-slate-200"
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-50 px-3 py-2 text-center text-sm font-bold leading-tight text-slate-400 ring-1 ring-slate-200 md:shrink-0 md:px-4"
                     >
                       {tab}
                     </span>
