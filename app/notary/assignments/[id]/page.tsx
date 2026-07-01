@@ -13,6 +13,25 @@ export const revalidate = 0;
 
 const FEDERAL_MILEAGE_RATE = 0.725;
 const INDIANA_NOTARIAL_ACT_FEE = 10;
+const EXPENSE_CATEGORIES = [
+  "Accountant Fees",
+  "Advertising",
+  "Banking Fees",
+  "Document Printing",
+  "Document Shipping",
+  "Insurance",
+  "Licensing & Filings",
+  "Meals & Entertainment",
+  "Mileage - Personal Auto",
+  "Misc.",
+  "Office Supplies",
+  "Parking/Tolls",
+  "Phone/Fax",
+  "Postage",
+  "Signing Tabs",
+  "Software",
+  "Training",
+];
 
 function getBaseUrl() {
   return (
@@ -1711,6 +1730,252 @@ export default async function AssignmentDetailPage({
   }
 
 
+  async function saveExpenseEntry(formData: FormData) {
+    "use server";
+
+    const assignmentId = String(formData.get("assignment_id") ?? "").trim();
+    const invoiceId = String(formData.get("invoice_id") ?? "").trim();
+    const expenseDate = String(formData.get("expense_date") ?? "").trim();
+    const selectedCategory = String(formData.get("expense_category") ?? "").trim();
+    const customCategory = String(formData.get("expense_custom_category") ?? "").trim();
+    const amount = Number(formData.get("expense_amount") ?? 0);
+    const vendor = String(formData.get("expense_vendor") ?? "").trim();
+    const notes = String(formData.get("expense_notes") ?? "").trim();
+
+    if (!assignmentId || !Number.isFinite(amount) || amount <= 0) {
+      redirect(`/notary/assignments/${assignmentId || id}#assignment-workspace`);
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) redirect("/login");
+
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select("id")
+      .eq("id", assignmentId)
+      .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
+      .maybeSingle();
+
+    if (!assignment) redirect("/notary/assignments");
+
+    const cleanCategory = customCategory || selectedCategory || "Misc.";
+    const cleanAmount = Math.round(amount * 100) / 100;
+
+    const { error: insertExpenseError } = await supabaseAdmin
+      .from("assignment_expenses")
+      .insert({
+        assignment_id: assignmentId,
+        notary_id: user.id,
+        expense_date: expenseDate || new Date().toISOString().slice(0, 10),
+        category: cleanCategory,
+        amount: cleanAmount,
+        vendor: vendor || null,
+        notes: notes || null,
+      });
+
+    if (insertExpenseError) {
+      console.error("Expense insert error:", insertExpenseError);
+      revalidatePath(`/notary/assignments/${assignmentId}`);
+      redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+    }
+
+    if (invoiceId) {
+      const { data: invoice } = await supabaseAdmin
+        .from("assignment_invoices")
+        .select("id, subtotal, mileage_total, payments_total, status")
+        .eq("id", invoiceId)
+        .eq("assignment_id", assignmentId)
+        .eq("notary_id", user.id)
+        .maybeSingle();
+
+      if (invoice) {
+        const { data: expenseRows } = await supabaseAdmin
+          .from("assignment_expenses")
+          .select("amount")
+          .eq("assignment_id", assignmentId)
+          .eq("notary_id", user.id);
+
+        const expensesTotal = (expenseRows ?? []).reduce(
+          (sum, row) => sum + Number(row.amount ?? 0),
+          0,
+        );
+        const totalDue =
+          Number(invoice.subtotal ?? 0) +
+          Number(invoice.mileage_total ?? 0) +
+          expensesTotal;
+        const balanceDue = totalDue - Number(invoice.payments_total ?? 0);
+        const currentStatus = String(invoice.status ?? "draft").toLowerCase();
+        const nextStatus =
+          currentStatus === "not_required"
+            ? "not_required"
+            : balanceDue <= 0 && Number(invoice.payments_total ?? 0) > 0
+              ? "paid"
+              : totalDue > 0
+                ? "unpaid"
+                : "draft";
+
+        await supabaseAdmin
+          .from("assignment_invoices")
+          .update({
+            expenses_total: expensesTotal,
+            balance_due: balanceDue,
+            status: nextStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", invoiceId)
+          .eq("notary_id", user.id);
+      }
+    }
+
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    await supabaseAdmin.from("assignment_activity").insert({
+      assignment_id: assignmentId,
+      actor_id: user.id,
+      actor_name: profile?.full_name || profile?.email || "Notary",
+      actor_role: "notary",
+      action: "Expense Added",
+      details: [
+        `Category: ${cleanCategory}`,
+        `Amount: ${formatMoney(cleanAmount)}`,
+        vendor ? `Vendor: ${vendor}` : null,
+        notes ? `Notes: ${notes}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+
+    revalidatePath(`/notary/assignments/${assignmentId}`);
+    redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+  }
+
+  async function deleteExpenseEntry(formData: FormData) {
+    "use server";
+
+    const assignmentId = String(formData.get("assignment_id") ?? "").trim();
+    const invoiceId = String(formData.get("invoice_id") ?? "").trim();
+    const expenseId = String(formData.get("expense_id") ?? "").trim();
+
+    if (!assignmentId || !expenseId) {
+      redirect(`/notary/assignments/${assignmentId || id}#assignment-workspace`);
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) redirect("/login");
+
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select("id")
+      .eq("id", assignmentId)
+      .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
+      .maybeSingle();
+
+    if (!assignment) redirect("/notary/assignments");
+
+    const { data: deletedExpense, error: deleteExpenseError } = await supabaseAdmin
+      .from("assignment_expenses")
+      .delete()
+      .eq("id", expenseId)
+      .eq("assignment_id", assignmentId)
+      .eq("notary_id", user.id)
+      .select("category, amount, vendor, notes")
+      .maybeSingle();
+
+    if (deleteExpenseError) {
+      console.error("Expense delete error:", deleteExpenseError);
+      revalidatePath(`/notary/assignments/${assignmentId}`);
+      redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+    }
+
+    if (invoiceId) {
+      const { data: invoice } = await supabaseAdmin
+        .from("assignment_invoices")
+        .select("id, subtotal, mileage_total, payments_total, status")
+        .eq("id", invoiceId)
+        .eq("assignment_id", assignmentId)
+        .eq("notary_id", user.id)
+        .maybeSingle();
+
+      if (invoice) {
+        const { data: expenseRows } = await supabaseAdmin
+          .from("assignment_expenses")
+          .select("amount")
+          .eq("assignment_id", assignmentId)
+          .eq("notary_id", user.id);
+
+        const expensesTotal = (expenseRows ?? []).reduce(
+          (sum, row) => sum + Number(row.amount ?? 0),
+          0,
+        );
+        const totalDue =
+          Number(invoice.subtotal ?? 0) +
+          Number(invoice.mileage_total ?? 0) +
+          expensesTotal;
+        const balanceDue = totalDue - Number(invoice.payments_total ?? 0);
+        const currentStatus = String(invoice.status ?? "draft").toLowerCase();
+        const nextStatus =
+          currentStatus === "not_required"
+            ? "not_required"
+            : balanceDue <= 0 && Number(invoice.payments_total ?? 0) > 0
+              ? "paid"
+              : totalDue > 0
+                ? "unpaid"
+                : "draft";
+
+        await supabaseAdmin
+          .from("assignment_invoices")
+          .update({
+            expenses_total: expensesTotal,
+            balance_due: balanceDue,
+            status: nextStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", invoiceId)
+          .eq("notary_id", user.id);
+      }
+    }
+
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    await supabaseAdmin.from("assignment_activity").insert({
+      assignment_id: assignmentId,
+      actor_id: user.id,
+      actor_name: profile?.full_name || profile?.email || "Notary",
+      actor_role: "notary",
+      action: "Expense Removed",
+      details: [
+        deletedExpense?.category ? `Category: ${deletedExpense.category}` : "Expense removed.",
+        deletedExpense?.amount ? `Amount: ${formatMoney(deletedExpense.amount)}` : null,
+        deletedExpense?.vendor ? `Vendor: ${deletedExpense.vendor}` : null,
+        deletedExpense?.notes ? `Notes: ${deletedExpense.notes}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+
+    revalidatePath(`/notary/assignments/${assignmentId}`);
+    redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+  }
+
+
   async function addOrderNote(formData: FormData) {
     "use server";
 
@@ -3169,6 +3434,24 @@ Thank you for choosing Indiana Notary Solutions.
                   });
               }
 
+              var expenseId = submitter.getAttribute("data-busy-expense-id");
+              if (expenseId) {
+                document
+                  .querySelectorAll('[data-expense-container="' + expenseId + '"]')
+                  .forEach(function (container) {
+                    container.classList.add("opacity-50", "pointer-events-none");
+                  });
+
+                document
+                  .querySelectorAll('[data-busy-expense-id="' + expenseId + '"]')
+                  .forEach(function (button) {
+                    if (button !== submitter && "disabled" in button) {
+                      button.disabled = true;
+                    }
+                    button.classList.add("cursor-wait", "opacity-60");
+                  });
+              }
+
               var mileageId = submitter.getAttribute("data-busy-mileage-id");
               if (mileageId) {
                 document
@@ -3544,6 +3827,18 @@ Thank you for choosing Indiana Notary Solutions.
                     );
                   }
 
+                  if (tab === "Expenses") {
+                    return (
+                      <label
+                        key={tab}
+                        htmlFor="expenses-workspace-modal"
+                        className="shrink-0 cursor-pointer rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950"
+                      >
+                        {tab}
+                      </label>
+                    );
+                  }
+
                   return (
                     <span
                       key={tab}
@@ -3608,6 +3903,12 @@ Thank you for choosing Indiana Notary Solutions.
                     className="peer/notarial sr-only"
                   />
 
+                  <input
+                    id="expenses-workspace-modal"
+                    type="checkbox"
+                    className="peer/expenses sr-only"
+                  />
+
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex flex-wrap gap-3">
                       <label
@@ -3637,6 +3938,13 @@ Thank you for choosing Indiana Notary Solutions.
                       >
                         Open Notarial Acts Workspace
                       </label>
+
+                      <label
+                        htmlFor="expenses-workspace-modal"
+                        className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                      >
+                        Open Expenses Workspace
+                      </label>
                     </div>
 
                     <div className="flex flex-wrap gap-2 text-xs font-bold">
@@ -3650,6 +3958,9 @@ Thank you for choosing Indiana Notary Solutions.
                       </span>
                       <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
                         Mileage {formatMoney(invoiceMileageTotal)}
+                      </span>
+                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                        Expenses {formatMoney(invoiceExpensesTotal)}
                       </span>
                       <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
                         Notarial Acts {notarialActsTotalCount}
@@ -3675,6 +3986,229 @@ Thank you for choosing Indiana Notary Solutions.
                       <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
                         {signedJournalPeopleCount} signatures
                       </span>
+                    </div>
+                  </div>
+
+
+
+                  <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/expenses:flex sm:items-center">
+                    <div className="w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                      <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] px-5 py-4 text-white">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <h4 className="text-lg font-bold">Signing Expenses</h4>
+                            <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white">
+                              {invoiceExpenseRows.length} entries
+                            </span>
+                            <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white">
+                              {formatMoney(invoiceExpensesTotal)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-white/90">
+                            Track printing, shipping, postage, parking, software, and other signing expenses. Saved expenses roll into the invoice.
+                          </p>
+                        </div>
+
+                        <label
+                          htmlFor="expenses-workspace-modal"
+                          className="cursor-pointer rounded-xl border border-white/60 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+                        >
+                          Cancel
+                        </label>
+                      </div>
+
+                      <div className="max-h-[82vh] overflow-y-auto p-5">
+                        <div className="mb-5 grid gap-4 md:grid-cols-4">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Total Expenses</p>
+                            <p className="mt-2 text-lg font-black text-slate-950">{formatMoney(invoiceExpensesTotal)}</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Entries</p>
+                            <p className="mt-2 text-lg font-black text-slate-950">{invoiceExpenseRows.length}</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Invoice Balance</p>
+                            <p className="mt-2 text-lg font-black text-[#0B1F4D]">{formatMoney(invoiceBalanceDue)}</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Tax Record</p>
+                            <p className="mt-2 text-lg font-black text-slate-950">Saved</p>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+                          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                            <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
+                              <div>
+                                <h5 className="font-black text-slate-950">Expense History</h5>
+                                <p className="text-xs text-slate-500">
+                                  Keep expense details inside the modal so the assignment page stays clean.
+                                </p>
+                              </div>
+                            </div>
+
+                            {invoiceExpenseRows.length === 0 ? (
+                              <div className="p-5 text-sm text-slate-500">
+                                No expenses have been added yet.
+                              </div>
+                            ) : (
+                              <div className="divide-y divide-slate-200">
+                                {invoiceExpenseRows.map((row) => (
+                                  <div
+                                    key={row.id}
+                                    data-expense-container={String(row.id)}
+                                    className="grid gap-3 px-4 py-4 text-sm transition-opacity md:grid-cols-[110px_minmax(0,1fr)_110px_120px]"
+                                  >
+                                    <div>
+                                      <p className="font-bold text-slate-950">{formatInputDate(row.expense_date)}</p>
+                                      <p className="text-xs text-slate-500">{row.category || "Misc."}</p>
+                                    </div>
+
+                                    <div className="min-w-0">
+                                      <p className="break-words font-semibold text-slate-700">
+                                        {row.vendor || row.category || "Expense"}
+                                      </p>
+                                      {row.notes && (
+                                        <p className="mt-1 break-words text-xs text-slate-500">{row.notes}</p>
+                                      )}
+                                    </div>
+
+                                    <p className="font-black text-slate-950 md:text-right">
+                                      {formatMoney(row.amount)}
+                                    </p>
+
+                                    <button
+                                      type="submit"
+                                      form={`delete-expense-${row.id}`}
+                                      data-busy-text="Removing..."
+                                      data-busy-expense-id={String(row.id)}
+                                      className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-70"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </section>
+
+                          <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <h5 className="text-lg font-black text-slate-950">New Expense</h5>
+                            <p className="mt-1 text-sm text-slate-500">
+                              Add one expense at a time. Categories match the Notary Gadget-style expense flow.
+                            </p>
+
+                            <form action={saveExpenseEntry} className="mt-5 space-y-4">
+                              <input type="hidden" name="assignment_id" value={assignment.id} />
+                              <input type="hidden" name="invoice_id" value={assignmentInvoice?.id ?? ""} />
+
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700">Date</label>
+                                <input
+                                  type="date"
+                                  name="expense_date"
+                                  defaultValue={formatInputDate(assignment.signing_date) || todayForInvoice}
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700">Category</label>
+                                <select
+                                  name="expense_category"
+                                  defaultValue="Document Printing"
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                >
+                                  {EXPENSE_CATEGORIES.map((category) => (
+                                    <option key={category} value={category}>
+                                      {category}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700">New / Custom Category</label>
+                                <input
+                                  name="expense_custom_category"
+                                  placeholder="Optional custom category"
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                />
+                                <p className="mt-1 text-xs text-slate-500">
+                                  Leave blank to use the selected category.
+                                </p>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700">Amount</label>
+                                <input
+                                  name="expense_amount"
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  required
+                                  placeholder="0.00"
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700">Vendor</label>
+                                <input
+                                  name="expense_vendor"
+                                  placeholder="FedEx, UPS, Staples, USPS..."
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700">Notes</label>
+                                <textarea
+                                  name="expense_notes"
+                                  rows={3}
+                                  placeholder="Example: 399 pages @ $0.03 each"
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                />
+                              </div>
+
+                              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-semibold text-amber-800">
+                                Receipt upload is intentionally left as a later step. This saves the expense data now without risking a storage/schema mismatch.
+                              </div>
+
+                              <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
+                                <label
+                                  htmlFor="expenses-workspace-modal"
+                                  className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                  Cancel
+                                </label>
+
+                                <button
+                                  type="submit"
+                                  data-busy-text="Saving expense..."
+                                  className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 disabled:cursor-wait disabled:opacity-80"
+                                >
+                                  Save Expense
+                                </button>
+                              </div>
+                            </form>
+                          </aside>
+                        </div>
+
+                        {invoiceExpenseRows.map((row) => (
+                          <form
+                            key={`delete-expense-form-${row.id}`}
+                            id={`delete-expense-${row.id}`}
+                            action={deleteExpenseEntry}
+                            className="hidden"
+                          >
+                            <input type="hidden" name="assignment_id" value={assignment.id} />
+                            <input type="hidden" name="invoice_id" value={assignmentInvoice?.id ?? ""} />
+                            <input type="hidden" name="expense_id" value={String(row.id)} />
+                          </form>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
