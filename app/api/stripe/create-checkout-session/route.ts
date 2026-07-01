@@ -73,34 +73,33 @@ export async function POST(request: NextRequest) {
     const baseUrl = getBaseUrl();
 
     const checkoutSession = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer: existingSubscription?.stripe_customer_id || undefined,
-      customer_email: existingSubscription?.stripe_customer_id
-        ? undefined
-        : profile.email || user.email || undefined,
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      success_url: `${baseUrl}/notary/pro/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/notary/pro/cancel`,
-      allow_promotion_codes: true,
-      client_reference_id: user.id,
-      subscription_data: {
-        metadata: {
-          notary_id: user.id,
-          email: profile.email || user.email || "",
-          source: "ins_pro_upgrade",
-        },
-      },
-      metadata: {
-        notary_id: user.id,
-        email: profile.email || user.email || "",
-        source: "ins_pro_upgrade",
-      },
-    });
+  mode: "subscription",
+
+  automatic_tax: {
+    enabled: true,
+  },
+
+  billing_address_collection: "required",
+
+  tax_id_collection: {
+    enabled: true,
+  },
+
+  customer: existingSubscription?.stripe_customer_id || undefined,
+  customer_email: existingSubscription?.stripe_customer_id
+    ? undefined
+    : profile.email || user.email || undefined,
+
+  line_items: [
+    {
+      price: priceId,
+      quantity: 1,
+    },
+  ],
+
+  success_url: `${baseUrl}/notary/pro/success?session_id={CHECKOUT_SESSION_ID}`,
+  cancel_url: `${baseUrl}/notary/pro/cancel`,
+});
 
     if (!checkoutSession.url) {
       return NextResponse.json(
