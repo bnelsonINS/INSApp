@@ -2429,6 +2429,13 @@ Thank you for choosing Indiana Notary Solutions.
   const invoicePaymentRows = invoicePayments ?? [];
   const invoiceExpenseRows = invoiceExpenses ?? [];
   const invoiceMileageRows = invoiceMileage ?? [];
+  const latestMileageRow = invoiceMileageRows[0] ?? null;
+  const latestMileageMiles = Number(latestMileageRow?.miles ?? 0);
+  const latestMileageRate = Number(latestMileageRow?.rate ?? FEDERAL_MILEAGE_RATE);
+  const latestMileageAmount =
+    latestMileageMiles > 0 && latestMileageRate >= 0
+      ? latestMileageMiles * latestMileageRate
+      : 0;
   const invoiceSubtotal = Number(
     assignmentInvoice?.subtotal ??
       invoiceItemRows.reduce((sum, item) => sum + Number(item.line_total ?? 0), 0),
@@ -3559,6 +3566,7 @@ Thank you for choosing Indiana Notary Solutions.
                                     min="0"
                                     required
                                     placeholder="Enter miles"
+                                    defaultValue={latestMileageMiles > 0 ? latestMileageMiles.toFixed(2) : ""}
                                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                   />
                                 </div>
@@ -3571,7 +3579,7 @@ Thank you for choosing Indiana Notary Solutions.
                                     type="number"
                                     step="0.001"
                                     min="0"
-                                    defaultValue={String(FEDERAL_MILEAGE_RATE)}
+                                    defaultValue={latestMileageRate > 0 ? latestMileageRate.toFixed(3) : String(FEDERAL_MILEAGE_RATE)}
                                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                   />
                                 </div>
@@ -3587,14 +3595,16 @@ Thank you for choosing Indiana Notary Solutions.
                                       id="mileage-amount-helper"
                                       className="mt-1 text-xs font-semibold text-slate-600"
                                     >
-                                      Enter miles manually to calculate a new mileage amount.
+                                      {latestMileageMiles > 0
+                                        ? `${latestMileageMiles.toFixed(2)} miles × $${latestMileageRate.toFixed(3)} per mile`
+                                        : "Enter miles manually to calculate a new mileage amount."}
                                     </p>
                                   </div>
                                   <p
                                     id="mileage-amount-output"
                                     className="shrink-0 text-2xl font-black text-[#0B1F4D]"
                                   >
-                                    $0.00
+                                    {formatMoney(latestMileageAmount)}
                                   </p>
                                 </div>
                               </div>
