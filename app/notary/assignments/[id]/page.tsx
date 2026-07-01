@@ -3276,15 +3276,49 @@ Thank you for choosing Indiana Notary Solutions.
           __html: `
             @media print {
               body * { visibility: hidden !important; }
-              #invoice-print-area, #invoice-print-area * { visibility: visible !important; }
-              #invoice-print-area {
+
+              body:not([data-print-mode]) #invoice-print-area,
+              body:not([data-print-mode]) #invoice-print-area *,
+              body[data-print-mode="invoice"] #invoice-print-area,
+              body[data-print-mode="invoice"] #invoice-print-area * {
+                visibility: visible !important;
+              }
+
+              body:not([data-print-mode]) #invoice-print-area,
+              body[data-print-mode="invoice"] #invoice-print-area {
                 position: absolute !important;
                 left: 0 !important;
                 top: 0 !important;
+                display: block !important;
                 width: 100% !important;
                 border: 0 !important;
                 box-shadow: none !important;
               }
+
+              body[data-print-mode="signing"] #signing-print-area,
+              body[data-print-mode="signing"] #signing-print-area *,
+              body[data-print-mode="signing-with-invoice"] #signing-print-area,
+              body[data-print-mode="signing-with-invoice"] #signing-print-area * {
+                visibility: visible !important;
+              }
+
+              body[data-print-mode="signing"] #signing-print-area,
+              body[data-print-mode="signing-with-invoice"] #signing-print-area {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                display: block !important;
+                width: 100% !important;
+                border: 0 !important;
+                box-shadow: none !important;
+              }
+
+              body[data-print-mode="signing"] .print-invoice-optional,
+              body[data-print-mode="signing"] .print-invoice-optional * {
+                display: none !important;
+                visibility: hidden !important;
+              }
+
               .no-print { display: none !important; }
             }
           `,
@@ -3436,6 +3470,22 @@ Thank you for choosing Indiana Notary Solutions.
                   var modalCheckbox = document.getElementById(modalId);
                   if (modalCheckbox) modalCheckbox.checked = false;
                 }
+
+                return;
+              }
+
+              if (target.id === "print-signing-button") {
+                var includeInvoice = document.getElementById("print-include-invoice");
+                document.body.setAttribute(
+                  "data-print-mode",
+                  includeInvoice && includeInvoice.checked ? "signing-with-invoice" : "signing"
+                );
+
+                window.print();
+
+                setTimeout(function () {
+                  document.body.removeAttribute("data-print-mode");
+                }, 500);
 
                 return;
               }
@@ -3978,6 +4028,18 @@ Thank you for choosing Indiana Notary Solutions.
                     );
                   }
 
+                  if (tab === "Print") {
+                    return (
+                      <label
+                        key={tab}
+                        htmlFor="print-workspace-modal"
+                        className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-[#0B1F4D] px-3 py-2 text-center text-sm font-bold leading-tight text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950 md:shrink-0 md:px-4"
+                      >
+                        {tab}
+                      </label>
+                    );
+                  }
+
                   return (
                     <span
                       key={tab}
@@ -4055,6 +4117,12 @@ Thank you for choosing Indiana Notary Solutions.
                     className="peer/payments sr-only"
                   />
 
+                  <input
+                    id="print-workspace-modal"
+                    type="checkbox"
+                    className="peer/print sr-only"
+                  />
+
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-black uppercase tracking-wide text-slate-500">
                       Workspace Status
@@ -4103,6 +4171,135 @@ Thank you for choosing Indiana Notary Solutions.
                   </div>
 
 
+
+                  <div
+                    id="signing-print-area"
+                    className="hidden bg-white p-8 text-slate-950"
+                  >
+                    <div className="border-b border-slate-300 pb-4">
+                      <p className="text-sm font-bold uppercase tracking-wide text-slate-500">
+                        Indiana Notary Solutions
+                      </p>
+                      <h1 className="mt-1 text-3xl font-black">
+                        Signing Printout
+                      </h1>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Control # {assignment.control_number ?? "—"}
+                      </p>
+                    </div>
+
+                    <div className="mt-6 grid grid-cols-2 gap-6 text-sm">
+                      <section>
+                        <h2 className="text-lg font-black">Assignment</h2>
+                        <div className="mt-3 space-y-2">
+                          <p><span className="font-bold">Signer:</span> {assignment.borrower_name || "—"}</p>
+                          <p><span className="font-bold">Phone:</span> {assignment.borrower_phone || "—"}</p>
+                          <p><span className="font-bold">Appointment:</span> {signingDate} {signingTime && `at ${signingTime}`}</p>
+                          <p><span className="font-bold">Status:</span> {assignment.status ?? "—"}</p>
+                          <p><span className="font-bold">Notary Fee:</span> {formatMoney(notaryFee)}</p>
+                        </div>
+                      </section>
+
+                      <section>
+                        <h2 className="text-lg font-black">Signing Location</h2>
+                        <div className="mt-3 space-y-2">
+                          <p>{assignment.signing_address ?? "—"}</p>
+                          <p>{assignment.signing_city ?? "—"}, {assignment.signing_state ?? "IN"} {assignment.signing_zip ?? ""}</p>
+                        </div>
+                      </section>
+
+                      <section>
+                        <h2 className="text-lg font-black">Client / Title Company</h2>
+                        <div className="mt-3 space-y-2">
+                          <p><span className="font-bold">Company:</span> {titleCompanyName}</p>
+                          <p><span className="font-bold">Contact:</span> {titleCompanyContact}</p>
+                          <p><span className="font-bold">Phone:</span> {titleCompanyPhone}</p>
+                          <p><span className="font-bold">Email:</span> {titleCompanyEmail}</p>
+                        </div>
+                      </section>
+
+                      <section>
+                        <h2 className="text-lg font-black">INS Pro Records</h2>
+                        <div className="mt-3 space-y-2">
+                          <p><span className="font-bold">Journal:</span> {journalIsComplete ? "Complete" : "Open"}</p>
+                          <p><span className="font-bold">People:</span> {displayJournalPeople.length}</p>
+                          <p><span className="font-bold">Documents:</span> {journalDocuments.length}</p>
+                          <p><span className="font-bold">Signatures:</span> {signedJournalPeopleCount}</p>
+                          <p><span className="font-bold">Mileage:</span> {formatMoney(invoiceMileageTotal)}</p>
+                          <p><span className="font-bold">Expenses:</span> {formatMoney(invoiceExpensesTotal)}</p>
+                          <p><span className="font-bold">Notarial Acts:</span> {notarialActsTotalCount}</p>
+                        </div>
+                      </section>
+                    </div>
+
+                    {assignment.special_instructions && (
+                      <section className="mt-6 border-t border-slate-300 pt-4 text-sm">
+                        <h2 className="text-lg font-black">Special Instructions</h2>
+                        <p className="mt-2 whitespace-pre-wrap">{assignment.special_instructions}</p>
+                      </section>
+                    )}
+
+                    <section className="print-invoice-optional mt-8 border-t border-slate-300 pt-4 text-sm">
+                      <h2 className="text-2xl font-black">Invoice</h2>
+                      <div className="mt-4 grid grid-cols-2 gap-6">
+                        <div>
+                          <p><span className="font-bold">Invoice #:</span> {formatInvoiceNumber(assignmentInvoice?.invoice_number)}</p>
+                          <p><span className="font-bold">Invoice Date:</span> {formatInputDate(assignmentInvoice?.invoice_date) || defaultInvoiceDate}</p>
+                          <p><span className="font-bold">Due Date:</span> {formatInputDate(assignmentInvoice?.due_date) || defaultInvoiceDueDate}</p>
+                          <p><span className="font-bold">Status:</span> {displayInvoiceStatus(assignmentInvoice?.status)}</p>
+                        </div>
+                        <div>
+                          <p><span className="font-bold">Bill To:</span> {billToLines.join(", ") || "—"}</p>
+                          <p><span className="font-bold">Invoice Total:</span> {formatMoney(invoiceTotalDue)}</p>
+                          <p><span className="font-bold">Payments:</span> {formatMoney(invoicePaymentsTotal)}</p>
+                          <p><span className="font-bold">Balance:</span> {formatMoney(invoiceBalanceDue)}</p>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+
+                  <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/print:flex sm:items-center">
+                    <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                      <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] px-5 py-4 text-white">
+                        <h4 className="text-lg font-bold">Signing Printout Options</h4>
+                        <label
+                          htmlFor="print-workspace-modal"
+                          className="cursor-pointer text-3xl font-black leading-none"
+                          aria-label="Close print options"
+                        >
+                          ×
+                        </label>
+                      </div>
+
+                      <div className="space-y-6 p-8">
+                        <label className="flex cursor-pointer items-center justify-center gap-3 text-base font-semibold text-slate-700">
+                          <input
+                            id="print-include-invoice"
+                            type="checkbox"
+                            className="h-5 w-5 rounded border-slate-300 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+                          />
+                          Include invoice
+                        </label>
+
+                        <div className="flex justify-center gap-3 border-t border-slate-200 pt-6">
+                          <label
+                            htmlFor="print-workspace-modal"
+                            className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                          >
+                            Cancel
+                          </label>
+
+                          <button
+                            id="print-signing-button"
+                            type="button"
+                            className="rounded-xl bg-[#0B1F4D] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                          >
+                            Print
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                   <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/expenses:flex sm:items-center">
                     <div className="w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
