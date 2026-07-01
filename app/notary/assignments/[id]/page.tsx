@@ -1458,7 +1458,9 @@ export default async function AssignmentDetailPage({
     const invoiceId = String(formData.get("invoice_id") ?? "").trim();
     const mileageId = String(formData.get("mileage_id") ?? "").trim();
 
-    if (!assignmentId || !mileageId) return;
+    if (!assignmentId || !mileageId) {
+      redirect(`/notary/assignments/${assignmentId || id}#assignment-workspace`);
+    }
 
     const supabase = await createSupabaseServerClient();
 
@@ -1468,7 +1470,19 @@ export default async function AssignmentDetailPage({
 
     if (!user) redirect("/login");
 
-    const { data: deletedMileage } = await supabase
+    const { data: assignment } = await supabase
+      .from("assignments")
+      .select("id")
+      .eq("id", assignmentId)
+      .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
+      .maybeSingle();
+
+    if (!assignment) redirect("/notary/assignments");
+
+    const {
+      data: deletedMileage,
+      error: deleteMileageError,
+    } = await supabaseAdmin
       .from("assignment_mileage")
       .delete()
       .eq("id", mileageId)
@@ -1477,8 +1491,24 @@ export default async function AssignmentDetailPage({
       .select("miles, rate, amount, notes")
       .maybeSingle();
 
+    if (deleteMileageError) {
+      console.error("Mileage delete error:", deleteMileageError);
+
+      await supabaseAdmin.from("assignment_activity").insert({
+        assignment_id: assignmentId,
+        actor_id: user.id,
+        actor_name: user.email || "Notary",
+        actor_role: "notary",
+        action: "Mileage Remove Failed",
+        details: deleteMileageError.message,
+      });
+
+      revalidatePath(`/notary/assignments/${assignmentId}`);
+      redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+    }
+
     if (invoiceId) {
-      const { data: invoice } = await supabase
+      const { data: invoice, error: invoiceFetchError } = await supabaseAdmin
         .from("assignment_invoices")
         .select("id, subtotal, expenses_total, payments_total, status")
         .eq("id", invoiceId)
@@ -1486,12 +1516,20 @@ export default async function AssignmentDetailPage({
         .eq("notary_id", user.id)
         .maybeSingle();
 
+      if (invoiceFetchError) {
+        console.error("Mileage delete invoice fetch error:", invoiceFetchError);
+      }
+
       if (invoice) {
-        const { data: mileageRows } = await supabase
+        const { data: mileageRows, error: mileageRowsError } = await supabaseAdmin
           .from("assignment_mileage")
           .select("amount")
           .eq("assignment_id", assignmentId)
           .eq("notary_id", user.id);
+
+        if (mileageRowsError) {
+          console.error("Mileage delete total refresh error:", mileageRowsError);
+        }
 
         const mileageTotal = (mileageRows ?? []).reduce(
           (sum, row) => sum + Number(row.amount ?? 0),
@@ -1512,7 +1550,7 @@ export default async function AssignmentDetailPage({
                 ? "unpaid"
                 : "draft";
 
-        await supabase
+        const { error: invoiceUpdateError } = await supabaseAdmin
           .from("assignment_invoices")
           .update({
             mileage_total: mileageTotal,
@@ -1522,23 +1560,29 @@ export default async function AssignmentDetailPage({
           })
           .eq("id", invoiceId)
           .eq("notary_id", user.id);
+
+        if (invoiceUpdateError) {
+          console.error("Mileage delete invoice update error:", invoiceUpdateError);
+        }
       }
     }
 
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("full_name, email")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    await supabase.from("assignment_activity").insert({
+    await supabaseAdmin.from("assignment_activity").insert({
       assignment_id: assignmentId,
       actor_id: user.id,
       actor_name: profile?.full_name || profile?.email || "Notary",
       actor_role: "notary",
       action: "Mileage Removed",
       details: [
-        deletedMileage?.miles ? `Miles: ${Number(deletedMileage.miles).toFixed(2)}` : "Mileage entry removed.",
+        deletedMileage?.miles
+          ? `Miles: ${Number(deletedMileage.miles).toFixed(2)}`
+          : "Mileage entry removed.",
         deletedMileage?.amount ? `Amount: ${formatMoney(deletedMileage.amount)}` : null,
         deletedMileage?.notes ? `Notes: ${deletedMileage.notes}` : null,
       ]
@@ -1549,6 +1593,7 @@ export default async function AssignmentDetailPage({
     revalidatePath(`/notary/assignments/${assignmentId}`);
     redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
   }
+
 
   async function addOrderNote(formData: FormData) {
     "use server";
