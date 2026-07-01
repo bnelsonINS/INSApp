@@ -68,11 +68,22 @@ Many full-time signing agents recover far more in tax deductions than the cost o
               Cancel anytime. No contracts. Your subscription renews monthly.
             </p>
 
-            <button
-              className="mt-8 w-full rounded-xl bg-[#0B1F4D] px-6 py-4 text-lg font-bold text-white transition hover:bg-blue-950"
-            >
-              Upgrade Now
-            </button>
+            <form
+  action="/api/stripe/create-checkout-session"
+  method="post"
+  onSubmit={() => setLoading(true)}
+>
+  <button
+    type="submit"
+    disabled={loading}
+    className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0B1F4D] px-6 py-4 text-lg font-bold text-white transition hover:bg-blue-950 disabled:cursor-wait disabled:opacity-80"
+  >
+    {loading && (
+      <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+    )}
+    {loading ? "Opening Checkout..." : "Upgrade Now"}
+  </button>
+</form>
 
             <button
               type="button"
