@@ -3096,6 +3096,16 @@ Thank you for choosing Indiana Notary Solutions.
   const printActivityNotes = (activity ?? []).slice(0, 8);
   const printUploadedDocsCount = documentsWithUrls.length;
   const printTitleDocsCount = titleDocumentsWithUrls.length;
+  const printAssignmentUrl = `${getBaseUrl()}/notary/assignments/${assignment.id}`;
+  const printQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=8&data=${encodeURIComponent(printAssignmentUrl)}`;
+  const printNotaryLogoUrl = optionalTextValue(
+    notaryProfile?.logo_url,
+    notaryProfile?.business_logo_url,
+    notaryProfile?.profile_logo_url,
+    notaryProfileDetails?.logo_url,
+    notaryProfileDetails?.business_logo_url,
+    notaryProfileDetails?.profile_logo_url,
+  );
 
   let { data: journalEntry } = await supabase
     .from("assignment_journal_entries")
@@ -3535,16 +3545,33 @@ Thank you for choosing Indiana Notary Solutions.
 
               if (target.id === "print-signing-button") {
                 var includeInvoice = document.getElementById("print-include-invoice");
-                document.body.setAttribute(
-                  "data-print-mode",
-                  includeInvoice && includeInvoice.checked ? "signing-with-invoice" : "signing"
+                var source = document.getElementById("signing-print-area");
+
+                if (!source) return;
+
+                var printWindow = window.open("", "_blank", "width=1100,height=900");
+
+                if (!printWindow) {
+                  alert("Popup blocked. Allow popups for Indiana Notary Solutions, then try again.");
+                  return;
+                }
+
+                var html = source.innerHTML;
+
+                if (!(includeInvoice && includeInvoice.checked)) {
+                  html = html.replace(/<section class=\"print-invoice-optional[\s\S]*?<\/section>/, "");
+                }
+
+                printWindow.document.open();
+                printWindow.document.write(
+                  "<!doctype html><html><head><title>Signing Summary - " +
+                    (source.getAttribute("data-control-number") || "Assignment") +
+                    "</title><meta name='viewport' content='width=device-width, initial-scale=1' /></head><body>" +
+                    html +
+                    "</body></html>"
                 );
-
-                window.print();
-
-                setTimeout(function () {
-                  document.body.removeAttribute("data-print-mode");
-                }, 500);
+                printWindow.document.close();
+                printWindow.focus();
 
                 return;
               }
@@ -4233,165 +4260,260 @@ Thank you for choosing Indiana Notary Solutions.
 
                   <div
                     id="signing-print-area"
-                    className="hidden bg-white p-10 text-slate-950"
+                    data-control-number={assignment.control_number ?? "Assignment"}
+                    className="hidden"
                   >
-                    <div className="flex items-start justify-between gap-6 border-b border-slate-300 pb-8">
-                      <div className="text-sm leading-5 text-slate-600">
-                        <p className="font-semibold text-slate-800">{printNotaryName}</p>
-                        {notaryBusinessLocation ? <p>{notaryBusinessLocation}</p> : null}
-                        {printNotaryPhone !== "—" ? <p>{printNotaryPhone}</p> : null}
-                        {printNotaryEmail !== "—" ? <p>{printNotaryEmail}</p> : null}
-                      </div>
+                    <style>{`
+                      * { box-sizing: border-box; }
+                      body { margin: 0; background: #eef3f8; color: #0f172a; font-family: Arial, Helvetica, sans-serif; }
+                      .print-shell { max-width: 1120px; margin: 0 auto; background: #ffffff; min-height: 100vh; }
+                      .toolbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 22px; background: #0B1F4D; color: #ffffff; box-shadow: 0 2px 12px rgba(15, 23, 42, 0.18); }
+                      .toolbar-title { font-size: 14px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+                      .toolbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+                      .toolbar button, .toolbar a { border: 1px solid rgba(255,255,255,.45); background: rgba(255,255,255,.12); color: #ffffff; border-radius: 12px; padding: 10px 14px; font-size: 13px; font-weight: 800; text-decoration: none; cursor: pointer; }
+                      .toolbar button:hover, .toolbar a:hover { background: rgba(255,255,255,.2); }
+                      .page { padding: 34px; }
+                      .hero { border-radius: 24px; overflow: hidden; border: 1px solid #dbeafe; box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08); }
+                      .hero-top { display: grid; grid-template-columns: 1.1fr auto 180px; gap: 22px; align-items: center; padding: 24px; background: linear-gradient(135deg, #0B1F4D, #16418a); color: white; }
+                      .brand-lockup { display: flex; gap: 16px; align-items: center; min-width: 0; }
+                      .logo-box { width: 76px; height: 76px; border-radius: 18px; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.35); display: flex; align-items: center; justify-content: center; overflow: hidden; flex: 0 0 auto; }
+                      .logo-box img { width: 100%; height: 100%; object-fit: contain; background: #ffffff; padding: 6px; }
+                      .logo-fallback { font-size: 24px; font-weight: 900; letter-spacing: .04em; }
+                      .brand-kicker { font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: #bfdbfe; }
+                      .brand-name { margin-top: 5px; font-size: 28px; font-weight: 900; line-height: 1.05; }
+                      .brand-meta { margin-top: 8px; color: #dbeafe; font-size: 13px; line-height: 1.45; }
+                      .status-card { text-align: right; }
+                      .status-pill { display: inline-flex; align-items: center; border-radius: 999px; background: #fef3c7; color: #92400e; padding: 7px 12px; font-weight: 900; font-size: 12px; border: 1px solid rgba(251, 191, 36, .55); }
+                      .control { margin-top: 12px; color: #dbeafe; font-size: 13px; font-weight: 800; }
+                      .qr-card { background: white; color: #0f172a; border-radius: 18px; padding: 12px; text-align: center; box-shadow: 0 12px 28px rgba(0,0,0,.2); }
+                      .qr-card img { width: 132px; height: 132px; display: block; margin: 0 auto; }
+                      .qr-card p { margin: 8px 0 0; font-size: 10px; font-weight: 800; color: #475569; }
+                      .appointment-bar { display: flex; justify-content: space-between; gap: 18px; padding: 18px 24px; background: #e0f2fe; border-top: 1px solid rgba(255,255,255,.3); color: #0B1F4D; }
+                      .appointment-title { font-size: 26px; font-weight: 900; }
+                      .appointment-sub { margin-top: 4px; font-size: 14px; color: #334155; font-weight: 700; }
+                      .section-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 22px; }
+                      .card { border: 1px solid #dbe3ef; border-radius: 20px; background: #ffffff; overflow: hidden; }
+                      .card.full { grid-column: 1 / -1; }
+                      .card-header { padding: 14px 18px; background: #f8fafc; border-bottom: 1px solid #dbe3ef; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+                      .card-title { margin: 0; font-size: 16px; font-weight: 900; color: #0B1F4D; }
+                      .card-body { padding: 18px; font-size: 14px; line-height: 1.55; }
+                      .big-text { font-size: 18px; font-weight: 900; color: #0f172a; }
+                      .muted { color: #64748b; }
+                      .info-list { display: grid; gap: 10px; }
+                      .info-row { display: grid; grid-template-columns: 145px minmax(0, 1fr); gap: 12px; }
+                      .info-label { color: #64748b; font-weight: 900; text-transform: uppercase; font-size: 11px; letter-spacing: .06em; }
+                      .info-value { color: #0f172a; font-weight: 700; word-break: break-word; }
+                      .money-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+                      .money-box { border-radius: 16px; border: 1px solid #dbe3ef; background: #f8fafc; padding: 14px; }
+                      .money-label { font-size: 11px; color: #64748b; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+                      .money-value { margin-top: 6px; font-size: 20px; color: #0B1F4D; font-weight: 900; }
+                      .checklist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+                      .check-item { display: flex; align-items: center; gap: 10px; font-weight: 800; color: #334155; }
+                      .box { width: 18px; height: 18px; border: 2px solid #94a3b8; border-radius: 4px; flex: 0 0 auto; }
+                      .instructions { white-space: pre-wrap; font-size: 14px; line-height: 1.55; color: #0f172a; }
+                      .notes-list { display: grid; gap: 12px; }
+                      .note { border-left: 4px solid #5BC0EB; padding-left: 12px; }
+                      .note-date { font-size: 12px; font-weight: 900; color: #64748b; }
+                      .note-text { margin-top: 3px; white-space: pre-wrap; }
+                      .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #dbe3ef; color: #64748b; font-size: 12px; display: flex; justify-content: space-between; gap: 12px; }
+                      .print-invoice-optional { margin-top: 22px; }
+                      @media (max-width: 800px) { .hero-top { grid-template-columns: 1fr; } .status-card { text-align: left; } .qr-card { width: 180px; } .appointment-bar, .section-grid, .money-grid, .checklist { grid-template-columns: 1fr; display: grid; } .info-row { grid-template-columns: 1fr; gap: 2px; } .page { padding: 16px; } }
+                      @media print { body { background: #fff; } .toolbar { display: none; } .page { padding: 18px; } .hero { box-shadow: none; } .card { break-inside: avoid; } .card.full { break-inside: auto; } .section-grid { gap: 12px; } }
+                    `}</style>
+                    <script
+                      dangerouslySetInnerHTML={{
+                        __html: `
+                          document.addEventListener("click", function (event) {
+                            if (event.target && event.target.id === "print-window-print-button") window.print();
+                            if (event.target && event.target.id === "print-window-close-button") window.close();
+                          });
+                        `,
+                      }}
+                    />
 
-                      <div className="text-right">
-                        <p className="text-4xl font-light uppercase tracking-wide text-slate-400">
-                          Summary
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-slate-500">
-                          Control # {assignment.control_number ?? "—"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="border-b border-slate-300 py-8 text-center">
-                      <p className="text-4xl font-light text-slate-950">
-                        {signingDate} {signingTime ? `- ${signingTime}` : ""}
-                      </p>
-                    </div>
-
-                    <div className="mt-10 grid grid-cols-2 gap-x-16 gap-y-10 text-xl leading-8">
-                      <section>
-                        <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
-                          Signer
-                        </h2>
-                        <div className="mt-3">
-                          <p>{assignment.borrower_name || "—"}</p>
-                          {assignment.borrower_phone ? <p>Mobile: {assignment.borrower_phone}</p> : null}
-                          {signerEmail !== "—" ? <p>{signerEmail}</p> : null}
+                    <div className="print-shell">
+                      <div className="toolbar">
+                        <div className="toolbar-title">INS Pro Signing Summary</div>
+                        <div className="toolbar-actions">
+                          <a href={printAssignmentUrl}>← Back to Assignment</a>
+                          <button type="button" id="print-window-print-button">Print / Save PDF</button>
+                          <button type="button" id="print-window-close-button">Close</button>
                         </div>
-                      </section>
+                      </div>
 
-                      <section>
-                        <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
-                          Customer / Signing Info
-                        </h2>
-                        <div className="mt-3">
-                          <p>{titleCompanyName}</p>
-                          {titleCompanyPhone !== "—" ? <p>O: {titleCompanyPhone}</p> : null}
-                          {titleCompanyEmail !== "—" ? <p>E: {titleCompanyEmail}</p> : null}
-                          <div className="mt-6">
-                            <p>Total Fee: {formatMoney(notaryFee)}</p>
-                            <p>Invoice #: {formatInvoiceNumber(assignmentInvoice?.invoice_number)}</p>
-                            <p>Loan Type: {productName}</p>
-                            <p>Loan/Escrow #: {fileNumber}</p>
-                            <p>
-                              Tracking #: {[assignment.shipping_carrier, assignment.tracking_number]
-                                .filter(Boolean)
-                                .join(" ") || "—"}
-                            </p>
-                            <p>Signing Platform: {signingPlatform}</p>
-                            <p>Notarial Acts: {notarialActsTotalCount}</p>
+                      <div className="page">
+                        <header className="hero">
+                          <div className="hero-top">
+                            <div className="brand-lockup">
+                              <div className="logo-box">
+                                {printNotaryLogoUrl ? (
+                                  <img src={printNotaryLogoUrl} alt={`${printNotaryName} logo`} />
+                                ) : (
+                                  <span className="logo-fallback">INS</span>
+                                )}
+                              </div>
+                              <div>
+                                <div className="brand-kicker">Indiana Notary Solutions • INS Pro</div>
+                                <div className="brand-name">{printNotaryName}</div>
+                                <div className="brand-meta">
+                                  {notaryBusinessLocation ? <div>{notaryBusinessLocation}</div> : null}
+                                  <div>{[printNotaryPhone !== "—" ? printNotaryPhone : null, printNotaryEmail !== "—" ? printNotaryEmail : null].filter(Boolean).join(" • ")}</div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="status-card">
+                              <span className="status-pill">{assignment.status ?? "Unknown"}</span>
+                              <div className="control">Control # {assignment.control_number ?? "—"}</div>
+                              <div className="control">Invoice {formatInvoiceNumber(assignmentInvoice?.invoice_number)}</div>
+                            </div>
+
+                            <div className="qr-card">
+                              <img src={printQrCodeUrl} alt="Assignment QR code" />
+                              <p>Scan to open assignment</p>
+                            </div>
                           </div>
-                        </div>
-                      </section>
 
-                      <section>
-                        <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
-                          Signing Address
-                        </h2>
-                        <div className="mt-3">
-                          <p>{assignment.signing_address ?? "—"}</p>
-                          <p>{assignment.signing_city ?? "—"}, {assignment.signing_state ?? "IN"} {assignment.signing_zip ?? ""}</p>
-                          {assignment.signing_county || assignment.county ? (
-                            <p>County: {assignment.signing_county || assignment.county}</p>
-                          ) : null}
-                        </div>
-                      </section>
+                          <div className="appointment-bar">
+                            <div>
+                              <div className="appointment-title">{signingDate} {signingTime ? `at ${signingTime}` : ""}</div>
+                              <div className="appointment-sub">{assignment.borrower_name || "Signer not listed"}</div>
+                            </div>
+                            <div className="appointment-sub">
+                              {signingLocation || "Signing location not listed"}
+                            </div>
+                          </div>
+                        </header>
 
-                      <section>
-                        <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
-                          INS Pro Tax / Business Record
-                        </h2>
-                        <div className="mt-3">
-                          <p>Mileage: {invoiceMileageRows.reduce((sum, row) => sum + Number(row.miles ?? 0), 0).toFixed(2)} miles</p>
-                          <p>Mileage Deduction: {formatMoney(invoiceMileageTotal)}</p>
-                          <p>Expenses: {formatMoney(invoiceExpensesTotal)}</p>
-                          <p>Notarial Fees Value: {formatMoney(notarialActsTotalFees)}</p>
-                          <p>Payments Recorded: {formatMoney(invoicePaymentsTotal)}</p>
-                        </div>
-                      </section>
+                        <div className="section-grid">
+                          <section className="card">
+                            <div className="card-header"><h2 className="card-title">Signer / Borrower</h2></div>
+                            <div className="card-body">
+                              <p className="big-text">{assignment.borrower_name || "—"}</p>
+                              <div className="info-list" style={{ marginTop: "12px" }}>
+                                <div className="info-row"><span className="info-label">Phone</span><span className="info-value">{assignment.borrower_phone || "—"}</span></div>
+                                <div className="info-row"><span className="info-label">Email</span><span className="info-value">{signerEmail}</span></div>
+                              </div>
+                            </div>
+                          </section>
 
-                      <section>
-                        <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
-                          Property Address
-                        </h2>
-                        <div className="mt-3">
-                          <p>{propertyAddress || signingLocation || "—"}</p>
-                        </div>
-                      </section>
+                          <section className="card">
+                            <div className="card-header"><h2 className="card-title">Client / Signing Info</h2></div>
+                            <div className="card-body info-list">
+                              <div className="info-row"><span className="info-label">Client</span><span className="info-value">{titleCompanyName}</span></div>
+                              <div className="info-row"><span className="info-label">Contact</span><span className="info-value">{titleCompanyContact}</span></div>
+                              <div className="info-row"><span className="info-label">Phone</span><span className="info-value">{titleCompanyPhone}</span></div>
+                              <div className="info-row"><span className="info-label">Email</span><span className="info-value">{titleCompanyEmail}</span></div>
+                              <div className="info-row"><span className="info-label">Platform</span><span className="info-value">{signingPlatform}</span></div>
+                            </div>
+                          </section>
 
-                      <section>
-                        <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
-                          Documents / Journal
-                        </h2>
-                        <div className="mt-3">
-                          <p>Title Documents: {printTitleDocsCount}</p>
-                          <p>Uploaded / Returned Documents: {printUploadedDocsCount}</p>
-                          <p>Journal: {journalIsComplete ? "Complete" : "Open"}</p>
-                          <p>Journal People: {displayJournalPeople.length}</p>
-                          <p>Journal Documents: {journalDocuments.length}</p>
-                          <p>Captured Signatures: {signedJournalPeopleCount}</p>
-                        </div>
-                      </section>
-                    </div>
+                          <section className="card">
+                            <div className="card-header"><h2 className="card-title">Signing Address</h2></div>
+                            <div className="card-body">
+                              <p className="big-text">{assignment.signing_address ?? "—"}</p>
+                              <p>{assignment.signing_city ?? "—"}, {assignment.signing_state ?? "IN"} {assignment.signing_zip ?? ""}</p>
+                              {assignment.signing_county || assignment.county ? <p className="muted">County: {assignment.signing_county || assignment.county}</p> : null}
+                            </div>
+                          </section>
 
-                    <section className="mt-12 text-xl leading-7">
-                      <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
-                        Signing Instructions
-                      </h2>
-                      <div className="mt-3 whitespace-pre-wrap">
-                        {printInstructions || "No signing instructions were provided."}
-                      </div>
-                    </section>
+                          <section className="card">
+                            <div className="card-header"><h2 className="card-title">Order Details</h2></div>
+                            <div className="card-body info-list">
+                              <div className="info-row"><span className="info-label">Loan Type</span><span className="info-value">{productName}</span></div>
+                              <div className="info-row"><span className="info-label">Loan/Escrow #</span><span className="info-value">{fileNumber}</span></div>
+                              <div className="info-row"><span className="info-label">Tracking #</span><span className="info-value">{[assignment.shipping_carrier, assignment.tracking_number].filter(Boolean).join(" ") || "—"}</span></div>
+                              <div className="info-row"><span className="info-label">Property</span><span className="info-value">{propertyAddress || signingLocation || "—"}</span></div>
+                            </div>
+                          </section>
 
-                    <section className="mt-12 text-xl leading-7">
-                      <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
-                        Notes
-                      </h2>
-                      {printActivityNotes.length > 0 ? (
-                        <div className="mt-3 space-y-3">
-                          {printActivityNotes.map((item) => (
-                            <div key={`print-note-${item.id ?? item.created_at}`}>
-                              <p>
-                                <span className="font-semibold">{formatInputDate(item.created_at)}</span>{" "}
-                                {item.action ? `${item.action}: ` : ""}
-                                {formatActivityDetails(item.details, profileNameById)}
+                          <section className="card full">
+                            <div className="card-header"><h2 className="card-title">Financial / Tax Summary</h2></div>
+                            <div className="card-body">
+                              <div className="money-grid">
+                                <div className="money-box"><div className="money-label">Signing Fee</div><div className="money-value">{formatMoney(notaryFee)}</div></div>
+                                <div className="money-box"><div className="money-label">Mileage Deduction</div><div className="money-value">{formatMoney(invoiceMileageTotal)}</div></div>
+                                <div className="money-box"><div className="money-label">Expenses</div><div className="money-value">{formatMoney(invoiceExpensesTotal)}</div></div>
+                                <div className="money-box"><div className="money-label">Notarial Fee Value</div><div className="money-value">{formatMoney(notarialActsTotalFees)}</div></div>
+                              </div>
+                              <p className="muted" style={{ marginTop: "12px", fontWeight: 700 }}>
+                                Mileage, expenses, and notarial acts are business/tax records only. They are not added to the invoice total.
                               </p>
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="mt-3">No notes recorded.</p>
-                      )}
-                    </section>
+                          </section>
 
-                    <section className="print-invoice-optional mt-12 border-t border-slate-300 pt-6 text-xl leading-7">
-                      <h2 className="text-3xl font-black">Invoice</h2>
-                      <div className="mt-4 grid grid-cols-2 gap-8">
-                        <div>
-                          <p><span className="font-bold">Invoice #:</span> {formatInvoiceNumber(assignmentInvoice?.invoice_number)}</p>
-                          <p><span className="font-bold">Invoice Date:</span> {formatInputDate(assignmentInvoice?.invoice_date) || defaultInvoiceDate}</p>
-                          <p><span className="font-bold">Due Date:</span> {formatInputDate(assignmentInvoice?.due_date) || defaultInvoiceDueDate}</p>
-                          <p><span className="font-bold">Status:</span> {displayInvoiceStatus(assignmentInvoice?.status)}</p>
+                          <section className="card">
+                            <div className="card-header"><h2 className="card-title">INS Pro Records</h2></div>
+                            <div className="card-body info-list">
+                              <div className="info-row"><span className="info-label">Mileage</span><span className="info-value">{invoiceMileageRows.reduce((sum, row) => sum + Number(row.miles ?? 0), 0).toFixed(2)} miles</span></div>
+                              <div className="info-row"><span className="info-label">Notarial Acts</span><span className="info-value">{notarialActsTotalCount}</span></div>
+                              <div className="info-row"><span className="info-label">Expenses</span><span className="info-value">{invoiceExpenseRows.length} entries</span></div>
+                              <div className="info-row"><span className="info-label">Payments</span><span className="info-value">{formatMoney(invoicePaymentsTotal)}</span></div>
+                            </div>
+                          </section>
+
+                          <section className="card">
+                            <div className="card-header"><h2 className="card-title">Documents / Journal</h2></div>
+                            <div className="card-body info-list">
+                              <div className="info-row"><span className="info-label">Title Docs</span><span className="info-value">{printTitleDocsCount}</span></div>
+                              <div className="info-row"><span className="info-label">Returned Docs</span><span className="info-value">{printUploadedDocsCount}</span></div>
+                              <div className="info-row"><span className="info-label">Journal</span><span className="info-value">{journalIsComplete ? "Complete" : "Open"}</span></div>
+                              <div className="info-row"><span className="info-label">Signatures</span><span className="info-value">{signedJournalPeopleCount}</span></div>
+                            </div>
+                          </section>
+
+                          <section className="card full">
+                            <div className="card-header"><h2 className="card-title">Appointment Checklist</h2></div>
+                            <div className="card-body checklist">
+                              {["Confirmed appointment", "Printed documents", "Two copies printed", "Stamp packed", "Journal packed", "ID checked", "Scanbacks completed", "Shipment dropped", "Payment recorded", "Journal completed"].map((item) => (
+                                <div className="check-item" key={`print-check-${item}`}><span className="box"></span>{item}</div>
+                              ))}
+                            </div>
+                          </section>
+
+                          <section className="card full">
+                            <div className="card-header"><h2 className="card-title">Signing Instructions</h2></div>
+                            <div className="card-body instructions">{printInstructions || "No signing instructions were provided."}</div>
+                          </section>
+
+                          <section className="card full">
+                            <div className="card-header"><h2 className="card-title">Notes / Activity Highlights</h2></div>
+                            <div className="card-body">
+                              {printActivityNotes.length > 0 ? (
+                                <div className="notes-list">
+                                  {printActivityNotes.map((item) => (
+                                    <div className="note" key={`print-note-${item.id ?? item.created_at}`}>
+                                      <div className="note-date">{formatActivityDate(item.created_at)} • {item.action || "Note"}</div>
+                                      <div className="note-text">{formatActivityDetails(item.details, profileNameById)}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p>No notes recorded.</p>
+                              )}
+                            </div>
+                          </section>
+
+                          <section className="card full print-invoice-optional">
+                            <div className="card-header"><h2 className="card-title">Invoice</h2></div>
+                            <div className="card-body info-list">
+                              <div className="info-row"><span className="info-label">Invoice #</span><span className="info-value">{formatInvoiceNumber(assignmentInvoice?.invoice_number)}</span></div>
+                              <div className="info-row"><span className="info-label">Invoice Date</span><span className="info-value">{formatInputDate(assignmentInvoice?.invoice_date) || defaultInvoiceDate}</span></div>
+                              <div className="info-row"><span className="info-label">Due Date</span><span className="info-value">{formatInputDate(assignmentInvoice?.due_date) || defaultInvoiceDueDate}</span></div>
+                              <div className="info-row"><span className="info-label">Bill To</span><span className="info-value">{billToLines.join(", ") || "—"}</span></div>
+                              <div className="info-row"><span className="info-label">Invoice Total</span><span className="info-value">{formatMoney(invoiceTotalDue)}</span></div>
+                              <div className="info-row"><span className="info-label">Payments</span><span className="info-value">{formatMoney(invoicePaymentsTotal)}</span></div>
+                              <div className="info-row"><span className="info-label">Balance</span><span className="info-value">{formatMoney(invoiceBalanceDue)}</span></div>
+                            </div>
+                          </section>
                         </div>
-                        <div>
-                          <p><span className="font-bold">Bill To:</span> {billToLines.join(", ") || "—"}</p>
-                          <p><span className="font-bold">Invoice Total:</span> {formatMoney(invoiceTotalDue)}</p>
-                          <p><span className="font-bold">Payments:</span> {formatMoney(invoicePaymentsTotal)}</p>
-                          <p><span className="font-bold">Balance:</span> {formatMoney(invoiceBalanceDue)}</p>
-                        </div>
+
+                        <footer className="footer">
+                          <span>Generated by Indiana Notary Solutions INS Pro</span>
+                          <span>{printAssignmentUrl}</span>
+                        </footer>
                       </div>
-                    </section>
+                    </div>
                   </div>
 
                   <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/print:flex sm:items-center">
@@ -4430,7 +4552,7 @@ Thank you for choosing Indiana Notary Solutions.
                             type="button"
                             className="rounded-xl bg-[#0B1F4D] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
                           >
-                            Print
+                            Open Printout
                           </button>
                         </div>
                       </div>
