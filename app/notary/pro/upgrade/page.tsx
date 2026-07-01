@@ -1,6 +1,10 @@
-import Link from "next/link";
+"use client";
+
+import { useState } from "react";
 
 export default function UpgradePage() {
+  const [loading, setLoading] = useState(false);
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-6xl p-6">
@@ -70,12 +74,20 @@ Many full-time signing agents recover far more in tax deductions than the cost o
               Upgrade Now
             </button>
 
-            <Link
-              href="/notary/dashboard"
-              className="mt-4 block text-center text-sm text-slate-500 hover:text-slate-700"
+            <button
+              type="button"
+              onClick={() => {
+                setLoading(true);
+                window.location.href = "/notary/dashboard";
+              }}
+              disabled={loading}
+              className="mt-4 flex w-full items-center justify-center gap-2 text-sm text-slate-500 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Maybe Later
-            </Link>
+              {loading && (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />
+              )}
+              {loading ? "Returning..." : "Maybe Later"}
+            </button>
           </div>
 
         </div>
