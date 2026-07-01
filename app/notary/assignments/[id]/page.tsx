@@ -4038,63 +4038,30 @@ Thank you for choosing Indiana Notary Solutions.
                     className="peer/expenses sr-only"
                   />
 
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex flex-wrap gap-3">
-                      <label
-                        htmlFor="journal-workspace-modal"
-                        className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-                      >
-                        Open Journal Workspace
-                      </label>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+                      Workspace Status
+                    </p>
 
-                      <label
-                        htmlFor="invoice-workspace-modal"
-                        className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-                      >
-                        Open Invoice Workspace
-                      </label>
-
-                      <label
-                        htmlFor="mileage-workspace-modal"
-                        className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-                      >
-                        Open Mileage Workspace
-                      </label>
-
-                      <label
-                        htmlFor="notarial-acts-workspace-modal"
-                        className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-                      >
-                        Open Notarial Acts Workspace
-                      </label>
-
-                      <label
-                        htmlFor="expenses-workspace-modal"
-                        className="inline-flex cursor-pointer list-none items-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-                      >
-                        Open Expenses Workspace
-                      </label>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 text-xs font-bold">
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold sm:gap-3">
                       <span
                         className={`rounded-full px-3 py-1 ring-1 ${invoiceStatusBadge(assignmentInvoice?.status)}`}
                       >
                         Invoice {displayInvoiceStatus(assignmentInvoice?.status)}
                       </span>
-                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                      <span className="rounded-full bg-white px-3 py-1 text-slate-700 ring-1 ring-slate-200">
                         Balance {formatMoney(invoiceBalanceDue)}
                       </span>
-                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                      <span className="rounded-full bg-white px-3 py-1 text-slate-700 ring-1 ring-slate-200">
                         Mileage {formatMoney(invoiceMileageTotal)}
                       </span>
-                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                      <span className="rounded-full bg-white px-3 py-1 text-slate-700 ring-1 ring-slate-200">
                         Expenses {formatMoney(invoiceExpensesTotal)}
                       </span>
-                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                      <span className="rounded-full bg-white px-3 py-1 text-slate-700 ring-1 ring-slate-200">
                         Notarial Acts {notarialActsTotalCount}
                       </span>
-                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                      <span className="rounded-full bg-white px-3 py-1 text-slate-700 ring-1 ring-slate-200">
                         Notarial Fees {formatMoney(notarialActsTotalFees)}
                       </span>
                       <span
@@ -4106,13 +4073,13 @@ Thank you for choosing Indiana Notary Solutions.
                       >
                         {journalIsComplete ? "Journal Complete" : "Journal Open"}
                       </span>
-                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                      <span className="rounded-full bg-white px-3 py-1 text-slate-700 ring-1 ring-slate-200">
                         {displayJournalPeople.length} people
                       </span>
-                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                      <span className="rounded-full bg-white px-3 py-1 text-slate-700 ring-1 ring-slate-200">
                         {journalDocuments.length} documents
                       </span>
-                      <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700 ring-1 ring-slate-200">
+                      <span className="rounded-full bg-white px-3 py-1 text-slate-700 ring-1 ring-slate-200">
                         {signedJournalPeopleCount} signatures
                       </span>
                     </div>
