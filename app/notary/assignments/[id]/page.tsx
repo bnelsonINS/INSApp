@@ -3038,6 +3038,65 @@ Thank you for choosing Indiana Notary Solutions.
   ].join("\n");
   const invoiceMailtoHref = `mailto:${encodeURIComponent(invoiceEmailTo)}?subject=${encodeURIComponent(invoiceEmailSubject)}&body=${encodeURIComponent(invoiceEmailBody)}`;
 
+
+  const printNotaryName = firstTextValue(
+    notaryProfile?.full_name,
+    notaryProfileDetails?.full_name,
+    [notaryProfileDetails?.first_name, notaryProfileDetails?.last_name]
+      .filter(Boolean)
+      .join(" "),
+    user.email,
+  );
+  const printNotaryPhone = firstTextValue(
+    notaryProfileDetails?.mobile_phone,
+    notaryProfileDetails?.phone,
+    notaryProfile?.phone,
+    notaryProfile?.phone_number,
+  );
+  const printNotaryEmail = firstTextValue(notaryProfile?.email, user.email);
+  const signerEmail = firstTextValue(
+    assignment.borrower_email,
+    assignment.signer_email,
+    assignment.borrower_contact_email,
+  );
+  const propertyAddress = [
+    optionalTextValue(
+      assignment.property_address,
+      assignment.property_street_address,
+      assignment.subject_property_address,
+    ),
+    [
+      optionalTextValue(assignment.property_city, assignment.subject_property_city),
+      optionalTextValue(assignment.property_state, assignment.subject_property_state),
+      optionalTextValue(
+        assignment.property_zip,
+        assignment.property_zip_code,
+        assignment.subject_property_zip,
+      ),
+    ]
+      .filter(Boolean)
+      .join(" "),
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const signingPlatform = firstTextValue(
+    assignment.signing_platform,
+    assignment.platform,
+    assignment.source_platform,
+    assignment.vendor_platform,
+  );
+  const printInstructions = optionalTextValue(
+    assignment.special_instructions,
+    assignment.instructions,
+    assignment.signing_instructions,
+    assignment.order_instructions,
+    assignment.notes,
+    assignment.client_notes,
+  );
+  const printActivityNotes = (activity ?? []).slice(0, 8);
+  const printUploadedDocsCount = documentsWithUrls.length;
+  const printTitleDocsCount = titleDocumentsWithUrls.length;
+
   let { data: journalEntry } = await supabase
     .from("assignment_journal_entries")
     .select("id, status, updated_at, completed_at, journal_date, journal_time, journal_type, location_mode, address, city, state, zip, notes")
@@ -4174,74 +4233,151 @@ Thank you for choosing Indiana Notary Solutions.
 
                   <div
                     id="signing-print-area"
-                    className="hidden bg-white p-8 text-slate-950"
+                    className="hidden bg-white p-10 text-slate-950"
                   >
-                    <div className="border-b border-slate-300 pb-4">
-                      <p className="text-sm font-bold uppercase tracking-wide text-slate-500">
-                        Indiana Notary Solutions
-                      </p>
-                      <h1 className="mt-1 text-3xl font-black">
-                        Signing Printout
-                      </h1>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Control # {assignment.control_number ?? "—"}
+                    <div className="flex items-start justify-between gap-6 border-b border-slate-300 pb-8">
+                      <div className="text-sm leading-5 text-slate-600">
+                        <p className="font-semibold text-slate-800">{printNotaryName}</p>
+                        {notaryBusinessLocation ? <p>{notaryBusinessLocation}</p> : null}
+                        {printNotaryPhone !== "—" ? <p>{printNotaryPhone}</p> : null}
+                        {printNotaryEmail !== "—" ? <p>{printNotaryEmail}</p> : null}
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-4xl font-light uppercase tracking-wide text-slate-400">
+                          Summary
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-slate-500">
+                          Control # {assignment.control_number ?? "—"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="border-b border-slate-300 py-8 text-center">
+                      <p className="text-4xl font-light text-slate-950">
+                        {signingDate} {signingTime ? `- ${signingTime}` : ""}
                       </p>
                     </div>
 
-                    <div className="mt-6 grid grid-cols-2 gap-6 text-sm">
+                    <div className="mt-10 grid grid-cols-2 gap-x-16 gap-y-10 text-xl leading-8">
                       <section>
-                        <h2 className="text-lg font-black">Assignment</h2>
-                        <div className="mt-3 space-y-2">
-                          <p><span className="font-bold">Signer:</span> {assignment.borrower_name || "—"}</p>
-                          <p><span className="font-bold">Phone:</span> {assignment.borrower_phone || "—"}</p>
-                          <p><span className="font-bold">Appointment:</span> {signingDate} {signingTime && `at ${signingTime}`}</p>
-                          <p><span className="font-bold">Status:</span> {assignment.status ?? "—"}</p>
-                          <p><span className="font-bold">Notary Fee:</span> {formatMoney(notaryFee)}</p>
+                        <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
+                          Signer
+                        </h2>
+                        <div className="mt-3">
+                          <p>{assignment.borrower_name || "—"}</p>
+                          {assignment.borrower_phone ? <p>Mobile: {assignment.borrower_phone}</p> : null}
+                          {signerEmail !== "—" ? <p>{signerEmail}</p> : null}
                         </div>
                       </section>
 
                       <section>
-                        <h2 className="text-lg font-black">Signing Location</h2>
-                        <div className="mt-3 space-y-2">
+                        <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
+                          Customer / Signing Info
+                        </h2>
+                        <div className="mt-3">
+                          <p>{titleCompanyName}</p>
+                          {titleCompanyPhone !== "—" ? <p>O: {titleCompanyPhone}</p> : null}
+                          {titleCompanyEmail !== "—" ? <p>E: {titleCompanyEmail}</p> : null}
+                          <div className="mt-6">
+                            <p>Total Fee: {formatMoney(notaryFee)}</p>
+                            <p>Invoice #: {formatInvoiceNumber(assignmentInvoice?.invoice_number)}</p>
+                            <p>Loan Type: {productName}</p>
+                            <p>Loan/Escrow #: {fileNumber}</p>
+                            <p>
+                              Tracking #: {[assignment.shipping_carrier, assignment.tracking_number]
+                                .filter(Boolean)
+                                .join(" ") || "—"}
+                            </p>
+                            <p>Signing Platform: {signingPlatform}</p>
+                            <p>Notarial Acts: {notarialActsTotalCount}</p>
+                          </div>
+                        </div>
+                      </section>
+
+                      <section>
+                        <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
+                          Signing Address
+                        </h2>
+                        <div className="mt-3">
                           <p>{assignment.signing_address ?? "—"}</p>
                           <p>{assignment.signing_city ?? "—"}, {assignment.signing_state ?? "IN"} {assignment.signing_zip ?? ""}</p>
+                          {assignment.signing_county || assignment.county ? (
+                            <p>County: {assignment.signing_county || assignment.county}</p>
+                          ) : null}
                         </div>
                       </section>
 
                       <section>
-                        <h2 className="text-lg font-black">Client / Title Company</h2>
-                        <div className="mt-3 space-y-2">
-                          <p><span className="font-bold">Company:</span> {titleCompanyName}</p>
-                          <p><span className="font-bold">Contact:</span> {titleCompanyContact}</p>
-                          <p><span className="font-bold">Phone:</span> {titleCompanyPhone}</p>
-                          <p><span className="font-bold">Email:</span> {titleCompanyEmail}</p>
+                        <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
+                          INS Pro Tax / Business Record
+                        </h2>
+                        <div className="mt-3">
+                          <p>Mileage: {invoiceMileageRows.reduce((sum, row) => sum + Number(row.miles ?? 0), 0).toFixed(2)} miles</p>
+                          <p>Mileage Deduction: {formatMoney(invoiceMileageTotal)}</p>
+                          <p>Expenses: {formatMoney(invoiceExpensesTotal)}</p>
+                          <p>Notarial Fees Value: {formatMoney(notarialActsTotalFees)}</p>
+                          <p>Payments Recorded: {formatMoney(invoicePaymentsTotal)}</p>
                         </div>
                       </section>
 
                       <section>
-                        <h2 className="text-lg font-black">INS Pro Records</h2>
-                        <div className="mt-3 space-y-2">
-                          <p><span className="font-bold">Journal:</span> {journalIsComplete ? "Complete" : "Open"}</p>
-                          <p><span className="font-bold">People:</span> {displayJournalPeople.length}</p>
-                          <p><span className="font-bold">Documents:</span> {journalDocuments.length}</p>
-                          <p><span className="font-bold">Signatures:</span> {signedJournalPeopleCount}</p>
-                          <p><span className="font-bold">Mileage:</span> {formatMoney(invoiceMileageTotal)}</p>
-                          <p><span className="font-bold">Expenses:</span> {formatMoney(invoiceExpensesTotal)}</p>
-                          <p><span className="font-bold">Notarial Acts:</span> {notarialActsTotalCount}</p>
+                        <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
+                          Property Address
+                        </h2>
+                        <div className="mt-3">
+                          <p>{propertyAddress || signingLocation || "—"}</p>
+                        </div>
+                      </section>
+
+                      <section>
+                        <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
+                          Documents / Journal
+                        </h2>
+                        <div className="mt-3">
+                          <p>Title Documents: {printTitleDocsCount}</p>
+                          <p>Uploaded / Returned Documents: {printUploadedDocsCount}</p>
+                          <p>Journal: {journalIsComplete ? "Complete" : "Open"}</p>
+                          <p>Journal People: {displayJournalPeople.length}</p>
+                          <p>Journal Documents: {journalDocuments.length}</p>
+                          <p>Captured Signatures: {signedJournalPeopleCount}</p>
                         </div>
                       </section>
                     </div>
 
-                    {assignment.special_instructions && (
-                      <section className="mt-6 border-t border-slate-300 pt-4 text-sm">
-                        <h2 className="text-lg font-black">Special Instructions</h2>
-                        <p className="mt-2 whitespace-pre-wrap">{assignment.special_instructions}</p>
-                      </section>
-                    )}
+                    <section className="mt-12 text-xl leading-7">
+                      <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
+                        Signing Instructions
+                      </h2>
+                      <div className="mt-3 whitespace-pre-wrap">
+                        {printInstructions || "No signing instructions were provided."}
+                      </div>
+                    </section>
 
-                    <section className="print-invoice-optional mt-8 border-t border-slate-300 pt-4 text-sm">
-                      <h2 className="text-2xl font-black">Invoice</h2>
-                      <div className="mt-4 grid grid-cols-2 gap-6">
+                    <section className="mt-12 text-xl leading-7">
+                      <h2 className="border-b border-slate-300 pb-2 text-2xl font-black">
+                        Notes
+                      </h2>
+                      {printActivityNotes.length > 0 ? (
+                        <div className="mt-3 space-y-3">
+                          {printActivityNotes.map((item) => (
+                            <div key={`print-note-${item.id ?? item.created_at}`}>
+                              <p>
+                                <span className="font-semibold">{formatInputDate(item.created_at)}</span>{" "}
+                                {item.action ? `${item.action}: ` : ""}
+                                {formatActivityDetails(item.details, profileNameById)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-3">No notes recorded.</p>
+                      )}
+                    </section>
+
+                    <section className="print-invoice-optional mt-12 border-t border-slate-300 pt-6 text-xl leading-7">
+                      <h2 className="text-3xl font-black">Invoice</h2>
+                      <div className="mt-4 grid grid-cols-2 gap-8">
                         <div>
                           <p><span className="font-bold">Invoice #:</span> {formatInvoiceNumber(assignmentInvoice?.invoice_number)}</p>
                           <p><span className="font-bold">Invoice Date:</span> {formatInputDate(assignmentInvoice?.invoice_date) || defaultInvoiceDate}</p>
