@@ -2607,8 +2607,8 @@ Thank you for choosing Indiana Notary Solutions.
     (sum, row) => sum + Number(row.amount ?? 0),
     0,
   );
-  const firstNotarialActRow = notarialActRows[0] ?? null;
-  const secondNotarialActRow = notarialActRows[1] ?? null;
+  const notarialActFormRows =
+    notarialActRows.length > 0 ? notarialActRows : [null, null];
   const latestMileageRow = invoiceMileageRows[0] ?? null;
   const latestMileageMiles = Number(latestMileageRow?.miles ?? 0);
   const latestMileageRate = Number(latestMileageRow?.rate ?? FEDERAL_MILEAGE_RATE);
@@ -2951,22 +2951,38 @@ Thank you for choosing Indiana Notary Solutions.
             }
 
             function updateNotarialActsAmount() {
-              var countInputs = document.querySelectorAll('[data-notarial-count="true"]');
-              var feeInputs = document.querySelectorAll('[data-notarial-fee="true"]');
+              var rows = document.querySelectorAll('[data-notarial-row="true"]');
               var output = document.getElementById("notarial-acts-total-output");
               var helper = document.getElementById("notarial-acts-helper");
               var noActsCheckbox = document.getElementById("notarial-no-acts-checkbox");
+              var disabled = Boolean(noActsCheckbox && noActsCheckbox.checked);
               var total = 0;
               var totalActs = 0;
 
-              countInputs.forEach(function (input, index) {
-                var count = parseInt(input.value || "0", 10);
-                var fee = parseFloat((feeInputs[index] && feeInputs[index].value) || "0");
+              rows.forEach(function (row) {
+                var countInput = row.querySelector('[data-notarial-count="true"]');
+                var feeInput = row.querySelector('[data-notarial-fee="true"]');
+                var rowOutput = row.querySelector('[data-notarial-row-amount="true"]');
+                var removeButton = row.querySelector('[data-remove-notarial-row="true"]');
+                var count = parseInt((countInput && countInput.value) || "0", 10);
+                var fee = parseFloat((feeInput && feeInput.value) || "0");
+                var rowTotal = 0;
 
                 if (!isNaN(count) && !isNaN(fee) && count > 0 && fee >= 0) {
                   totalActs += count;
-                  total += count * fee;
+                  rowTotal = count * fee;
+                  total += rowTotal;
                 }
+
+                if (rowOutput) rowOutput.textContent = "$" + rowTotal.toFixed(2);
+
+                if (countInput) {
+                  countInput.disabled = disabled;
+                  if (disabled) countInput.value = "";
+                }
+
+                if (feeInput) feeInput.disabled = disabled;
+                if (removeButton) removeButton.disabled = disabled;
               });
 
               if (output) output.textContent = "$" + total.toFixed(2);
@@ -2976,25 +2992,52 @@ Thank you for choosing Indiana Notary Solutions.
                   : "Enter notarial acts to calculate the fee.";
               }
 
-              if (noActsCheckbox) {
-                var disabled = noActsCheckbox.checked;
-                countInputs.forEach(function (input) {
-                  input.disabled = disabled;
-                  if (disabled) input.value = "";
-                });
-                feeInputs.forEach(function (input) {
-                  input.disabled = disabled;
-                });
-                if (disabled) {
-                  if (output) output.textContent = "$0.00";
-                  if (helper) helper.textContent = "No notarial acts for this signing.";
-                }
+              if (disabled) {
+                if (output) output.textContent = "$0.00";
+                if (helper) helper.textContent = "No notarial acts for this signing.";
               }
             }
+
+            function addNotarialActsRow() {
+              var table = document.getElementById("notarial-acts-table");
+              if (!table) return;
+
+              var defaultDate = table.getAttribute("data-default-date") || "";
+              var defaultFee = table.getAttribute("data-default-fee") || "10.00";
+              var row = document.createElement("div");
+              row.setAttribute("data-notarial-row", "true");
+              row.className = "grid grid-cols-[minmax(0,1.2fr)_minmax(0,.8fr)_minmax(0,.8fr)_minmax(0,.9fr)_auto] gap-3 px-4 py-3 text-sm";
+              row.innerHTML =
+                '<input type="date" name="notarial_act_date" value="' + defaultDate + '" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100" />' +
+                '<input type="number" name="notarial_act_count" min="0" step="1" data-notarial-count="true" placeholder="0" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100" />' +
+                '<input type="number" name="notarial_act_fee" min="0" step="0.01" data-notarial-fee="true" value="' + defaultFee + '" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100" />' +
+                '<p data-notarial-row-amount="true" class="flex items-center justify-end font-black text-[#0B1F4D]">$0.00</p>' +
+                '<button type="button" data-remove-notarial-row="true" class="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Remove</button>';
+
+              table.appendChild(row);
+              updateNotarialActsAmount();
+            }
+
+            document.addEventListener("DOMContentLoaded", function () {
+              updateMileageAmount();
+              updateNotarialActsAmount();
+            });
 
             document.addEventListener("click", async function (event) {
               var target = event.target;
               if (!target) return;
+
+              if (target.id === "add-notarial-act-row-button") {
+                addNotarialActsRow();
+                return;
+              }
+
+              if (target.getAttribute && target.getAttribute("data-remove-notarial-row") === "true") {
+                var row = target.closest('[data-notarial-row="true"]');
+                if (row) row.remove();
+                updateNotarialActsAmount();
+                return;
+              }
 
               if (target.id === "invoice-use-balance-button") {
                 var amountInput = document.getElementById("invoice-payment-amount");
@@ -3664,7 +3707,7 @@ Thank you for choosing Indiana Notary Solutions.
                       </div>
 
                       <div className="max-h-[82vh] overflow-y-auto p-5">
-                        <form action={saveNotarialActs} className="mx-auto max-w-2xl space-y-5">
+                        <form action={saveNotarialActs} className="mx-auto max-w-5xl space-y-5">
                           <input type="hidden" name="assignment_id" value={assignment.id} />
 
                           <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-slate-700">
@@ -3675,57 +3718,86 @@ Thank you for choosing Indiana Notary Solutions.
                           </div>
 
                           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                            <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,.8fr)_minmax(0,.8fr)_minmax(0,.9fr)] gap-3 border-b border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                            <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,.8fr)_minmax(0,.8fr)_minmax(0,.9fr)_auto] gap-3 border-b border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
                               <p>Date</p>
                               <p>Not. Acts</p>
                               <p>Amt Per</p>
                               <p className="text-right">Notarial Fees</p>
+                              <p className="text-right">Action</p>
                             </div>
 
-                            {[firstNotarialActRow, secondNotarialActRow].map((row, index) => {
-                              const rowCount = Number(row?.acts_count ?? 0);
-                              const rowFee = Number(row?.fee_per_act ?? INDIANA_NOTARIAL_ACT_FEE);
-                              const rowAmount = rowCount > 0 ? rowCount * rowFee : 0;
+                            <div
+                              id="notarial-acts-table"
+                              data-default-date={formatInputDate(assignment.signing_date) || todayForInvoice}
+                              data-default-fee={INDIANA_NOTARIAL_ACT_FEE.toFixed(2)}
+                            >
+                              {notarialActFormRows.map((row, index) => {
+                                const rowCount = Number(row?.acts_count ?? 0);
+                                const rowFee = Number(row?.fee_per_act ?? INDIANA_NOTARIAL_ACT_FEE);
+                                const rowAmount = rowCount > 0 ? rowCount * rowFee : 0;
 
-                              return (
-                                <div
-                                  key={`notarial-act-row-${index}`}
-                                  className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,.8fr)_minmax(0,.8fr)_minmax(0,.9fr)] gap-3 px-4 py-3 text-sm"
-                                >
-                                  <input
-                                    type="date"
-                                    name="notarial_act_date"
-                                    defaultValue={formatInputDate(row?.act_date) || formatInputDate(assignment.signing_date) || todayForInvoice}
-                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
-                                  />
+                                return (
+                                  <div
+                                    key={`notarial-act-row-${row?.id ?? index}`}
+                                    data-notarial-row="true"
+                                    className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,.8fr)_minmax(0,.8fr)_minmax(0,.9fr)_auto] gap-3 px-4 py-3 text-sm"
+                                  >
+                                    <input
+                                      type="date"
+                                      name="notarial_act_date"
+                                      defaultValue={formatInputDate(row?.act_date) || formatInputDate(assignment.signing_date) || todayForInvoice}
+                                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
 
-                                  <input
-                                    type="number"
-                                    name="notarial_act_count"
-                                    min="0"
-                                    step="1"
-                                    data-notarial-count="true"
-                                    defaultValue={rowCount > 0 ? String(rowCount) : ""}
-                                    placeholder="0"
-                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
-                                  />
+                                    <input
+                                      type="number"
+                                      name="notarial_act_count"
+                                      min="0"
+                                      step="1"
+                                      data-notarial-count="true"
+                                      defaultValue={rowCount > 0 ? String(rowCount) : ""}
+                                      placeholder="0"
+                                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
 
-                                  <input
-                                    type="number"
-                                    name="notarial_act_fee"
-                                    min="0"
-                                    step="0.01"
-                                    data-notarial-fee="true"
-                                    defaultValue={rowFee.toFixed(2)}
-                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
-                                  />
+                                    <input
+                                      type="number"
+                                      name="notarial_act_fee"
+                                      min="0"
+                                      step="0.01"
+                                      data-notarial-fee="true"
+                                      defaultValue={rowFee.toFixed(2)}
+                                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
 
-                                  <p className="flex items-center justify-end font-black text-[#0B1F4D]">
-                                    {formatMoney(rowAmount)}
-                                  </p>
-                                </div>
-                              );
-                            })}
+                                    <p
+                                      data-notarial-row-amount="true"
+                                      className="flex items-center justify-end font-black text-[#0B1F4D]"
+                                    >
+                                      {formatMoney(rowAmount)}
+                                    </p>
+
+                                    <button
+                                      type="button"
+                                      data-remove-notarial-row="true"
+                                      className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            <div className="border-t border-slate-200 bg-white px-4 py-3">
+                              <button
+                                id="add-notarial-act-row-button"
+                                type="button"
+                                className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
+                              >
+                                + Add Row
+                              </button>
+                            </div>
                           </div>
 
                           <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700">
