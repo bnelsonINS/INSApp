@@ -260,6 +260,89 @@ function buildBusinessLocation(profile: Record<string, any> | null | undefined) 
   return [street, cityStateZip].filter(Boolean).join(", ");
 }
 
+type GoogleMileageRoute = {
+  miles: number;
+  distanceText: string;
+  durationText: string | null;
+  amount: number;
+};
+
+function parseGoogleDuration(duration: string | null | undefined) {
+  if (!duration) return null;
+
+  const seconds = Number(String(duration).replace("s", ""));
+  if (!Number.isFinite(seconds)) return null;
+
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.round((seconds % 3600) / 60);
+
+  if (hours > 0 && minutes > 0) return `${hours} hr ${minutes} min`;
+  if (hours > 0) return `${hours} hr`;
+  return `${minutes} min`;
+}
+
+async function calculateGoogleMileageRoute({
+  origin,
+  destination,
+}: {
+  origin: string;
+  destination: string;
+}): Promise<GoogleMileageRoute | null> {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+
+  if (!apiKey || !origin.trim() || !destination.trim()) return null;
+
+  try {
+    const googleResponse = await fetch(
+      "https://routes.googleapis.com/directions/v2:computeRoutes",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": apiKey,
+          "X-Goog-FieldMask":
+            "routes.distanceMeters,routes.duration,routes.localizedValues",
+        },
+        body: JSON.stringify({
+          origin: { address: origin.trim() },
+          destination: { address: destination.trim() },
+          travelMode: "DRIVE",
+          routingPreference: "TRAFFIC_UNAWARE",
+          computeAlternativeRoutes: false,
+          units: "IMPERIAL",
+        }),
+      },
+    );
+
+    const data = await googleResponse.json();
+
+    if (!googleResponse.ok) {
+      console.error("Google Routes API error:", data);
+      return null;
+    }
+
+    const route = data.routes?.[0];
+    const distanceMeters = Number(route?.distanceMeters ?? 0);
+
+    if (!Number.isFinite(distanceMeters) || distanceMeters <= 0) return null;
+
+    const miles = Math.round((distanceMeters / 1609.344) * 100) / 100;
+    const amount = Math.round(miles * FEDERAL_MILEAGE_RATE * 100) / 100;
+
+    return {
+      miles,
+      distanceText:
+        route.localizedValues?.distance?.text || `${miles.toFixed(2)} mi`,
+      durationText:
+        route.localizedValues?.duration?.text || parseGoogleDuration(route.duration),
+      amount,
+    };
+  } catch (error) {
+    console.error("Automatic mileage calculation error:", error);
+    return null;
+  }
+}
+
 const UUID_PATTERN =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 
@@ -2209,6 +2292,47 @@ Thank you for choosing Indiana Notary Solutions.
     .order("expense_date", { ascending: false })
     .order("created_at", { ascending: false });
 
+  const { count: existingMileageCount } = await supabase
+    .from("assignment_mileage")
+    .select("id", { count: "exact", head: true })
+    .eq("assignment_id", assignment.id)
+    .eq("notary_id", user.id);
+
+  if (
+    hasInsPro &&
+    assignmentInvoice?.id &&
+    (existingMileageCount ?? 0) === 0 &&
+    notaryBusinessLocation &&
+    signingLocation
+  ) {
+    const calculatedMileage = await calculateGoogleMileageRoute({
+      origin: notaryBusinessLocation,
+      destination: signingLocation,
+    });
+
+    if (calculatedMileage?.miles) {
+      await supabase.from("assignment_mileage").insert({
+        assignment_id: assignment.id,
+        notary_id: user.id,
+        mileage_date: assignment.signing_date || todayForInvoice,
+        miles: calculatedMileage.miles,
+        rate: FEDERAL_MILEAGE_RATE,
+        amount: calculatedMileage.amount,
+        notes: [
+          `Auto-calculated by Google Maps: ${notaryBusinessLocation} to ${signingLocation}`,
+          calculatedMileage.distanceText
+            ? `Distance: ${calculatedMileage.distanceText}`
+            : null,
+          calculatedMileage.durationText
+            ? `Estimated drive time: ${calculatedMileage.durationText}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" | "),
+      });
+    }
+  }
+
   const { data: invoiceMileage } = await supabase
     .from("assignment_mileage")
     .select("*")
@@ -2550,7 +2674,7 @@ Thank you for choosing Indiana Notary Solutions.
                 if (miles > 0 && rate >= 0) {
                   amountHelper.textContent = miles.toFixed(2) + " miles × $" + rate.toFixed(3) + " per mile";
                 } else {
-                  amountHelper.textContent = "Click Calculate Miles or enter miles manually.";
+                  amountHelper.textContent = "Enter miles manually to calculate a new mileage amount.";
                 }
               }
             }
@@ -3308,36 +3432,11 @@ Thank you for choosing Indiana Notary Solutions.
                                 />
                               </div>
 
-                              <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                  <div>
-                                    <p className="text-sm font-black text-slate-950">Google Maps Route</p>
-                                    <p
-                                      id="mileage-route-helper"
-                                      className="mt-1 text-xs font-semibold text-slate-500"
-                                    >
-                                      Click Calculate Miles to get the driving distance.
-                                    </p>
-                                  </div>
-
-                                  <button
-                                    id="calculate-mileage-button"
-                                    type="button"
-                                    className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-100 disabled:cursor-wait disabled:opacity-70"
-                                  >
-                                    Calculate Miles
-                                  </button>
-                                </div>
-
-                                <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-sm">
-                                  <span className="font-bold text-slate-600">Estimated Drive Time</span>
-                                  <span
-                                    id="mileage-drive-time-output"
-                                    className="font-black text-slate-950"
-                                  >
-                                    —
-                                  </span>
-                                </div>
+                              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                                <p className="text-sm font-black text-[#0B1F4D]">Google Maps Mileage</p>
+                                <p className="mt-1 text-xs font-semibold text-slate-600">
+                                  INS Pro calculates mileage automatically the first time this assignment opens, then saves it so Google is not called every visit. Use the manual fields below only if you need to add another trip or correct the saved mileage.
+                                </p>
                               </div>
 
                               <div className="grid grid-cols-2 gap-3">
@@ -3379,7 +3478,7 @@ Thank you for choosing Indiana Notary Solutions.
                                       id="mileage-amount-helper"
                                       className="mt-1 text-xs font-semibold text-slate-600"
                                     >
-                                      Click Calculate Miles or enter miles manually.
+                                      Enter miles manually to calculate a new mileage amount.
                                     </p>
                                   </div>
                                   <p

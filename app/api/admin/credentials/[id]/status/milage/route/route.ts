@@ -28,9 +28,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const origin = String(body.origin || "").trim();
-    const destination = String(body.destination || "").trim();
+    const body = await request.json().catch(() => null);
+    const origin = String(body?.origin || "").trim();
+    const destination = String(body?.destination || "").trim();
 
     if (!origin || !destination) {
       return NextResponse.json(
@@ -71,22 +71,22 @@ export async function POST(request: NextRequest) {
     }
 
     const route = data.routes?.[0];
+    const distanceMeters = Number(route?.distanceMeters ?? 0);
 
-    if (!route?.distanceMeters) {
+    if (!Number.isFinite(distanceMeters) || distanceMeters <= 0) {
       return NextResponse.json(
         { error: "No driving route was returned for those addresses." },
         { status: 404 },
       );
     }
 
-    const miles = route.distanceMeters / METERS_PER_MILE;
-    const roundedMiles = Math.round(miles * 100) / 100;
-    const amount = Math.round(roundedMiles * FEDERAL_MILEAGE_RATE * 100) / 100;
+    const miles = Math.round((distanceMeters / METERS_PER_MILE) * 100) / 100;
+    const amount = Math.round(miles * FEDERAL_MILEAGE_RATE * 100) / 100;
 
     return NextResponse.json({
-      miles: roundedMiles,
+      miles,
       distanceText:
-        route.localizedValues?.distance?.text || `${roundedMiles.toFixed(2)} mi`,
+        route.localizedValues?.distance?.text || `${miles.toFixed(2)} mi`,
       duration: route.duration || null,
       durationText:
         route.localizedValues?.duration?.text || parseGoogleDuration(route.duration),
@@ -100,4 +100,11 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+export async function GET() {
+  return NextResponse.json(
+    { error: "Use POST with origin and destination." },
+    { status: 405 },
+  );
 }
