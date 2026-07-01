@@ -491,11 +491,13 @@ export default async function AssignmentDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ workspace?: string }>;
+  searchParams?: Promise<{ workspace?: string; expense_saved?: string; expense_error?: string }>;
 }) {
   const { id } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const activeWorkspace = String(resolvedSearchParams.workspace ?? "").toLowerCase();
+  const expenseSaved = String(resolvedSearchParams.expense_saved ?? "") === "1";
+  const expenseError = String(resolvedSearchParams.expense_error ?? "").trim();
 
   async function saveJournalPerson(formData: FormData) {
     "use server";
@@ -1770,7 +1772,7 @@ export default async function AssignmentDetailPage({
     const cleanCategory = customCategory || selectedCategory || "Misc.";
     const cleanAmount = Math.round(amount * 100) / 100;
 
-    const { error: insertExpenseError } = await supabaseAdmin
+    const { data: insertedExpense, error: insertExpenseError } = await supabaseAdmin
       .from("assignment_expenses")
       .insert({
         assignment_id: assignmentId,
@@ -1780,12 +1782,19 @@ export default async function AssignmentDetailPage({
         amount: cleanAmount,
         vendor: vendor || null,
         notes: notes || null,
-      });
+      })
+      .select("id")
+      .single();
 
-    if (insertExpenseError) {
+    if (insertExpenseError || !insertedExpense?.id) {
       console.error("Expense insert error:", insertExpenseError);
+      const message = encodeURIComponent(
+        insertExpenseError?.message || "Expense could not be saved.",
+      );
       revalidatePath(`/notary/assignments/${assignmentId}`);
-      redirect(`/notary/assignments/${assignmentId}#assignment-workspace`);
+      redirect(
+        `/notary/assignments/${assignmentId}?workspace=expenses&expense_error=${message}#assignment-workspace`,
+      );
     }
 
     if (invoiceId) {
@@ -1859,7 +1868,7 @@ export default async function AssignmentDetailPage({
     });
 
     revalidatePath(`/notary/assignments/${assignmentId}`);
-    redirect(`/notary/assignments/${assignmentId}?workspace=expenses#assignment-workspace`);
+    redirect(`/notary/assignments/${assignmentId}?workspace=expenses&expense_saved=1#assignment-workspace`);
   }
 
   async function deleteExpenseEntry(formData: FormData) {
@@ -2714,7 +2723,7 @@ Thank you for choosing Indiana Notary Solutions.
         .order("created_at", { ascending: false })
     : { data: [] };
 
-  const { data: invoiceExpenses } = await supabase
+  const { data: invoiceExpenses } = await supabaseAdmin
     .from("assignment_expenses")
     .select("*")
     .eq("assignment_id", assignment.id)
@@ -4104,6 +4113,18 @@ Thank you for choosing Indiana Notary Solutions.
                               Compact entry form. Save keeps this workspace open so you can add another expense.
                             </p>
 
+                            {expenseSaved && (
+                              <div className="mt-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">
+                                Expense saved. Add another expense or click Cancel when you are done.
+                              </div>
+                            )}
+
+                            {expenseError && (
+                              <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                                Expense was not saved: {decodeURIComponent(expenseError)}
+                              </div>
+                            )}
+
                             <form action={saveExpenseEntry} className="mt-4 grid gap-3 sm:grid-cols-2">
                               <input type="hidden" name="assignment_id" value={assignment.id} />
                               <input type="hidden" name="invoice_id" value={assignmentInvoice?.id ?? ""} />
@@ -4188,6 +4209,16 @@ Thank you for choosing Indiana Notary Solutions.
                                 >
                                   Cancel
                                 </label>
+
+                                <button
+                                  type="submit"
+                                  name="expense_save_mode"
+                                  value="save"
+                                  data-busy-text="Saving expense..."
+                                  className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-100 disabled:cursor-wait disabled:opacity-80"
+                                >
+                                  Save
+                                </button>
 
                                 <button
                                   type="submit"
