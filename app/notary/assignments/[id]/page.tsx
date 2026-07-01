@@ -2539,6 +2539,38 @@ Thank you for choosing Indiana Notary Solutions.
               amountInput.focus();
             });
 
+            document.addEventListener("input", function (event) {
+              var target = event.target;
+              if (!target) return;
+
+              if (target.id !== "mileage-miles-input" && target.id !== "mileage-rate-input") return;
+
+              var milesInput = document.getElementById("mileage-miles-input");
+              var rateInput = document.getElementById("mileage-rate-input");
+              var amountOutput = document.getElementById("mileage-amount-output");
+              var amountHelper = document.getElementById("mileage-amount-helper");
+
+              if (!milesInput || !rateInput || !amountOutput) return;
+
+              var miles = parseFloat(milesInput.value || "0");
+              var rate = parseFloat(rateInput.value || "0");
+              var amount = 0;
+
+              if (!isNaN(miles) && !isNaN(rate) && miles > 0 && rate >= 0) {
+                amount = miles * rate;
+              }
+
+              amountOutput.textContent = "$" + amount.toFixed(2);
+
+              if (amountHelper) {
+                if (miles > 0 && rate >= 0) {
+                  amountHelper.textContent = miles.toFixed(2) + " miles × $" + rate.toFixed(3) + " per mile";
+                } else {
+                  amountHelper.textContent = "Enter miles to calculate the mileage deduction amount.";
+                }
+              }
+            });
+
             document.addEventListener("submit", function (event) {
               var form = event.target;
               if (!form || !(form instanceof HTMLFormElement)) return;
@@ -3090,7 +3122,7 @@ Thank you for choosing Indiana Notary Solutions.
                       <div className="max-h-[82vh] overflow-y-auto p-5">
                         <div className="mb-5 grid gap-4 md:grid-cols-4">
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Total Miles</p>
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Saved Miles</p>
                             <p className="mt-2 text-lg font-black text-slate-950">
                               {invoiceMileageRows.reduce((sum, row) => sum + Number(row.miles ?? 0), 0).toFixed(2)}
                             </p>
@@ -3168,7 +3200,7 @@ Thank you for choosing Indiana Notary Solutions.
                           <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                             <h5 className="text-lg font-black text-slate-950">Add Mileage</h5>
                             <p className="mt-1 text-sm text-slate-500">
-                              Enter miles manually for now. Auto-calc routing can come later.
+                              Enter trip miles manually for now. Auto-calc routing can come later.
                             </p>
 
                             <form action={saveMileageEntry} className="mt-5 space-y-4">
@@ -3213,6 +3245,7 @@ Thank you for choosing Indiana Notary Solutions.
                                 <div>
                                   <label className="block text-sm font-bold text-slate-700">Miles</label>
                                   <input
+                                    id="mileage-miles-input"
                                     name="mileage_miles"
                                     type="number"
                                     step="0.01"
@@ -3226,13 +3259,36 @@ Thank you for choosing Indiana Notary Solutions.
                                 <div>
                                   <label className="block text-sm font-bold text-slate-700">Rate</label>
                                   <input
+                                    id="mileage-rate-input"
                                     name="mileage_rate"
                                     type="number"
-                                    step="0.01"
+                                    step="0.001"
                                     min="0"
                                     defaultValue={String(FEDERAL_MILEAGE_RATE)}
                                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                   />
+                                </div>
+                              </div>
+
+                              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                                <div className="flex items-center justify-between gap-4">
+                                  <div>
+                                    <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                                      Mileage Amount
+                                    </p>
+                                    <p
+                                      id="mileage-amount-helper"
+                                      className="mt-1 text-xs font-semibold text-slate-600"
+                                    >
+                                      Enter miles to calculate the mileage deduction amount.
+                                    </p>
+                                  </div>
+                                  <p
+                                    id="mileage-amount-output"
+                                    className="shrink-0 text-2xl font-black text-[#0B1F4D]"
+                                  >
+                                    $0.00
+                                  </p>
                                 </div>
                               </div>
 
