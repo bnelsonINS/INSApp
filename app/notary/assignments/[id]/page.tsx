@@ -3567,6 +3567,7 @@ Thank you for choosing Indiana Notary Solutions.
                   "<!doctype html>" +
                   "<html>" +
                   "<head>" +
+                  "<meta charset='utf-8' />" +
                   "<title>Signing Summary - " +
                   (source.getAttribute("data-control-number") || "Assignment") +
                   "</title>" +
@@ -3577,7 +3578,7 @@ Thank you for choosing Indiana Notary Solutions.
                   "</body>" +
                   "</html>";
 
-                var printBlob = new Blob([printHtml], { type: "text/html" });
+                var printBlob = new Blob([printHtml], { type: "text/html;charset=utf-8" });
                 var printUrl = URL.createObjectURL(printBlob);
                 var printWindow = window.open(printUrl, "_blank", "noopener,noreferrer,width=1100,height=900");
 
