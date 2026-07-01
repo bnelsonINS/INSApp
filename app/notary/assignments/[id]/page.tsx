@@ -4164,17 +4164,8 @@ Thank you for choosing Indiana Notary Solutions.
                     INS Pro Feature
                   </p>
                   <h3 className="mt-2 text-xl font-bold text-slate-950">
-                    Journal tools are visible, but locked until the notary
-                    upgrades.
+                    Please upgrade to use INS Pro features
                   </h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-700">
-                    This is where the upgrade modal will open. For development
-                    testing, set{" "}
-                    <span className="font-mono font-bold">
-                      NEXT_PUBLIC_INS_PRO_DEV_UNLOCK=true
-                    </span>{" "}
-                    in Vercel/local env.
-                  </p>
                   <button
                     type="button"
                     className="mt-4 rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
