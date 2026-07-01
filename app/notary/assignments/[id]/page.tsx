@@ -1779,6 +1779,7 @@ export default async function AssignmentDetailPage({
         notary_id: user.id,
         expense_date: expenseDate || new Date().toISOString().slice(0, 10),
         category: cleanCategory,
+        description: notes || vendor || cleanCategory,
         amount: cleanAmount,
         vendor: vendor || null,
         notes: notes || null,
