@@ -1747,6 +1747,7 @@ export default async function AssignmentDetailPage({
     const amount = Number(formData.get("expense_amount") ?? 0);
     const vendor = String(formData.get("expense_vendor") ?? "").trim();
     const notes = String(formData.get("expense_notes") ?? "").trim();
+    const receiptFile = formData.get("expense_receipt");
 
     if (!assignmentId || !Number.isFinite(amount) || amount <= 0) {
       redirect(`/notary/assignments/${assignmentId || id}#assignment-workspace`);
@@ -1796,6 +1797,84 @@ export default async function AssignmentDetailPage({
       redirect(
         `/notary/assignments/${assignmentId}?workspace=expenses&expense_error=${message}#assignment-workspace`,
       );
+    }
+
+    if (receiptFile instanceof File && receiptFile.size > 0) {
+      const allowedReceiptTypes = [
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/webp",
+      ];
+
+      if (!allowedReceiptTypes.includes(receiptFile.type)) {
+        const message = encodeURIComponent(
+          "Expense saved, but receipt must be a PDF, PNG, JPG, JPEG, or WEBP file.",
+        );
+        revalidatePath(`/notary/assignments/${assignmentId}`);
+        redirect(
+          `/notary/assignments/${assignmentId}?workspace=expenses&expense_error=${message}#assignment-workspace`,
+        );
+      }
+
+      const maxReceiptSizeBytes = 10 * 1024 * 1024;
+
+      if (receiptFile.size > maxReceiptSizeBytes) {
+        const message = encodeURIComponent(
+          "Expense saved, but receipt must be 10MB or smaller.",
+        );
+        revalidatePath(`/notary/assignments/${assignmentId}`);
+        redirect(
+          `/notary/assignments/${assignmentId}?workspace=expenses&expense_error=${message}#assignment-workspace`,
+        );
+      }
+
+      const fileExt = receiptFile.name.split(".").pop() || "receipt";
+      const receiptPath = `${user.id}/${assignmentId}/${insertedExpense.id}-${Date.now()}-${safeFileName(receiptFile.name || `receipt.${fileExt}`)}`;
+
+      const { error: receiptUploadError } = await supabaseAdmin.storage
+        .from("expense-receipts")
+        .upload(receiptPath, receiptFile, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: receiptFile.type || "application/octet-stream",
+        });
+
+      if (receiptUploadError) {
+        console.error("Expense receipt upload error:", receiptUploadError);
+        const message = encodeURIComponent(
+          `Expense saved, but receipt upload failed: ${receiptUploadError.message}`,
+        );
+        revalidatePath(`/notary/assignments/${assignmentId}`);
+        redirect(
+          `/notary/assignments/${assignmentId}?workspace=expenses&expense_error=${message}#assignment-workspace`,
+        );
+      }
+
+      const { error: receiptUpdateError } = await supabaseAdmin
+        .from("assignment_expenses")
+        .update({
+          receipt_file_path: receiptPath,
+          receipt_file_name: receiptFile.name || "Receipt",
+          receipt_mime_type: receiptFile.type || null,
+          receipt_size_bytes: receiptFile.size,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", insertedExpense.id)
+        .eq("assignment_id", assignmentId)
+        .eq("notary_id", user.id);
+
+      if (receiptUpdateError) {
+        console.error("Expense receipt save error:", receiptUpdateError);
+        const message = encodeURIComponent(
+          `Expense saved, but receipt metadata could not be attached: ${receiptUpdateError.message}`,
+        );
+        revalidatePath(`/notary/assignments/${assignmentId}`);
+        redirect(
+          `/notary/assignments/${assignmentId}?workspace=expenses&expense_error=${message}#assignment-workspace`,
+        );
+      }
     }
 
     if (invoiceId) {
@@ -1863,6 +1942,9 @@ export default async function AssignmentDetailPage({
         `Amount: ${formatMoney(cleanAmount)}`,
         vendor ? `Vendor: ${vendor}` : null,
         notes ? `Notes: ${notes}` : null,
+        receiptFile instanceof File && receiptFile.size > 0
+          ? `Receipt: ${receiptFile.name || "Attached"}`
+          : null,
       ]
         .filter(Boolean)
         .join("\n"),
@@ -1906,13 +1988,23 @@ export default async function AssignmentDetailPage({
       .eq("id", expenseId)
       .eq("assignment_id", assignmentId)
       .eq("notary_id", user.id)
-      .select("category, amount, vendor, notes")
+      .select("category, amount, vendor, notes, receipt_file_path, receipt_file_name")
       .maybeSingle();
 
     if (deleteExpenseError) {
       console.error("Expense delete error:", deleteExpenseError);
       revalidatePath(`/notary/assignments/${assignmentId}`);
       redirect(`/notary/assignments/${assignmentId}?workspace=expenses#assignment-workspace`);
+    }
+
+    if (deletedExpense?.receipt_file_path) {
+      const { error: receiptRemoveError } = await supabaseAdmin.storage
+        .from("expense-receipts")
+        .remove([String(deletedExpense.receipt_file_path)]);
+
+      if (receiptRemoveError) {
+        console.error("Expense receipt remove error:", receiptRemoveError);
+      }
     }
 
     if (invoiceId) {
@@ -1980,6 +2072,9 @@ export default async function AssignmentDetailPage({
         deletedExpense?.amount ? `Amount: ${formatMoney(deletedExpense.amount)}` : null,
         deletedExpense?.vendor ? `Vendor: ${deletedExpense.vendor}` : null,
         deletedExpense?.notes ? `Notes: ${deletedExpense.notes}` : null,
+        deletedExpense?.receipt_file_name
+          ? `Receipt Removed: ${deletedExpense.receipt_file_name}`
+          : null,
       ]
         .filter(Boolean)
         .join("\n"),
@@ -2875,7 +2970,26 @@ Thank you for choosing Indiana Notary Solutions.
 
   const invoiceItemRows = invoiceItems ?? [];
   const invoicePaymentRows = invoicePayments ?? [];
-  const invoiceExpenseRows = invoiceExpenses ?? [];
+  const invoiceExpenseRows = await Promise.all(
+    (invoiceExpenses ?? []).map(async (row: any) => {
+      if (!row.receipt_file_path) {
+        return { ...row, receiptSignedUrl: null };
+      }
+
+      const { data: receiptUrlData, error: receiptUrlError } = await supabaseAdmin.storage
+        .from("expense-receipts")
+        .createSignedUrl(String(row.receipt_file_path), 60 * 60);
+
+      if (receiptUrlError) {
+        console.error("Expense receipt signed URL error:", receiptUrlError);
+      }
+
+      return {
+        ...row,
+        receiptSignedUrl: receiptUrlData?.signedUrl ?? null,
+      };
+    }),
+  );
   const invoiceMileageRows = invoiceMileage ?? [];
   const notarialActRows = savedNotarialActs ?? [];
   const notarialActsTotalCount = notarialActRows.reduce(
@@ -4087,6 +4201,20 @@ Thank you for choosing Indiana Notary Solutions.
                                       {row.notes && (
                                         <p className="mt-1 break-words text-xs text-slate-500">{row.notes}</p>
                                       )}
+                                      {row.receiptSignedUrl ? (
+                                        <a
+                                          href={row.receiptSignedUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="mt-2 inline-flex rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 transition hover:bg-blue-100"
+                                        >
+                                          View Receipt
+                                        </a>
+                                      ) : row.receipt_file_name ? (
+                                        <p className="mt-2 text-xs font-semibold text-amber-700">
+                                          Receipt attached, but preview link is unavailable.
+                                        </p>
+                                      ) : null}
                                     </div>
 
                                     <p className="font-black text-slate-950 md:text-right">
@@ -4126,7 +4254,7 @@ Thank you for choosing Indiana Notary Solutions.
                               </div>
                             )}
 
-                            <form action={saveExpenseEntry} className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <form action={saveExpenseEntry} encType="multipart/form-data" className="mt-4 grid gap-3 sm:grid-cols-2">
                               <input type="hidden" name="assignment_id" value={assignment.id} />
                               <input type="hidden" name="invoice_id" value={assignmentInvoice?.id ?? ""} />
 
@@ -4199,8 +4327,17 @@ Thank you for choosing Indiana Notary Solutions.
                                 />
                               </div>
 
-                              <div className="sm:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
-                                Receipt upload is intentionally left as a later step. This saves the expense data now without risking a storage/schema mismatch.
+                              <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-white p-4">
+                                <label className="block text-sm font-bold text-slate-700">Receipt</label>
+                                <input
+                                  type="file"
+                                  name="expense_receipt"
+                                  accept="application/pdf,image/png,image/jpeg,image/jpg,image/webp"
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-sm file:font-bold file:text-blue-700 hover:file:bg-blue-100 focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                />
+                                <p className="mt-2 text-xs font-semibold text-slate-500">
+                                  Attach a PDF or image receipt. Max 10MB. The receipt saves with this expense entry.
+                                </p>
                               </div>
 
                               <div className="sm:col-span-2 flex justify-end gap-3 border-t border-slate-200 pt-4">
