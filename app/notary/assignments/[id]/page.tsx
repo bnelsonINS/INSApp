@@ -3432,8 +3432,9 @@ Thank you for choosing Indiana Notary Solutions.
                 return;
               }
 
-              if (target.id === "invoice-use-balance-button") {
-                var amountInput = document.getElementById("invoice-payment-amount");
+              if (target.id === "invoice-use-balance-button" || target.hasAttribute("data-use-balance-target")) {
+                var amountTargetId = target.getAttribute("data-use-balance-target") || "invoice-payment-amount";
+                var amountInput = document.getElementById(amountTargetId);
                 if (!amountInput) return;
 
                 amountInput.value = target.getAttribute("data-balance") || "0.00";
@@ -3967,6 +3968,18 @@ Thank you for choosing Indiana Notary Solutions.
                     );
                   }
 
+                  if (tab === "Payments") {
+                    return (
+                      <label
+                        key={tab}
+                        htmlFor="payments-workspace-modal"
+                        className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-[#0B1F4D] px-3 py-2 text-center text-sm font-bold leading-tight text-white ring-1 ring-[#0B1F4D] transition hover:bg-blue-950 md:shrink-0 md:px-4"
+                      >
+                        {tab}
+                      </label>
+                    );
+                  }
+
                   return (
                     <span
                       key={tab}
@@ -4036,6 +4049,12 @@ Thank you for choosing Indiana Notary Solutions.
                     type="checkbox"
                     defaultChecked={activeWorkspace === "expenses"}
                     className="peer/expenses sr-only"
+                  />
+
+                  <input
+                    id="payments-workspace-modal"
+                    type="checkbox"
+                    className="peer/payments sr-only"
                   />
 
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -4808,6 +4827,251 @@ Thank you for choosing Indiana Notary Solutions.
                             <input type="hidden" name="mileage_id" value={String(row.id)} />
                           </form>
                         ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/payments:flex sm:items-center">
+                    <div className="w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                      <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] px-5 py-4 text-white">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <h4 className="text-lg font-bold">Payments</h4>
+                            <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white">
+                              {formatMoney(invoicePaymentsTotal)} paid
+                            </span>
+                            <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white">
+                              Balance {formatMoney(invoiceBalanceDue)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-white/90">
+                            Record invoice payments without opening the full invoice workspace.
+                          </p>
+                        </div>
+
+                        <label
+                          htmlFor="payments-workspace-modal"
+                          className="cursor-pointer rounded-xl border border-white/60 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+                        >
+                          Cancel
+                        </label>
+                      </div>
+
+                      <div className="max-h-[82vh] overflow-y-auto p-5">
+                        <div className="mb-5 grid gap-4 md:grid-cols-3">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Invoice Total</p>
+                            <p className="mt-2 text-lg font-black text-slate-950">{formatMoney(invoiceTotalDue)}</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Total Payments</p>
+                            <p className="mt-2 text-lg font-black text-green-700">{formatMoney(invoicePaymentsTotal)}</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Balance Due</p>
+                            <p className="mt-2 text-lg font-black text-[#0B1F4D]">{formatMoney(invoiceBalanceDue)}</p>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
+                          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                            <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                              <h5 className="font-black text-slate-950">Payment History</h5>
+                              <p className="text-xs text-slate-500">Payments entered here also show on the invoice.</p>
+                            </div>
+
+                            {invoicePaymentRows.length === 0 ? (
+                              <div className="p-5 text-sm text-slate-500">
+                                No payments have been recorded yet.
+                              </div>
+                            ) : (
+                              <div className="divide-y divide-slate-200">
+                                {invoicePaymentRows.map((payment) => (
+                                  <div
+                                    key={`payment-workspace-${payment.id}`}
+                                    data-payment-container={String(payment.id)}
+                                    className="grid gap-3 px-4 py-4 text-sm transition-opacity md:grid-cols-[130px_minmax(0,1fr)_120px_120px]"
+                                  >
+                                    <div>
+                                      <p className="font-bold text-slate-950">{formatInputDate(payment.payment_date)}</p>
+                                      <p className="text-xs text-slate-500">{payment.payment_method || "Payment"}</p>
+                                    </div>
+
+                                    <div className="min-w-0">
+                                      <p className="break-words font-semibold text-slate-700">
+                                        {payment.reference ? `Reference: ${payment.reference}` : "Invoice payment"}
+                                      </p>
+                                      {payment.notes && (
+                                        <p className="mt-1 break-words text-xs text-slate-500">{payment.notes}</p>
+                                      )}
+                                    </div>
+
+                                    <p className="font-black text-green-700 md:text-right">
+                                      {formatMoney(payment.amount)}
+                                    </p>
+
+                                    <button
+                                      type="submit"
+                                      form={`delete-invoice-payment-${payment.id}`}
+                                      data-busy-text="Removing..."
+                                      data-busy-payment-id={String(payment.id)}
+                                      className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-70"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </section>
+
+                          <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <h5 className="text-lg font-black text-slate-950">New Payment</h5>
+                            <p className="mt-1 text-sm text-slate-500">
+                              Use Balance fills the unpaid amount. The dots let you pick a saved payment type.
+                            </p>
+
+                            <form id="payments-workspace-payment-form" action={addInvoicePayment} className="mt-5 space-y-4">
+                              <input type="hidden" name="assignment_id" value={assignment.id} />
+                              <input type="hidden" name="invoice_id" value={assignmentInvoice?.id ?? ""} />
+
+                              <div className="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                  <label className="block text-sm font-bold text-slate-700">Date Rec&apos;d</label>
+                                  <input
+                                    type="date"
+                                    name="payment_date"
+                                    defaultValue={todayForInvoice}
+                                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-bold text-slate-700">Amount</label>
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <input
+                                      id="payments-workspace-payment-amount"
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      name="payment_amount"
+                                      defaultValue={invoiceBalanceDue > 0 ? String(invoiceBalanceDue.toFixed(2)) : ""}
+                                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                    />
+                                    <button
+                                      type="button"
+                                      data-use-balance-target="payments-workspace-payment-amount"
+                                      data-balance={invoiceBalanceDue > 0 ? invoiceBalanceDue.toFixed(2) : "0.00"}
+                                      className="shrink-0 rounded-lg px-2 py-1 text-sm font-bold text-blue-600 transition hover:bg-blue-50 hover:text-blue-700"
+                                    >
+                                      Use Bal
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700">Payment Type</label>
+                                <div className="mt-2 flex items-center gap-2">
+                                  <input
+                                    name="payment_method"
+                                    defaultValue="ACH"
+                                    placeholder="ACH, Check, Cash..."
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                  />
+
+                                  <input
+                                    id="payments-workspace-payment-type-modal"
+                                    type="checkbox"
+                                    className="peer/workspace-paytype sr-only"
+                                  />
+
+                                  <label
+                                    htmlFor="payments-workspace-payment-type-modal"
+                                    className="inline-flex h-11 w-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-300 bg-white text-xl font-black text-slate-500 transition hover:bg-slate-50"
+                                    aria-label="Open payment type list"
+                                  >
+                                    …
+                                  </label>
+
+                                  <div className="fixed inset-0 z-[70] hidden items-start justify-center overflow-y-auto bg-black/60 p-4 peer-checked/workspace-paytype:flex sm:items-center">
+                                    <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                                      <div className="flex items-center justify-between border-b border-slate-200 bg-[#5BC0EB] px-5 py-4 text-white">
+                                        <h6 className="text-lg font-bold">Favorite Payment Types</h6>
+                                        <label
+                                          htmlFor="payments-workspace-payment-type-modal"
+                                          className="cursor-pointer text-3xl font-black leading-none"
+                                          aria-label="Close payment type list"
+                                        >
+                                          ×
+                                        </label>
+                                      </div>
+
+                                      <div className="p-5">
+                                        <div className="mx-auto max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                                          {["ACH", "Cash", "Check", "Credit Card", "E-Check"].map((method) => (
+                                            <label
+                                              key={`payments-workspace-method-${method}`}
+                                              className="flex cursor-pointer items-center justify-between border-b border-slate-200 px-5 py-4 text-sm font-bold text-slate-800 last:border-b-0 hover:bg-slate-50"
+                                            >
+                                              <span>{method}</span>
+                                              <input
+                                                type="radio"
+                                                name="payment_method_choice"
+                                                value={method}
+                                                form="payments-workspace-payment-form"
+                                                className="h-4 w-4 text-[#0B1F4D] focus:ring-[#0B1F4D]"
+                                              />
+                                            </label>
+                                          ))}
+                                        </div>
+
+                                        <p className="mt-4 text-center text-xs text-slate-500">
+                                          Pick one here, or type your own method in the field behind this popup.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700">Check / Ref #</label>
+                                <input
+                                  name="payment_reference"
+                                  placeholder="Check #, ACH trace, etc."
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700">Notes</label>
+                                <textarea
+                                  name="payment_notes"
+                                  rows={3}
+                                  placeholder="Optional notes..."
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                                />
+                              </div>
+
+                              <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
+                                <label
+                                  htmlFor="payments-workspace-modal"
+                                  className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                  Cancel
+                                </label>
+
+                                <SubmitButton
+                                  pendingText="Saving payment..."
+                                  className="rounded-xl bg-[#0B1F4D] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                                >
+                                  Save Payment
+                                </SubmitButton>
+                              </div>
+                            </form>
+                          </aside>
+                        </div>
                       </div>
                     </div>
                   </div>
