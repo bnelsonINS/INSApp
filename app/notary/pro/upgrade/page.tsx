@@ -56,7 +56,7 @@ Many full-time signing agents recover far more in tax deductions than the cost o
             </p>
 
             <div className="mt-4 flex items-end gap-2">
-              <span className="text-6xl font-bold">$14.99</span>
+              <span className="text-6xl font-bold text-slate-900">$14.99</span>
               <span className="mb-2 text-slate-500">/month</span>
             </div>
 
@@ -82,7 +82,7 @@ Many full-time signing agents recover far more in tax deductions than the cost o
 
         <div className="mt-10 rounded-2xl border bg-white p-8 shadow-sm">
 
-          <h2 className="text-2xl font-bold">
+          <h2 className="text-2xl font-bold text-slate-900">
             Why INS Pro?
           </h2>
 
