@@ -2707,7 +2707,7 @@ Thank you for choosing Indiana Notary Solutions.
   const canMarkScanbacksComplete =
     showUploadDocuments && documentsWithUrls.length > 0;
 
-  const devUnlockInsPro = process.env.NEXT_PUBLIC_INS_PRO_DEV_UNLOCK === "false";
+  const devUnlockInsPro = process.env.NEXT_PUBLIC_INS_PRO_DEV_UNLOCK === "true";
 
   const userEmail = String(user.email ?? "").toLowerCase();
 
