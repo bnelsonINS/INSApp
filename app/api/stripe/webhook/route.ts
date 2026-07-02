@@ -17,6 +17,22 @@ type SubscriptionStatus =
   | "paused"
   | string;
 
+type StripeSubscriptionWithItems = Stripe.Subscription & {
+  items?: {
+    data?: Array<{
+      price?: {
+        id?: string | null;
+      } | null;
+      current_period_start?: number | null;
+      current_period_end?: number | null;
+    }>;
+  };
+};
+
+type StripeInvoiceWithSubscription = Stripe.Invoice & {
+  subscription?: string | { id?: string | null } | null;
+};
+
 function stripeSecretKey() {
   const value = process.env.STRIPE_SECRET_KEY;
   if (!value) throw new Error("STRIPE_SECRET_KEY is missing.");
@@ -48,32 +64,40 @@ function subscriptionPlanAndStatus(status: SubscriptionStatus) {
   return { plan: "free", status: "inactive" };
 }
 
-async function upsertNotarySubscriptionFromStripeSubscription(
-  stripe: Stripe,
-  subscriptionId: string,
+function getSubscriptionIdFromValue(value: unknown) {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && "id" in value) {
+    const id = (value as { id?: unknown }).id;
+    return typeof id === "string" ? id : null;
+  }
+  return null;
+}
+
+async function upsertNotarySubscriptionFromSubscription(
+  subscription: StripeSubscriptionWithItems,
   fallbackNotaryId?: string | null,
 ) {
-  const subscription = (await stripe.subscriptions.retrieve(subscriptionId, {
-    expand: ["customer", "items.data.price"],
-  })) as Stripe.Subscription & {
-    current_period_start?: number;
-    current_period_end?: number;
-  };
-
   const notaryId = String(
     subscription.metadata?.notary_id || fallbackNotaryId || "",
   ).trim();
 
   if (!notaryId) {
-    console.error("Stripe subscription missing notary_id metadata:", subscriptionId);
+    console.error("Stripe subscription missing notary_id metadata:", {
+      subscription_id: subscription.id,
+      metadata: subscription.metadata,
+      fallbackNotaryId,
+    });
     return;
   }
 
-  const priceId = subscription.items.data[0]?.price?.id || null;
+  const subscriptionItem = subscription.items?.data?.[0];
+  const priceId = subscriptionItem?.price?.id || null;
+
   const customerId =
     typeof subscription.customer === "string"
       ? subscription.customer
       : subscription.customer?.id || null;
+
   const { plan, status } = subscriptionPlanAndStatus(subscription.status);
 
   const payload = {
@@ -82,21 +106,43 @@ async function upsertNotarySubscriptionFromStripeSubscription(
     status,
     stripe_customer_id: customerId,
     stripe_subscription_id: subscription.id,
-    stripe_price_id: priceId,
-    current_period_start: normalizeStripeTime(subscription.current_period_start),
-    current_period_end: normalizeStripeTime(subscription.current_period_end),
-    cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+    current_period_end: normalizeStripeTime(subscriptionItem?.current_period_end),
     updated_at: new Date().toISOString(),
   };
+
+  console.log("Upserting notary subscription from Stripe:", {
+    notary_id: notaryId,
+    plan,
+    status,
+    stripe_customer_id: customerId,
+    stripe_subscription_id: subscription.id,
+    stripe_price_id: priceId,
+    current_period_end: payload.current_period_end,
+  });
 
   const { error } = await supabaseAdmin
     .from("notary_subscriptions")
     .upsert(payload, { onConflict: "notary_id" });
 
   if (error) {
-    console.error("notary_subscriptions upsert error:", error);
+    console.error(
+      "notary_subscriptions upsert error:",
+      JSON.stringify(error, null, 2),
+    );
     throw error;
   }
+}
+
+async function upsertNotarySubscriptionFromStripeSubscription(
+  stripe: Stripe,
+  subscriptionId: string,
+  fallbackNotaryId?: string | null,
+) {
+  const subscription = (await stripe.subscriptions.retrieve(subscriptionId, {
+    expand: ["customer", "items.data.price"],
+  })) as StripeSubscriptionWithItems;
+
+  await upsertNotarySubscriptionFromSubscription(subscription, fallbackNotaryId);
 }
 
 async function markSubscriptionInactiveBySubscriptionId(subscriptionId: string) {
@@ -105,13 +151,15 @@ async function markSubscriptionInactiveBySubscriptionId(subscriptionId: string) 
     .update({
       plan: "free",
       status: "inactive",
-      cancel_at_period_end: false,
       updated_at: new Date().toISOString(),
     })
     .eq("stripe_subscription_id", subscriptionId);
 
   if (error) {
-    console.error("notary_subscriptions inactive update error:", error);
+    console.error(
+      "notary_subscriptions inactive update error:",
+      JSON.stringify(error, null, 2),
+    );
     throw error;
   }
 }
@@ -144,55 +192,54 @@ export async function POST(request: Request) {
   try {
     switch (event.type) {
       case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session & {
-          subscription?: string | { id?: string } | null;
-        };
+        const session = event.data.object as Stripe.Checkout.Session;
 
-        const subscriptionId =
-          typeof session.subscription === "string"
-            ? session.subscription
-            : session.subscription?.id;
+        const subscriptionId = getSubscriptionIdFromValue(session.subscription);
 
-        if (subscriptionId) {
-          await upsertNotarySubscriptionFromStripeSubscription(
-            stripe,
-            subscriptionId,
-            session.metadata?.notary_id || session.client_reference_id || null,
-          );
+        if (!subscriptionId) {
+          console.error("Checkout session completed without subscription ID:", {
+            session_id: session.id,
+            metadata: session.metadata,
+            client_reference_id: session.client_reference_id,
+          });
+          break;
         }
+
+        await upsertNotarySubscriptionFromStripeSubscription(
+          stripe,
+          subscriptionId,
+          session.metadata?.notary_id || session.client_reference_id || null,
+        );
 
         break;
       }
 
       case "customer.subscription.created":
       case "customer.subscription.updated": {
-        const subscription = event.data.object as Stripe.Subscription;
-        await upsertNotarySubscriptionFromStripeSubscription(
-          stripe,
-          subscription.id,
+        const subscription = event.data.object as StripeSubscriptionWithItems;
+
+        await upsertNotarySubscriptionFromSubscription(
+          subscription,
           subscription.metadata?.notary_id || null,
         );
+
         break;
       }
 
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
+
         await markSubscriptionInactiveBySubscriptionId(subscription.id);
+
         break;
       }
 
       case "invoice.payment_failed": {
-        const invoice = event.data.object as Stripe.Invoice & {
-          subscription?: string | { id?: string } | null;
-        };
-
-        const subscriptionId =
-          typeof invoice.subscription === "string"
-            ? invoice.subscription
-            : invoice.subscription?.id;
+        const invoice = event.data.object as StripeInvoiceWithSubscription;
+        const subscriptionId = getSubscriptionIdFromValue(invoice.subscription);
 
         if (subscriptionId) {
-          await supabaseAdmin
+          const { error } = await supabaseAdmin
             .from("notary_subscriptions")
             .update({
               plan: "pro",
@@ -200,6 +247,14 @@ export async function POST(request: Request) {
               updated_at: new Date().toISOString(),
             })
             .eq("stripe_subscription_id", subscriptionId);
+
+          if (error) {
+            console.error(
+              "notary_subscriptions past_due update error:",
+              JSON.stringify(error, null, 2),
+            );
+            throw error;
+          }
         }
 
         break;
