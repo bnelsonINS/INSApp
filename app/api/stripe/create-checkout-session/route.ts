@@ -43,21 +43,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
-    const { data: profile } = await supabaseAdmin
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("id, email, full_name, role")
       .eq("id", user.id)
       .maybeSingle();
 
+    if (profileError) {
+      console.error("INS Pro checkout profile lookup error:", profileError);
+      return NextResponse.json(
+        { error: "Unable to load profile for checkout." },
+        { status: 500 }
+      );
+    }
+
     if (!profile) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
-    const { data: existingSubscription } = await supabaseAdmin
-      .from("notary_subscriptions")
-      .select("plan, status, stripe_customer_id")
-      .eq("notary_id", user.id)
-      .maybeSingle();
+    const { data: existingSubscription, error: subscriptionError } =
+      await supabaseAdmin
+        .from("notary_subscriptions")
+        .select("plan, status, stripe_customer_id")
+        .eq("notary_id", user.id)
+        .maybeSingle();
+
+    if (subscriptionError) {
+      console.error(
+        "INS Pro checkout subscription lookup error:",
+        subscriptionError
+      );
+      return NextResponse.json(
+        { error: "Unable to load subscription for checkout." },
+        { status: 500 }
+      );
+    }
 
     const isAlreadyPro =
       existingSubscription?.plan === "pro" &&
@@ -72,8 +92,17 @@ export async function POST(request: NextRequest) {
     const stripe = new Stripe(stripeSecretKey);
     const baseUrl = getBaseUrl();
 
-    const notaryId = user.id;
-    const email = profile.email || user.email || "";
+    const notaryId = String(user.id);
+    const email = String(profile.email || user.email || "");
+    const source = "ins_pro_upgrade";
+
+    const metadata = {
+      notary_id: notaryId,
+      email,
+      source,
+    };
+
+    console.log("Creating INS Pro checkout session:", metadata);
 
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -94,6 +123,8 @@ export async function POST(request: NextRequest) {
         ? undefined
         : email || undefined,
 
+      client_reference_id: notaryId,
+
       line_items: [
         {
           price: priceId,
@@ -101,20 +132,10 @@ export async function POST(request: NextRequest) {
         },
       ],
 
-      client_reference_id: notaryId,
-
-      metadata: {
-        notary_id: notaryId,
-        email,
-        source: "ins_pro_upgrade",
-      },
+      metadata,
 
       subscription_data: {
-        metadata: {
-          notary_id: notaryId,
-          email,
-          source: "ins_pro_upgrade",
-        },
+        metadata,
       },
 
       success_url: `${baseUrl}/notary/pro/success?session_id={CHECKOUT_SESSION_ID}`,
