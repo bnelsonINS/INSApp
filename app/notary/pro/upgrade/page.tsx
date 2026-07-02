@@ -60,7 +60,7 @@ Many full-time signing agents recover far more in tax deductions than the cost o
             </p>
 
             <div className="mt-4 flex items-end gap-2">
-              <span className="text-6xl font-bold text-slate-900">$10.99</span>
+              <span className="text-6xl font-bold text-slate-900">$10</span>
               <span className="mb-2 text-slate-500">/month</span>
             </div>
 
