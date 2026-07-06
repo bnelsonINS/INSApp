@@ -162,7 +162,11 @@ function startOfQuarter(date: Date) {
 }
 
 function endOfQuarter(date: Date) {
-  return new Date(date.getFullYear(), Math.floor(date.getMonth() / 3) * 3 + 3, 0);
+  return new Date(
+    date.getFullYear(),
+    Math.floor(date.getMonth() / 3) * 3 + 3,
+    0,
+  );
 }
 
 function getDateRange(params: SearchParams) {
@@ -182,13 +186,23 @@ function getDateRange(params: SearchParams) {
   if (range === "this_month") {
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
     const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return { label: "This Month", start: inputDate(start), end: inputDate(end), range };
+    return {
+      label: "This Month",
+      start: inputDate(start),
+      end: inputDate(end),
+      range,
+    };
   }
 
   if (range === "last_month") {
     const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const end = new Date(now.getFullYear(), now.getMonth(), 0);
-    return { label: "Last Month", start: inputDate(start), end: inputDate(end), range };
+    return {
+      label: "Last Month",
+      start: inputDate(start),
+      end: inputDate(end),
+      range,
+    };
   }
 
   if (range === "this_quarter") {
@@ -220,7 +234,12 @@ function getDateRange(params: SearchParams) {
   }
 
   if (range === "all") {
-    return { label: "All Dates", start: "1900-01-01", end: "2999-12-31", range };
+    return {
+      label: "All Dates",
+      start: "1900-01-01",
+      end: "2999-12-31",
+      range,
+    };
   }
 
   return {
@@ -261,19 +280,30 @@ function assignmentTitle(assignment: AssignmentRow | null | undefined) {
 
 function assignmentLocation(assignment: AssignmentRow | null | undefined) {
   if (!assignment) return "—";
-  return [
-    assignment.signing_address,
-    [assignment.signing_city, assignment.signing_state ?? "IN", assignment.signing_zip]
+  return (
+    [
+      assignment.signing_address,
+      [
+        assignment.signing_city,
+        assignment.signing_state ?? "IN",
+        assignment.signing_zip,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    ]
       .filter(Boolean)
-      .join(" "),
-  ]
-    .filter(Boolean)
-    .join(", ") || "—";
+      .join(", ") || "—"
+  );
 }
 
 function assignmentType(assignment: AssignmentRow | null | undefined) {
   if (!assignment) return "Other";
-  return assignment.signing_type || assignment.product_type || assignment.loan_type || "Other";
+  return (
+    assignment.signing_type ||
+    assignment.product_type ||
+    assignment.loan_type ||
+    "Other"
+  );
 }
 
 function assignmentCounty(assignment: AssignmentRow | null | undefined) {
@@ -291,8 +321,10 @@ function statusPill(status: string | null | undefined) {
 
   if (normalized === "paid") return "bg-green-50 text-green-700 ring-green-200";
   if (normalized === "overdue") return "bg-red-50 text-red-700 ring-red-200";
-  if (normalized === "unpaid" || normalized === "sent") return "bg-amber-50 text-amber-700 ring-amber-200";
-  if (normalized === "not_required") return "bg-slate-50 text-slate-700 ring-slate-200";
+  if (normalized === "unpaid" || normalized === "sent")
+    return "bg-amber-50 text-amber-700 ring-amber-200";
+  if (normalized === "not_required")
+    return "bg-slate-50 text-slate-700 ring-slate-200";
 
   return "bg-blue-50 text-blue-700 ring-blue-200";
 }
@@ -302,7 +334,10 @@ function Bar({ value, max }: { value: number; max: number }) {
 
   return (
     <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-      <div className="h-full rounded-full bg-[#0B1F4D]" style={{ width: `${width}%` }} />
+      <div
+        className="h-full rounded-full bg-[#0B1F4D]"
+        style={{ width: `${width}%` }}
+      />
     </div>
   );
 }
@@ -355,29 +390,41 @@ export default async function ReportsPage({
   let assignments = (assignmentsData ?? []) as AssignmentRow[];
 
   if (selectedClient !== "all") {
-    assignments = assignments.filter((assignment) => assignment.client_id === selectedClient);
+    assignments = assignments.filter(
+      (assignment) => assignment.client_id === selectedClient,
+    );
   }
 
   if (selectedStatus !== "all") {
     assignments = assignments.filter(
-      (assignment) => String(assignment.status ?? "").toLowerCase() === selectedStatus,
+      (assignment) =>
+        String(assignment.status ?? "").toLowerCase() === selectedStatus,
     );
   }
 
   const assignmentIds = assignments.map((assignment) => assignment.id);
   const clientIds = Array.from(
-    new Set(assignments.map((assignment) => assignment.client_id).filter(Boolean) as string[]),
+    new Set(
+      assignments
+        .map((assignment) => assignment.client_id)
+        .filter(Boolean) as string[],
+    ),
   );
 
   const { data: allClientProfiles } = clientIds.length
     ? await supabaseAdmin
         .from("profiles")
-        .select("id, full_name, email, company_name, business_name, company, organization_name")
+        .select(
+          "id, full_name, email, company_name, business_name, company, organization_name",
+        )
         .in("id", clientIds)
     : { data: [] };
 
   const clientById = new Map<string, ProfileRow>(
-    ((allClientProfiles ?? []) as ProfileRow[]).map((profile) => [profile.id, profile]),
+    ((allClientProfiles ?? []) as ProfileRow[]).map((profile) => [
+      profile.id,
+      profile,
+    ]),
   );
 
   const assignmentById = new Map<string, AssignmentRow>(
@@ -397,9 +444,12 @@ export default async function ReportsPage({
   }
 
   const invoices = ((allInvoices ?? []) as InvoiceRow[]).filter((invoice) => {
-    if (!invoice.assignment_id || !assignmentById.has(invoice.assignment_id)) return false;
+    if (!invoice.assignment_id || !assignmentById.has(invoice.assignment_id))
+      return false;
     const invoiceDate = String(invoice.invoice_date ?? "").slice(0, 10);
-    return invoiceDate >= selectedRange.start && invoiceDate <= selectedRange.end;
+    return (
+      invoiceDate >= selectedRange.start && invoiceDate <= selectedRange.end
+    );
   });
 
   const { data: expensesData, error: expensesError } = assignmentIds.length
@@ -470,16 +520,17 @@ export default async function ReportsPage({
 
   const journalEntries = (journalData ?? []) as JournalEntryRow[];
 
-  const { data: notarialActsData, error: notarialActsError } = assignmentIds.length
-    ? await supabaseAdmin
-        .from("assignment_notarial_acts")
-        .select("*")
-        .eq("notary_id", user.id)
-        .in("assignment_id", assignmentIds)
-        .gte("act_date", selectedRange.start)
-        .lte("act_date", selectedRange.end)
-        .order("act_date", { ascending: false })
-    : { data: [], error: null };
+  const { data: notarialActsData, error: notarialActsError } =
+    assignmentIds.length
+      ? await supabaseAdmin
+          .from("assignment_notarial_acts")
+          .select("*")
+          .eq("notary_id", user.id)
+          .in("assignment_id", assignmentIds)
+          .gte("act_date", selectedRange.start)
+          .lte("act_date", selectedRange.end)
+          .order("act_date", { ascending: false })
+      : { data: [], error: null };
 
   if (notarialActsError) {
     console.error("Reports notarial acts lookup error:", notarialActsError);
@@ -487,22 +538,48 @@ export default async function ReportsPage({
 
   const notarialActs = (notarialActsData ?? []) as NotarialActRow[];
 
-  const totalInvoiced = invoices.reduce((sum, row) => sum + numberValue(row.subtotal), 0);
-  const totalPaid = invoices.reduce((sum, row) => sum + numberValue(row.payments_total), 0);
-  const totalBalance = invoices.reduce((sum, row) => sum + numberValue(row.balance_due), 0);
-  const totalExpenses = expenses.reduce((sum, row) => sum + numberValue(row.amount), 0);
-  const totalMiles = mileage.reduce((sum, row) => sum + numberValue(row.miles), 0);
+  const totalInvoiced = invoices.reduce(
+    (sum, row) => sum + numberValue(row.subtotal),
+    0,
+  );
+  const totalPaid = invoices.reduce(
+    (sum, row) => sum + numberValue(row.payments_total),
+    0,
+  );
+  const totalBalance = invoices.reduce(
+    (sum, row) => sum + numberValue(row.balance_due),
+    0,
+  );
+  const totalExpenses = expenses.reduce(
+    (sum, row) => sum + numberValue(row.amount),
+    0,
+  );
+  const totalMiles = mileage.reduce(
+    (sum, row) => sum + numberValue(row.miles),
+    0,
+  );
   const totalMileageDeduction = mileage.reduce((sum, row) => {
     const storedAmount = numberValue(row.amount);
     if (storedAmount > 0) return sum + storedAmount;
-    return sum + numberValue(row.miles) * numberValue(row.rate || FEDERAL_MILEAGE_RATE);
+    return (
+      sum +
+      numberValue(row.miles) * numberValue(row.rate || FEDERAL_MILEAGE_RATE)
+    );
   }, 0);
-  const totalNotarialActs = notarialActs.reduce((sum, row) => sum + numberValue(row.acts_count), 0);
-  const totalNotarialFees = notarialActs.reduce((sum, row) => sum + numberValue(row.amount), 0);
+  const totalNotarialActs = notarialActs.reduce(
+    (sum, row) => sum + numberValue(row.acts_count),
+    0,
+  );
+  const totalNotarialFees = notarialActs.reduce(
+    (sum, row) => sum + numberValue(row.amount),
+    0,
+  );
   const netIncome = totalInvoiced - totalExpenses - totalMileageDeduction;
 
   const completedAssignments = assignments.filter((assignment) =>
-    ["closed", "signing complete"].includes(String(assignment.status ?? "").toLowerCase()),
+    ["closed", "signing complete"].includes(
+      String(assignment.status ?? "").toLowerCase(),
+    ),
   );
   const cancelledAssignments = assignments.filter((assignment) =>
     ["cancelled", "canceled", "did not sign"].includes(
@@ -514,31 +591,56 @@ export default async function ReportsPage({
   const overdueInvoices = invoices.filter((invoice) => {
     const balance = numberValue(invoice.balance_due);
     const status = String(invoice.status ?? "").toLowerCase();
-    return balance > 0 && invoice.due_date && invoice.due_date < today && status !== "paid";
+    return (
+      balance > 0 &&
+      invoice.due_date &&
+      invoice.due_date < today &&
+      status !== "paid"
+    );
   });
 
   const categoryTotals = new Map<string, number>();
   for (const expense of expenses) {
     const category = expense.category || "Misc.";
-    categoryTotals.set(category, (categoryTotals.get(category) ?? 0) + numberValue(expense.amount));
+    categoryTotals.set(
+      category,
+      (categoryTotals.get(category) ?? 0) + numberValue(expense.amount),
+    );
   }
-  categoryTotals.set("Mileage - Personal Auto", (categoryTotals.get("Mileage - Personal Auto") ?? 0) + totalMileageDeduction);
+  categoryTotals.set(
+    "Mileage - Personal Auto",
+    (categoryTotals.get("Mileage - Personal Auto") ?? 0) +
+      totalMileageDeduction,
+  );
 
   const categoryRows = Array.from(categoryTotals.entries())
     .map(([category, amount]) => ({ category, amount }))
     .sort((a, b) => b.amount - a.amount);
 
-  const maxCategoryAmount = Math.max(...categoryRows.map((row) => row.amount), 0);
+  const maxCategoryAmount = Math.max(
+    ...categoryRows.map((row) => row.amount),
+    0,
+  );
 
   const clientTotals = new Map<
     string,
-    { name: string; orders: number; income: number; paid: number; balance: number; expenses: number; miles: number }
+    {
+      name: string;
+      orders: number;
+      income: number;
+      paid: number;
+      balance: number;
+      expenses: number;
+      miles: number;
+    }
   >();
 
   for (const assignment of assignments) {
     const key = assignment.client_id || "unknown";
     const existing = clientTotals.get(key) ?? {
-      name: assignment.client_id ? clientName(clientById.get(assignment.client_id)) : "No Client Listed",
+      name: assignment.client_id
+        ? clientName(clientById.get(assignment.client_id))
+        : "No Client Listed",
       orders: 0,
       income: 0,
       paid: 0,
@@ -552,10 +654,14 @@ export default async function ReportsPage({
   }
 
   for (const invoice of invoices) {
-    const assignment = invoice.assignment_id ? assignmentById.get(invoice.assignment_id) : null;
+    const assignment = invoice.assignment_id
+      ? assignmentById.get(invoice.assignment_id)
+      : null;
     const key = assignment?.client_id || "unknown";
     const existing = clientTotals.get(key) ?? {
-      name: assignment?.client_id ? clientName(clientById.get(assignment.client_id)) : "No Client Listed",
+      name: assignment?.client_id
+        ? clientName(clientById.get(assignment.client_id))
+        : "No Client Listed",
       orders: 0,
       income: 0,
       paid: 0,
@@ -571,20 +677,26 @@ export default async function ReportsPage({
   }
 
   for (const expense of expenses) {
-    const assignment = expense.assignment_id ? assignmentById.get(expense.assignment_id) : null;
+    const assignment = expense.assignment_id
+      ? assignmentById.get(expense.assignment_id)
+      : null;
     const key = assignment?.client_id || "unknown";
     const existing = clientTotals.get(key);
     if (existing) existing.expenses += numberValue(expense.amount);
   }
 
   for (const row of mileage) {
-    const assignment = row.assignment_id ? assignmentById.get(row.assignment_id) : null;
+    const assignment = row.assignment_id
+      ? assignmentById.get(row.assignment_id)
+      : null;
     const key = assignment?.client_id || "unknown";
     const existing = clientTotals.get(key);
     if (existing) existing.miles += numberValue(row.miles);
   }
 
-  const clientRows = Array.from(clientTotals.values()).sort((a, b) => b.income - a.income);
+  const clientRows = Array.from(clientTotals.values()).sort(
+    (a, b) => b.income - a.income,
+  );
   const maxClientIncome = Math.max(...clientRows.map((row) => row.income), 0);
 
   const typeTotals = new Map<string, { count: number; income: number }>();
@@ -601,7 +713,10 @@ export default async function ReportsPage({
     .map(([type, values]) => ({ type, ...values }))
     .sort((a, b) => b.count - a.count);
 
-  const countyTotals = new Map<string, { count: number; income: number; miles: number }>();
+  const countyTotals = new Map<
+    string,
+    { count: number; income: number; miles: number }
+  >();
   for (const assignment of assignments) {
     const key = assignmentCounty(assignment);
     const existing = countyTotals.get(key) ?? { count: 0, income: 0, miles: 0 };
@@ -656,11 +771,15 @@ export default async function ReportsPage({
   }
 
   const maxMonthlyIncome = Math.max(...months.map((month) => month.income), 1);
-  const averageFee = assignments.length ? totalInvoiced / assignments.length : 0;
+  const averageFee = assignments.length
+    ? totalInvoiced / assignments.length
+    : 0;
   const averageProfitPerSigning = completedAssignments.length
     ? netIncome / completedAssignments.length
     : 0;
-  const averageMilesPerSigning = assignments.length ? totalMiles / assignments.length : 0;
+  const averageMilesPerSigning = assignments.length
+    ? totalMiles / assignments.length
+    : 0;
 
   const reportCards = [
     {
@@ -695,7 +814,8 @@ export default async function ReportsPage({
     },
     {
       title: "Journal Report",
-      description: "Journal entry status, notarial acts, and compliance totals.",
+      description:
+        "Journal entry status, notarial acts, and compliance totals.",
       href: "#journal-report",
       tag: "Compliance",
     },
@@ -714,14 +834,19 @@ export default async function ReportsPage({
   ];
 
   return (
-    <main className="space-y-6 bg-slate-50 p-4 sm:p-6 print:bg-white print:p-0">
+    <main className="min-w-0 space-y-6 overflow-x-hidden bg-slate-50 p-3 sm:p-6 print:bg-white print:p-0">
       <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm print:hidden">
         <div className="flex flex-col justify-between gap-5 p-6 md:flex-row md:items-center">
           <div>
-            <p className="text-sm font-medium uppercase tracking-wide text-blue-100">INS Pro</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Reports</h1>
+            <p className="text-sm font-medium uppercase tracking-wide text-blue-100">
+              INS Pro
+            </p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+              Reports
+            </h1>
             <p className="mt-2 max-w-3xl text-sm text-blue-100/90">
-              Generate business reports from assignments, invoices, mileage, expenses, payments, and journal records.
+              Generate business reports from assignments, invoices, mileage,
+              expenses, payments, and journal records.
             </p>
           </div>
 
@@ -741,13 +866,21 @@ export default async function ReportsPage({
           <div>
             <h2 className="text-xl font-bold text-slate-950">Report Filters</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Current view: <span className="font-bold text-slate-700">{selectedRange.label}</span>
+              Current view:{" "}
+              <span className="font-bold text-slate-700">
+                {selectedRange.label}
+              </span>
             </p>
           </div>
 
-          <form className="grid w-full gap-3 sm:grid-cols-2 lg:w-auto lg:grid-cols-5" action="/notary/dashboard/reports">
+          <form
+            className="grid w-full min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5"
+            action="/notary/dashboard/reports"
+          >
             <div>
-              <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Date Range</label>
+              <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Date Range
+              </label>
               <select
                 name="range"
                 defaultValue={selectedRange.range}
@@ -765,7 +898,9 @@ export default async function ReportsPage({
             </div>
 
             <div>
-              <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Start</label>
+              <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Start
+              </label>
               <input
                 type="date"
                 name="start"
@@ -775,7 +910,9 @@ export default async function ReportsPage({
             </div>
 
             <div>
-              <label className="text-xs font-bold uppercase tracking-wide text-slate-500">End</label>
+              <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                End
+              </label>
               <input
                 type="date"
                 name="end"
@@ -785,7 +922,9 @@ export default async function ReportsPage({
             </div>
 
             <div>
-              <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Client</label>
+              <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Client
+              </label>
               <select
                 name="client"
                 defaultValue={selectedClient}
@@ -801,7 +940,9 @@ export default async function ReportsPage({
             </div>
 
             <div>
-              <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Status</label>
+              <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Status
+              </label>
               <select
                 name="status"
                 defaultValue={selectedStatus}
@@ -818,16 +959,16 @@ export default async function ReportsPage({
               </select>
             </div>
 
-            <div className="sm:col-span-2 lg:col-span-5 flex flex-wrap justify-end gap-3">
+            <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row sm:justify-end lg:col-span-5">
               <Link
                 href="/notary/dashboard/reports"
-                className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex w-full justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 sm:w-auto"
               >
                 Reset
               </Link>
               <button
                 type="submit"
-                className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+                className="inline-flex w-full justify-center rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 sm:w-auto"
               >
                 Generate Report
               </button>
@@ -836,7 +977,7 @@ export default async function ReportsPage({
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 print:hidden">
+      <section className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 print:hidden">
         {reportCards.map((card) => (
           <a
             key={card.title}
@@ -844,49 +985,82 @@ export default async function ReportsPage({
             className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-[#0B1F4D] hover:shadow-md"
           >
             <div className="flex items-start justify-between gap-4">
-              <h3 className="text-lg font-black text-slate-950 group-hover:text-[#0B1F4D]">{card.title}</h3>
+              <h3 className="text-lg font-black text-slate-950 group-hover:text-[#0B1F4D]">
+                {card.title}
+              </h3>
               <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 ring-1 ring-blue-100">
                 {card.tag}
               </span>
             </div>
-            <p className="mt-3 text-sm leading-6 text-slate-500">{card.description}</p>
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              {card.description}
+            </p>
           </a>
         ))}
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6 print:grid-cols-3">
+      <section className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6 print:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold uppercase text-slate-500">Assignments</p>
-          <p className="mt-2 text-4xl font-bold text-[#0B1F4D]">{assignments.length}</p>
+          <p className="text-sm font-semibold uppercase text-slate-500">
+            Assignments
+          </p>
+          <p className="mt-2 text-3xl font-bold sm:text-4xl text-[#0B1F4D]">
+            {assignments.length}
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold uppercase text-slate-500">Invoiced</p>
-          <p className="mt-2 text-4xl font-bold text-slate-950">{money(totalInvoiced)}</p>
+          <p className="text-sm font-semibold uppercase text-slate-500">
+            Invoiced
+          </p>
+          <p className="mt-2 text-3xl font-bold sm:text-4xl text-slate-950">
+            {money(totalInvoiced)}
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm font-semibold uppercase text-slate-500">Paid</p>
-          <p className="mt-2 text-4xl font-bold text-green-700">{money(totalPaid)}</p>
+          <p className="mt-2 text-3xl font-bold sm:text-4xl text-green-700">
+            {money(totalPaid)}
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold uppercase text-slate-500">Expenses</p>
-          <p className="mt-2 text-4xl font-bold text-red-700">{money(totalExpenses)}</p>
+          <p className="text-sm font-semibold uppercase text-slate-500">
+            Expenses
+          </p>
+          <p className="mt-2 text-3xl font-bold sm:text-4xl text-red-700">
+            {money(totalExpenses)}
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold uppercase text-slate-500">Mileage</p>
-          <p className="mt-2 text-4xl font-bold text-slate-950">{totalMiles.toFixed(2)}</p>
+          <p className="text-sm font-semibold uppercase text-slate-500">
+            Mileage
+          </p>
+          <p className="mt-2 text-3xl font-bold sm:text-4xl text-slate-950">
+            {totalMiles.toFixed(2)}
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold uppercase text-slate-500">Net Income</p>
-          <p className={`mt-2 text-4xl font-bold ${netIncome >= 0 ? "text-green-700" : "text-red-700"}`}>
+          <p className="text-sm font-semibold uppercase text-slate-500">
+            Net Income
+          </p>
+          <p
+            className={`mt-2 text-3xl font-bold sm:text-4xl ${netIncome >= 0 ? "text-green-700" : "text-red-700"}`}
+          >
             {money(netIncome)}
           </p>
         </div>
       </section>
 
-      <section id="profit-loss" className="rounded-2xl border border-slate-200 bg-white shadow-sm print:break-inside-avoid">
+      <section
+        id="profit-loss"
+        className="rounded-2xl border border-slate-200 bg-white shadow-sm print:break-inside-avoid"
+      >
         <div className="border-b border-slate-200 p-5">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">Profit & Loss</p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">Profit & Loss Report</h2>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Profit & Loss
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Profit & Loss Report
+          </h2>
           <p className="mt-1 text-sm text-slate-500">{selectedRange.label}</p>
         </div>
 
@@ -917,7 +1091,9 @@ export default async function ReportsPage({
                 <span>{money(totalExpenses + totalMileageDeduction)}</span>
               </div>
               {categoryRows.length === 0 ? (
-                <p className="mt-3 text-sm text-slate-500">No expenses found for this filter.</p>
+                <p className="mt-3 text-sm text-slate-500">
+                  No expenses found for this filter.
+                </p>
               ) : (
                 <div className="mt-3 space-y-3">
                   {categoryRows.map((row) => (
@@ -936,14 +1112,20 @@ export default async function ReportsPage({
             <div>
               <div className="flex items-center justify-between border-b border-slate-200 pb-2 text-lg font-black text-slate-950">
                 <span>Net Income</span>
-                <span className={netIncome >= 0 ? "text-green-700" : "text-red-700"}>{money(netIncome)}</span>
+                <span
+                  className={netIncome >= 0 ? "text-green-700" : "text-red-700"}
+                >
+                  {money(netIncome)}
+                </span>
               </div>
               <div className="mt-3 flex items-center justify-between text-sm font-semibold text-slate-700">
                 <span>Notarial Fees Value</span>
                 <span>{money(totalNotarialFees)}</span>
               </div>
               <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-800">
-                Notarial fee handling can be tax-sensitive. This report separates notarial act value from signing income so you can review it with your tax professional.
+                Notarial fee handling can be tax-sensitive. This report
+                separates notarial act value from signing income so you can
+                review it with your tax professional.
               </p>
             </div>
           </div>
@@ -965,19 +1147,35 @@ export default async function ReportsPage({
               </div>
               <div className="flex justify-between gap-4 rounded-xl bg-white p-3 font-bold text-slate-700 ring-1 ring-slate-200">
                 <span>Receipts</span>
-                <span>{expenses.filter((row) => row.receipt_file_path || row.receipt_file_name).length}</span>
+                <span>
+                  {
+                    expenses.filter(
+                      (row) => row.receipt_file_path || row.receipt_file_name,
+                    ).length
+                  }
+                </span>
               </div>
             </div>
           </aside>
         </div>
       </section>
 
-      <section id="sales-report" className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,.8fr)]">
+      <section
+        id="sales-report"
+        className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]"
+      >
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-5">
-            <p className="text-xs font-black uppercase tracking-wide text-blue-700">Sales Report</p>
-            <h2 className="mt-1 text-2xl font-black text-slate-950">Client Revenue</h2>
-            <p className="mt-1 text-sm text-slate-500">Revenue, orders, payment status, and estimated client profitability.</p>
+            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+              Sales Report
+            </p>
+            <h2 className="mt-1 text-2xl font-black text-slate-950">
+              Client Revenue
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Revenue, orders, payment status, and estimated client
+              profitability.
+            </p>
           </div>
 
           <div className="overflow-x-auto">
@@ -996,19 +1194,34 @@ export default async function ReportsPage({
               <tbody className="divide-y divide-slate-200">
                 {clientRows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-8 text-center text-sm font-semibold text-slate-500">
+                    <td
+                      colSpan={7}
+                      className="px-5 py-8 text-center text-sm font-semibold text-slate-500"
+                    >
                       No client revenue found for this filter.
                     </td>
                   </tr>
                 ) : (
                   clientRows.map((row) => (
                     <tr key={row.name}>
-                      <td className="px-5 py-4 font-bold text-slate-950">{row.name}</td>
-                      <td className="px-5 py-4 text-right font-semibold text-slate-700">{row.orders}</td>
-                      <td className="px-5 py-4 text-right font-black text-slate-950">{money(row.income)}</td>
-                      <td className="px-5 py-4 text-right font-bold text-green-700">{money(row.paid)}</td>
-                      <td className="px-5 py-4 text-right font-bold text-amber-700">{money(row.balance)}</td>
-                      <td className="px-5 py-4 text-right font-semibold text-slate-700">{row.miles.toFixed(2)}</td>
+                      <td className="px-5 py-4 font-bold text-slate-950">
+                        {row.name}
+                      </td>
+                      <td className="px-5 py-4 text-right font-semibold text-slate-700">
+                        {row.orders}
+                      </td>
+                      <td className="px-5 py-4 text-right font-black text-slate-950">
+                        {money(row.income)}
+                      </td>
+                      <td className="px-5 py-4 text-right font-bold text-green-700">
+                        {money(row.paid)}
+                      </td>
+                      <td className="px-5 py-4 text-right font-bold text-amber-700">
+                        {money(row.balance)}
+                      </td>
+                      <td className="px-5 py-4 text-right font-semibold text-slate-700">
+                        {row.miles.toFixed(2)}
+                      </td>
                       <td className="px-5 py-4">
                         <Bar value={row.income} max={maxClientIncome} />
                       </td>
@@ -1021,53 +1234,94 @@ export default async function ReportsPage({
         </div>
 
         <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">Monthly Trends</p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">Income by Month</h2>
-          <div className="mt-6 grid grid-cols-12 items-end gap-2">
-            {months.map((month) => (
-              <div key={month.key} className="flex min-h-48 flex-col justify-end gap-2 text-center">
-                <p className="text-[10px] font-bold text-slate-500">{money(month.income).replace(".00", "")}</p>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Monthly Trends
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Income by Month
+          </h2>
+          <div className="mt-6 overflow-x-auto pb-2">
+            <div className="grid min-w-[640px] grid-cols-12 items-end gap-2">
+              {months.map((month) => (
                 <div
-                  className="mx-auto w-full rounded-t-lg bg-blue-600"
-                  style={{ height: `${Math.max(6, (month.income / maxMonthlyIncome) * 160)}px` }}
-                />
-                <p className="text-xs font-bold text-slate-500">{month.label}</p>
-              </div>
-            ))}
+                  key={month.key}
+                  className="flex min-h-36 flex-col justify-end gap-2 text-center sm:min-h-48"
+                >
+                  <p className="text-[10px] font-bold text-slate-500">
+                    {money(month.income).replace(".00", "")}
+                  </p>
+                  <div
+                    className="mx-auto w-full rounded-t-lg bg-blue-600"
+                    style={{
+                      height: `${Math.max(6, (month.income / maxMonthlyIncome) * 160)}px`,
+                    }}
+                  />
+                  <p className="text-xs font-bold text-slate-500">
+                    {month.label}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </aside>
       </section>
 
-      <section id="mileage-report" className="grid gap-6 xl:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]">
+      <section
+        id="mileage-report"
+        className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(320px,.8fr)_minmax(0,1.2fr)]"
+      >
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">Mileage Report</p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">Mileage Summary</h2>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Mileage Report
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Mileage Summary
+          </h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">Business Miles</p>
-              <p className="mt-2 text-3xl font-black text-[#0B1F4D]">{totalMiles.toFixed(2)}</p>
+              <p className="text-xs font-bold uppercase text-slate-500">
+                Business Miles
+              </p>
+              <p className="mt-2 text-3xl font-black text-[#0B1F4D]">
+                {totalMiles.toFixed(2)}
+              </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">Deduction</p>
-              <p className="mt-2 text-3xl font-black text-green-700">{money(totalMileageDeduction)}</p>
+              <p className="text-xs font-bold uppercase text-slate-500">
+                Deduction
+              </p>
+              <p className="mt-2 text-3xl font-black text-green-700">
+                {money(totalMileageDeduction)}
+              </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">Trips Logged</p>
-              <p className="mt-2 text-3xl font-black text-slate-950">{mileage.length}</p>
+              <p className="text-xs font-bold uppercase text-slate-500">
+                Trips Logged
+              </p>
+              <p className="mt-2 text-3xl font-black text-slate-950">
+                {mileage.length}
+              </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">Avg Miles / Signing</p>
-              <p className="mt-2 text-3xl font-black text-slate-950">{averageMilesPerSigning.toFixed(2)}</p>
+              <p className="text-xs font-bold uppercase text-slate-500">
+                Avg Miles / Signing
+              </p>
+              <p className="mt-2 text-3xl font-black text-slate-950">
+                {averageMilesPerSigning.toFixed(2)}
+              </p>
             </div>
           </div>
           <p className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs font-semibold text-blue-800">
-            Current mileage rate used in INS Pro: ${FEDERAL_MILEAGE_RATE.toFixed(3)} per mile.
+            Current mileage rate used in INS Pro: $
+            {FEDERAL_MILEAGE_RATE.toFixed(3)} per mile.
           </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-5">
-            <h2 className="text-xl font-black text-slate-950">Mileage Entries</h2>
+            <h2 className="text-xl font-black text-slate-950">
+              Mileage Entries
+            </h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
@@ -1083,21 +1337,47 @@ export default async function ReportsPage({
               <tbody className="divide-y divide-slate-200">
                 {mileage.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-5 py-8 text-center font-semibold text-slate-500">No mileage found.</td>
+                    <td
+                      colSpan={5}
+                      className="px-5 py-8 text-center font-semibold text-slate-500"
+                    >
+                      No mileage found.
+                    </td>
                   </tr>
                 ) : (
                   mileage.slice(0, 10).map((row) => {
-                    const assignment = row.assignment_id ? assignmentById.get(row.assignment_id) : null;
+                    const assignment = row.assignment_id
+                      ? assignmentById.get(row.assignment_id)
+                      : null;
                     return (
                       <tr key={row.id}>
-                        <td className="px-5 py-4 font-semibold text-slate-700">{formatDate(row.mileage_date)}</td>
-                        <td className="px-5 py-4">
-                          <p className="font-bold text-slate-950">{assignmentTitle(assignment)}</p>
-                          <p className="text-xs text-slate-500">{assignment?.control_number || "—"}</p>
+                        <td className="px-5 py-4 font-semibold text-slate-700">
+                          {formatDate(row.mileage_date)}
                         </td>
-                        <td className="px-5 py-4 text-right font-bold text-slate-950">{numberValue(row.miles).toFixed(2)}</td>
-                        <td className="px-5 py-4 text-right font-semibold text-slate-700">${numberValue(row.rate || FEDERAL_MILEAGE_RATE).toFixed(3)}</td>
-                        <td className="px-5 py-4 text-right font-black text-green-700">{money(row.amount || numberValue(row.miles) * numberValue(row.rate || FEDERAL_MILEAGE_RATE))}</td>
+                        <td className="px-5 py-4">
+                          <p className="font-bold text-slate-950">
+                            {assignmentTitle(assignment)}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {assignment?.control_number || "—"}
+                          </p>
+                        </td>
+                        <td className="px-5 py-4 text-right font-bold text-slate-950">
+                          {numberValue(row.miles).toFixed(2)}
+                        </td>
+                        <td className="px-5 py-4 text-right font-semibold text-slate-700">
+                          $
+                          {numberValue(
+                            row.rate || FEDERAL_MILEAGE_RATE,
+                          ).toFixed(3)}
+                        </td>
+                        <td className="px-5 py-4 text-right font-black text-green-700">
+                          {money(
+                            row.amount ||
+                              numberValue(row.miles) *
+                                numberValue(row.rate || FEDERAL_MILEAGE_RATE),
+                          )}
+                        </td>
                       </tr>
                     );
                   })
@@ -1108,11 +1388,31 @@ export default async function ReportsPage({
         </div>
       </section>
 
-      <section id="invoice-aging" className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <section
+        id="invoice-aging"
+        className="rounded-2xl border border-slate-200 bg-white shadow-sm"
+      >
         <div className="border-b border-slate-200 p-5">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">Invoice Aging</p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">Invoices & Payments</h2>
-          <p className="mt-1 text-sm text-slate-500">Paid: {invoices.filter((row) => String(row.status ?? "").toLowerCase() === "paid").length}. Open: {invoices.length - invoices.filter((row) => String(row.status ?? "").toLowerCase() === "paid").length}. Overdue: {overdueInvoices.length}.</p>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Invoice Aging
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Invoices & Payments
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Paid:{" "}
+            {
+              invoices.filter(
+                (row) => String(row.status ?? "").toLowerCase() === "paid",
+              ).length
+            }
+            . Open:{" "}
+            {invoices.length -
+              invoices.filter(
+                (row) => String(row.status ?? "").toLowerCase() === "paid",
+              ).length}
+            . Overdue: {overdueInvoices.length}.
+          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[950px] text-left text-sm">
@@ -1131,26 +1431,53 @@ export default async function ReportsPage({
             <tbody className="divide-y divide-slate-200">
               {invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center font-semibold text-slate-500">No invoices found.</td>
+                  <td
+                    colSpan={8}
+                    className="px-5 py-8 text-center font-semibold text-slate-500"
+                  >
+                    No invoices found.
+                  </td>
                 </tr>
               ) : (
                 invoices.map((invoice) => {
-                  const assignment = invoice.assignment_id ? assignmentById.get(invoice.assignment_id) : null;
-                  const client = assignment?.client_id ? clientById.get(assignment.client_id) : null;
+                  const assignment = invoice.assignment_id
+                    ? assignmentById.get(invoice.assignment_id)
+                    : null;
+                  const client = assignment?.client_id
+                    ? clientById.get(assignment.client_id)
+                    : null;
                   return (
                     <tr key={invoice.id}>
-                      <td className="px-5 py-4 font-bold text-slate-950">{formatInvoiceNumber(invoice.invoice_number)}</td>
-                      <td className="px-5 py-4">
-                        <p className="font-bold text-slate-950">{assignmentTitle(assignment)}</p>
-                        <p className="text-xs text-slate-500">{assignment?.control_number || "—"}</p>
+                      <td className="px-5 py-4 font-bold text-slate-950">
+                        {formatInvoiceNumber(invoice.invoice_number)}
                       </td>
-                      <td className="px-5 py-4 font-semibold text-slate-700">{clientName(client)}</td>
-                      <td className="px-5 py-4 font-semibold text-slate-700">{formatDate(invoice.due_date)}</td>
-                      <td className="px-5 py-4 text-right font-black text-slate-950">{money(invoice.subtotal)}</td>
-                      <td className="px-5 py-4 text-right font-bold text-green-700">{money(invoice.payments_total)}</td>
-                      <td className="px-5 py-4 text-right font-bold text-amber-700">{money(invoice.balance_due)}</td>
                       <td className="px-5 py-4">
-                        <span className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusPill(invoice.status)}`}>
+                        <p className="font-bold text-slate-950">
+                          {assignmentTitle(assignment)}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {assignment?.control_number || "—"}
+                        </p>
+                      </td>
+                      <td className="px-5 py-4 font-semibold text-slate-700">
+                        {clientName(client)}
+                      </td>
+                      <td className="px-5 py-4 font-semibold text-slate-700">
+                        {formatDate(invoice.due_date)}
+                      </td>
+                      <td className="px-5 py-4 text-right font-black text-slate-950">
+                        {money(invoice.subtotal)}
+                      </td>
+                      <td className="px-5 py-4 text-right font-bold text-green-700">
+                        {money(invoice.payments_total)}
+                      </td>
+                      <td className="px-5 py-4 text-right font-bold text-amber-700">
+                        {money(invoice.balance_due)}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusPill(invoice.status)}`}
+                        >
                           {displayStatus(invoice.status)}
                         </span>
                       </td>
@@ -1163,11 +1490,18 @@ export default async function ReportsPage({
         </div>
       </section>
 
-      <section id="expense-report" className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,.8fr)]">
+      <section
+        id="expense-report"
+        className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]"
+      >
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-5">
-            <p className="text-xs font-black uppercase tracking-wide text-blue-700">Expense Report</p>
-            <h2 className="mt-1 text-2xl font-black text-slate-950">Recent Expenses</h2>
+            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+              Expense Report
+            </p>
+            <h2 className="mt-1 text-2xl font-black text-slate-950">
+              Recent Expenses
+            </h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[850px] text-left text-sm">
@@ -1184,24 +1518,50 @@ export default async function ReportsPage({
               <tbody className="divide-y divide-slate-200">
                 {expenses.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center font-semibold text-slate-500">No expenses found.</td>
+                    <td
+                      colSpan={6}
+                      className="px-5 py-8 text-center font-semibold text-slate-500"
+                    >
+                      No expenses found.
+                    </td>
                   </tr>
                 ) : (
                   expenses.slice(0, 12).map((expense) => {
-                    const assignment = expense.assignment_id ? assignmentById.get(expense.assignment_id) : null;
+                    const assignment = expense.assignment_id
+                      ? assignmentById.get(expense.assignment_id)
+                      : null;
                     return (
                       <tr key={expense.id}>
-                        <td className="px-5 py-4 font-semibold text-slate-700">{formatDate(expense.expense_date)}</td>
-                        <td className="px-5 py-4 font-bold text-slate-950">{expense.category || "Misc."}</td>
-                        <td className="px-5 py-4">
-                          <p className="font-semibold text-slate-700">{expense.vendor || expense.description || "Expense"}</p>
-                          {expense.description && <p className="mt-1 text-xs text-slate-500">{expense.description}</p>}
+                        <td className="px-5 py-4 font-semibold text-slate-700">
+                          {formatDate(expense.expense_date)}
                         </td>
-                        <td className="px-5 py-4 font-semibold text-slate-700">{assignmentTitle(assignment)}</td>
-                        <td className="px-5 py-4 text-right font-black text-slate-950">{money(expense.amount)}</td>
+                        <td className="px-5 py-4 font-bold text-slate-950">
+                          {expense.category || "Misc."}
+                        </td>
                         <td className="px-5 py-4">
-                          <span className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${expense.receipt_file_path || expense.receipt_file_name ? "bg-green-50 text-green-700 ring-green-200" : "bg-slate-50 text-slate-600 ring-slate-200"}`}>
-                            {expense.receipt_file_path || expense.receipt_file_name ? "Attached" : "None"}
+                          <p className="font-semibold text-slate-700">
+                            {expense.vendor || expense.description || "Expense"}
+                          </p>
+                          {expense.description && (
+                            <p className="mt-1 text-xs text-slate-500">
+                              {expense.description}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 font-semibold text-slate-700">
+                          {assignmentTitle(assignment)}
+                        </td>
+                        <td className="px-5 py-4 text-right font-black text-slate-950">
+                          {money(expense.amount)}
+                        </td>
+                        <td className="px-5 py-4">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${expense.receipt_file_path || expense.receipt_file_name ? "bg-green-50 text-green-700 ring-green-200" : "bg-slate-50 text-slate-600 ring-slate-200"}`}
+                          >
+                            {expense.receipt_file_path ||
+                            expense.receipt_file_name
+                              ? "Attached"
+                              : "None"}
                           </span>
                         </td>
                       </tr>
@@ -1214,11 +1574,17 @@ export default async function ReportsPage({
         </div>
 
         <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">Category Breakdown</p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">Where Money Went</h2>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Category Breakdown
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Where Money Went
+          </h2>
           <div className="mt-5 space-y-4">
             {categoryRows.length === 0 ? (
-              <p className="text-sm font-semibold text-slate-500">No categories yet.</p>
+              <p className="text-sm font-semibold text-slate-500">
+                No categories yet.
+              </p>
             ) : (
               categoryRows.map((row) => (
                 <div key={row.category}>
@@ -1234,33 +1600,63 @@ export default async function ReportsPage({
         </aside>
       </section>
 
-      <section id="journal-report" className="grid gap-6 xl:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]">
+      <section
+        id="journal-report"
+        className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(320px,.8fr)_minmax(0,1.2fr)]"
+      >
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">Journal Report</p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">Compliance Summary</h2>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Journal Report
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Compliance Summary
+          </h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">Journal Entries</p>
-              <p className="mt-2 text-3xl font-black text-[#0B1F4D]">{journalEntries.length}</p>
+              <p className="text-xs font-bold uppercase text-slate-500">
+                Journal Entries
+              </p>
+              <p className="mt-2 text-3xl font-black text-[#0B1F4D]">
+                {journalEntries.length}
+              </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">Completed</p>
-              <p className="mt-2 text-3xl font-black text-green-700">{journalEntries.filter((row) => String(row.status ?? "").toLowerCase() === "completed").length}</p>
+              <p className="text-xs font-bold uppercase text-slate-500">
+                Completed
+              </p>
+              <p className="mt-2 text-3xl font-black text-green-700">
+                {
+                  journalEntries.filter(
+                    (row) =>
+                      String(row.status ?? "").toLowerCase() === "completed",
+                  ).length
+                }
+              </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">Notarial Acts</p>
-              <p className="mt-2 text-3xl font-black text-slate-950">{totalNotarialActs}</p>
+              <p className="text-xs font-bold uppercase text-slate-500">
+                Notarial Acts
+              </p>
+              <p className="mt-2 text-3xl font-black text-slate-950">
+                {totalNotarialActs}
+              </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">Act Value</p>
-              <p className="mt-2 text-3xl font-black text-green-700">{money(totalNotarialFees)}</p>
+              <p className="text-xs font-bold uppercase text-slate-500">
+                Act Value
+              </p>
+              <p className="mt-2 text-3xl font-black text-green-700">
+                {money(totalNotarialFees)}
+              </p>
             </div>
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-5">
-            <h2 className="text-xl font-black text-slate-950">Journal Entries</h2>
+            <h2 className="text-xl font-black text-slate-950">
+              Journal Entries
+            </h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
@@ -1275,21 +1671,38 @@ export default async function ReportsPage({
               <tbody className="divide-y divide-slate-200">
                 {journalEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-5 py-8 text-center font-semibold text-slate-500">No journal entries found.</td>
+                    <td
+                      colSpan={4}
+                      className="px-5 py-8 text-center font-semibold text-slate-500"
+                    >
+                      No journal entries found.
+                    </td>
                   </tr>
                 ) : (
                   journalEntries.slice(0, 10).map((entry) => {
-                    const assignment = entry.assignment_id ? assignmentById.get(entry.assignment_id) : null;
+                    const assignment = entry.assignment_id
+                      ? assignmentById.get(entry.assignment_id)
+                      : null;
                     return (
                       <tr key={entry.id}>
-                        <td className="px-5 py-4 font-semibold text-slate-700">{formatDate(entry.journal_date)}</td>
-                        <td className="px-5 py-4">
-                          <p className="font-bold text-slate-950">{assignmentTitle(assignment)}</p>
-                          <p className="text-xs text-slate-500">{assignment?.control_number || "—"}</p>
+                        <td className="px-5 py-4 font-semibold text-slate-700">
+                          {formatDate(entry.journal_date)}
                         </td>
-                        <td className="px-5 py-4 font-semibold text-slate-700">{entry.journal_type || "—"}</td>
                         <td className="px-5 py-4">
-                          <span className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${String(entry.status ?? "").toLowerCase() === "completed" ? "bg-green-50 text-green-700 ring-green-200" : "bg-amber-50 text-amber-700 ring-amber-200"}`}>
+                          <p className="font-bold text-slate-950">
+                            {assignmentTitle(assignment)}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {assignment?.control_number || "—"}
+                          </p>
+                        </td>
+                        <td className="px-5 py-4 font-semibold text-slate-700">
+                          {entry.journal_type || "—"}
+                        </td>
+                        <td className="px-5 py-4">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${String(entry.status ?? "").toLowerCase() === "completed" ? "bg-green-50 text-green-700 ring-green-200" : "bg-amber-50 text-amber-700 ring-amber-200"}`}
+                          >
                             {displayStatus(entry.status)}
                           </span>
                         </td>
@@ -1303,11 +1716,21 @@ export default async function ReportsPage({
         </div>
       </section>
 
-      <section id="client-report" className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <section
+        id="client-report"
+        className="rounded-2xl border border-slate-200 bg-white shadow-sm"
+      >
         <div className="border-b border-slate-200 p-5">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">Client Profitability</p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">Client Performance</h2>
-          <p className="mt-1 text-sm text-slate-500">This shows which clients are actually worth your time. Revenue without profit is just busywork wearing a tie.</p>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Client Profitability
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Client Performance
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            This shows which clients are actually worth your time. Revenue
+            without profit is just busywork wearing a tie.
+          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[950px] text-left text-sm">
@@ -1325,21 +1748,44 @@ export default async function ReportsPage({
             <tbody className="divide-y divide-slate-200">
               {clientRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-8 text-center font-semibold text-slate-500">No client performance data found.</td>
+                  <td
+                    colSpan={7}
+                    className="px-5 py-8 text-center font-semibold text-slate-500"
+                  >
+                    No client performance data found.
+                  </td>
                 </tr>
               ) : (
                 clientRows.map((row) => {
-                  const clientMileageDeduction = row.miles * FEDERAL_MILEAGE_RATE;
-                  const profit = row.income - row.expenses - clientMileageDeduction;
+                  const clientMileageDeduction =
+                    row.miles * FEDERAL_MILEAGE_RATE;
+                  const profit =
+                    row.income - row.expenses - clientMileageDeduction;
                   return (
                     <tr key={`profit-${row.name}`}>
-                      <td className="px-5 py-4 font-bold text-slate-950">{row.name}</td>
-                      <td className="px-5 py-4 text-right font-semibold text-slate-700">{row.orders}</td>
-                      <td className="px-5 py-4 text-right font-black text-slate-950">{money(row.income)}</td>
-                      <td className="px-5 py-4 text-right font-bold text-red-700">{money(row.expenses)}</td>
-                      <td className="px-5 py-4 text-right font-semibold text-slate-700">{row.miles.toFixed(2)}</td>
-                      <td className="px-5 py-4 text-right font-bold text-amber-700">{money(row.balance)}</td>
-                      <td className={`px-5 py-4 text-right font-black ${profit >= 0 ? "text-green-700" : "text-red-700"}`}>{money(profit)}</td>
+                      <td className="px-5 py-4 font-bold text-slate-950">
+                        {row.name}
+                      </td>
+                      <td className="px-5 py-4 text-right font-semibold text-slate-700">
+                        {row.orders}
+                      </td>
+                      <td className="px-5 py-4 text-right font-black text-slate-950">
+                        {money(row.income)}
+                      </td>
+                      <td className="px-5 py-4 text-right font-bold text-red-700">
+                        {money(row.expenses)}
+                      </td>
+                      <td className="px-5 py-4 text-right font-semibold text-slate-700">
+                        {row.miles.toFixed(2)}
+                      </td>
+                      <td className="px-5 py-4 text-right font-bold text-amber-700">
+                        {money(row.balance)}
+                      </td>
+                      <td
+                        className={`px-5 py-4 text-right font-black ${profit >= 0 ? "text-green-700" : "text-red-700"}`}
+                      >
+                        {money(profit)}
+                      </td>
                     </tr>
                   );
                 })
@@ -1351,8 +1797,12 @@ export default async function ReportsPage({
 
       <section id="performance-report" className="grid gap-6 xl:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">Performance</p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">Key Metrics</h2>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Performance
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Key Metrics
+          </h2>
           <div className="mt-5 space-y-3 text-sm">
             <div className="flex justify-between rounded-xl bg-slate-50 p-3 font-bold text-slate-700 ring-1 ring-slate-200">
               <span>Completed</span>
@@ -1374,11 +1824,17 @@ export default async function ReportsPage({
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">Signing Types</p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">Type Breakdown</h2>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Signing Types
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Type Breakdown
+          </h2>
           <div className="mt-5 space-y-4">
             {typeRows.length === 0 ? (
-              <p className="text-sm font-semibold text-slate-500">No signing types found.</p>
+              <p className="text-sm font-semibold text-slate-500">
+                No signing types found.
+              </p>
             ) : (
               typeRows.map((row) => (
                 <div key={row.type}>
@@ -1386,7 +1842,10 @@ export default async function ReportsPage({
                     <span className="truncate">{row.type}</span>
                     <span>{row.count}</span>
                   </div>
-                  <Bar value={row.count} max={Math.max(...typeRows.map((item) => item.count), 1)} />
+                  <Bar
+                    value={row.count}
+                    max={Math.max(...typeRows.map((item) => item.count), 1)}
+                  />
                 </div>
               ))
             )}
@@ -1394,11 +1853,17 @@ export default async function ReportsPage({
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">County Report</p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">County Performance</h2>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            County Report
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            County Performance
+          </h2>
           <div className="mt-5 space-y-4">
             {countyRows.length === 0 ? (
-              <p className="text-sm font-semibold text-slate-500">No county data found.</p>
+              <p className="text-sm font-semibold text-slate-500">
+                No county data found.
+              </p>
             ) : (
               countyRows.slice(0, 8).map((row) => (
                 <div key={row.county}>
@@ -1406,8 +1871,13 @@ export default async function ReportsPage({
                     <span className="truncate">{row.county}</span>
                     <span>{money(row.income)}</span>
                   </div>
-                  <p className="mb-1 text-xs font-semibold text-slate-500">{row.count} assignments • {row.miles.toFixed(2)} miles</p>
-                  <Bar value={row.income} max={Math.max(...countyRows.map((item) => item.income), 1)} />
+                  <p className="mb-1 text-xs font-semibold text-slate-500">
+                    {row.count} assignments • {row.miles.toFixed(2)} miles
+                  </p>
+                  <Bar
+                    value={row.income}
+                    max={Math.max(...countyRows.map((item) => item.income), 1)}
+                  />
                 </div>
               ))
             )}
