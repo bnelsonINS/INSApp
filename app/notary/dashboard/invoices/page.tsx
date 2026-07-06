@@ -34,6 +34,14 @@ type InvoiceRow = {
     title_company: string | null;
     company_name: string | null;
     client_name: string | null;
+    client_id: string | null;
+  } | null;
+  clientProfile?: {
+    id: string;
+    company_name: string | null;
+    business_name: string | null;
+    full_name: string | null;
+    email: string | null;
   } | null;
 };
 
@@ -77,12 +85,19 @@ function statusClass(value: string | null | undefined) {
   return "bg-slate-50 text-slate-700 ring-slate-200";
 }
 
-function clientName(assignment: InvoiceRow["assignments"]) {
+function clientName(
+  assignment: InvoiceRow["assignments"],
+  clientProfile?: InvoiceRow["clientProfile"],
+) {
   return (
     assignment?.title_company_name ||
     assignment?.title_company ||
     assignment?.company_name ||
     assignment?.client_name ||
+    clientProfile?.company_name ||
+    clientProfile?.business_name ||
+    clientProfile?.full_name ||
+    clientProfile?.email ||
     "—"
   );
 }
@@ -141,7 +156,7 @@ export default async function InvoicesPage() {
     ? await supabaseAdmin
         .from("assignments")
         .select(
-          "id, borrower_name, control_number, signing_date, signing_address, signing_city, signing_state, signing_zip, title_company_name, title_company, company_name, client_name",
+          "id, borrower_name, control_number, signing_date, signing_address, signing_city, signing_state, signing_zip, title_company_name, title_company, company_name, client_name, client_id",
         )
         .in("id", assignmentIds)
     : { data: [], error: null };
@@ -160,13 +175,48 @@ export default async function InvoicesPage() {
     ),
   );
 
-  const rows = ((rawInvoices ?? []) as Omit<InvoiceRow, "assignments">[]).map(
-    (invoice) => ({
-      ...invoice,
-      assignments: invoice.assignment_id
+  const clientIds = Array.from(
+    new Set(
+      ((assignmentRows ?? []) as NonNullable<InvoiceRow["assignments"]>[])
+        .map((assignment) => String(assignment.client_id ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
+
+  const { data: clientProfiles, error: clientProfilesError } = clientIds.length
+    ? await supabaseAdmin
+        .from("profiles")
+        .select("id, company_name, business_name, full_name, email")
+        .in("id", clientIds)
+    : { data: [], error: null };
+
+  if (clientProfilesError) {
+    console.error("Invoice client profile lookup error:", clientProfilesError);
+  }
+
+  const clientProfileById = new Map(
+    ((clientProfiles ?? []) as NonNullable<InvoiceRow["clientProfile"]>[]).map(
+      (client) => [client.id, client],
+    ),
+  );
+
+
+  const rows = ((rawInvoices ?? []) as Omit<InvoiceRow, "assignments" | "clientProfile">[]).map(
+    (invoice) => {
+      const assignment = invoice.assignment_id
         ? assignmentById.get(invoice.assignment_id) ?? null
-        : null,
-    }),
+        : null;
+
+      const clientProfile = assignment?.client_id
+        ? clientProfileById.get(assignment.client_id) ?? null
+        : null;
+
+      return {
+        ...invoice,
+        assignments: assignment,
+        clientProfile,
+      };
+    },
   ) as InvoiceRow[];
 
   const totalInvoiced = rows.reduce((sum, row) => sum + Number(row.subtotal ?? 0), 0);
@@ -281,6 +331,7 @@ export default async function InvoicesPage() {
               <tbody className="divide-y divide-slate-200">
                 {rows.map((row) => {
                   const assignment = row.assignments;
+                  const displayClientName = clientName(assignment, row.clientProfile);
 
                   return (
                     <tr key={row.id} className="align-top">
@@ -306,7 +357,12 @@ export default async function InvoicesPage() {
                       </td>
 
                       <td className="px-5 py-4 font-semibold text-slate-700">
-                        {clientName(assignment)}
+                        <p>{displayClientName}</p>
+                        {row.clientProfile?.email && displayClientName !== row.clientProfile.email ? (
+                          <p className="mt-1 break-all text-xs font-medium text-slate-500">
+                            {row.clientProfile.email}
+                          </p>
+                        ) : null}
                       </td>
 
                       <td className="px-5 py-4 font-semibold text-slate-700">
