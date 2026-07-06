@@ -2325,11 +2325,20 @@ export default async function ReportsPage({
       </section>
 
       <Script
-        id="reports-print-script"
+        id="ins-pro-report-printing"
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: `
             (function () {
+              function escapeHtml(value) {
+                return String(value || '')
+                  .replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#039;');
+              }
+
               function cleanClone(clone) {
                 clone.querySelectorAll('button, a[href^="#"], [data-print-remove]').forEach(function (node) {
                   node.remove();
@@ -2339,7 +2348,110 @@ export default async function ReportsPage({
                   node.setAttribute('open', 'open');
                 });
 
+                clone.querySelectorAll('a').forEach(function (link) {
+                  if (link.href && link.textContent && !link.textContent.includes('http')) {
+                    link.setAttribute('data-print-url', link.href);
+                  }
+                });
+
+                clone.querySelectorAll('img').forEach(function (img) {
+                  img.setAttribute('loading', 'eager');
+                  img.setAttribute('decoding', 'sync');
+                });
+
                 return clone;
+              }
+
+              function receiptPageHtml(clone) {
+                var receiptLinks = Array.from(clone.querySelectorAll('a[href]')).filter(function (link) {
+                  var text = (link.textContent || '').toLowerCase();
+                  var href = (link.getAttribute('href') || '').toLowerCase();
+                  return text.includes('receipt') || href.includes('receipt') || href.includes('storage') || link.querySelector('img');
+                });
+
+                if (!receiptLinks.length) return '';
+
+                var cards = receiptLinks.map(function (link) {
+                  var image = link.querySelector('img');
+                  var href = link.getAttribute('href') || '';
+                  var label = (link.textContent || 'Receipt attachment').trim();
+                  var preview = image
+                    ? '<img class="receipt-image" src="' + escapeHtml(image.getAttribute('src') || '') + '" alt="Receipt preview" />'
+                    : '<div class="receipt-placeholder">PDF / File Receipt<br><span>' + escapeHtml(label) + '</span></div>';
+
+                  return '<div class="receipt-card"><div class="receipt-preview">' + preview + '</div><div class="receipt-detail"><div class="receipt-label">Receipt</div><div class="receipt-name">' + escapeHtml(label) + '</div><a href="' + escapeHtml(href) + '">Open attached receipt</a></div></div>';
+                }).join('');
+
+                return '<section class="receipt-pages"><div class="section-heading"><div><div class="eyebrow">Receipts</div><h2>Receipt Attachments</h2><p>Receipt previews and source links included with this report.</p></div></div><div class="receipt-grid">' + cards + '</div></section>';
+              }
+
+              function reportStyles() {
+                return [
+                  '@page{size:letter;margin:.45in .42in .65in .42in;}',
+                  'html,body{margin:0;padding:0;background:#eef4f8;color:#101828;font-family:Inter,Arial,Helvetica,sans-serif;font-size:11px;}',
+                  'body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+                  '.print-shell{max-width:980px;margin:0 auto;padding:18px 18px 52px;background:#fff;}',
+                  '.cover{min-height:520px;border:1px solid #d8e4ef;background:white;border-radius:18px;overflow:hidden;margin-bottom:18px;page-break-after:always;}',
+                  '.cover-top{background:#0B1F4D;color:white;padding:26px 30px;display:flex;align-items:flex-start;justify-content:space-between;gap:24px;}',
+                  '.brand{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.16em;color:#93c5fd;}',
+                  '.cover-title{font-size:32px;line-height:1.05;font-weight:900;margin:8px 0 8px;color:white;}',
+                  '.cover-subtitle{font-size:13px;line-height:1.5;color:#dbeafe;max-width:620px;}',
+                  '.meta-box{min-width:190px;border:1px solid rgba(255,255,255,.24);border-radius:14px;padding:12px;background:rgba(255,255,255,.08);font-size:10px;line-height:1.6;color:#eff6ff;}',
+                  '.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:24px 30px;}',
+                  '.summary-card{border:1px solid #d8e4ef;border-radius:14px;padding:14px;background:#f8fafc;}',
+                  '.summary-card .label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;font-weight:900;color:#64748b;}',
+                  '.summary-card .value{font-size:24px;font-weight:900;color:#0B1F4D;margin-top:6px;}',
+                  '.cover-note{margin:0 30px 24px;border-left:5px solid #0B1F4D;background:#f8fafc;padding:14px 16px;font-size:11px;line-height:1.55;color:#334155;}',
+                  '.report-page{background:white;border:1px solid #d8e4ef;border-radius:16px;margin:0 0 16px;overflow:hidden;page-break-inside:avoid;}',
+                  '.section-heading{background:#f8fafc;border-bottom:1px solid #d8e4ef;padding:15px 18px;display:flex;justify-content:space-between;gap:16px;align-items:flex-start;}',
+                  '.eyebrow,.text-xs{font-size:9px!important;text-transform:uppercase!important;letter-spacing:.12em!important;font-weight:900!important;color:#1d4ed8!important;}',
+                  'h1,h2,h3{margin:0;color:#0f172a;break-after:avoid;} h2{font-size:22px!important;line-height:1.15!important;margin-top:3px!important;} h3{font-size:15px!important;}',
+                  'p{margin:4px 0 0;line-height:1.45;color:#475569;}',
+                  '.report-body{padding:16px 18px;}',
+                  'section,article,aside,div{box-shadow:none!important;}',
+                  'section:not(.cover):not(.receipt-pages){background:white!important;border:1px solid #d8e4ef!important;border-radius:16px!important;margin:0 0 16px!important;overflow:hidden!important;page-break-inside:avoid;}',
+                  'section>div:first-child{background:#f8fafc!important;border-bottom:1px solid #d8e4ef!important;padding:15px 18px!important;}',
+                  '.grid{display:block!important}.space-y-6>*+*{margin-top:18px!important}.space-y-4>*+*{margin-top:12px!important}.space-y-3>*+*{margin-top:9px!important}',
+                  '.flex,.inline-flex{display:flex!important}.items-center{align-items:center!important}.items-start{align-items:flex-start!important}.justify-between{justify-content:space-between!important}.justify-center{justify-content:center!important}.gap-3{gap:12px!important}.gap-4{gap:16px!important}.shrink-0{flex-shrink:0!important}.min-w-0{min-width:0!important}',
+                  '.rounded-2xl,.rounded-xl{border-radius:12px!important}.rounded-full{border-radius:999px!important}',
+                  '.ring-1,.border{border:1px solid #d8e4ef!important}.p-5,.p-4,.p-3{padding:12px!important}',
+                  '.mt-1{margin-top:3px!important}.mt-2{margin-top:6px!important}.mt-3{margin-top:8px!important}.mt-4{margin-top:10px!important}.mt-5{margin-top:12px!important}.mt-6{margin-top:14px!important}',
+                  '.bg-\\[\\#0B1F4D\\],.bg-blue-600{background:#0B1F4D!important;color:white!important}.bg-slate-50{background:#f8fafc!important}.bg-white{background:white!important}.bg-blue-50{background:#eff6ff!important}.bg-green-50{background:#f0fdf4!important}.bg-amber-50{background:#fffbeb!important}.bg-red-50{background:#fef2f2!important}',
+                  '.text-green-700{color:#15803d!important}.text-red-700{color:#b91c1c!important}.text-amber-700{color:#b45309!important}.text-blue-700{color:#1d4ed8!important}.text-slate-950{color:#020617!important}.text-slate-900{color:#0f172a!important}.text-slate-700{color:#334155!important}.text-slate-500{color:#64748b!important}',
+                  '.font-black{font-weight:900!important}.font-bold{font-weight:700!important}.font-semibold{font-weight:600!important}.text-right{text-align:right!important}.uppercase{text-transform:uppercase!important}',
+                  '.truncate{overflow:visible!important;text-overflow:clip!important;white-space:normal!important}',
+                  'table{width:100%!important;border-collapse:separate!important;border-spacing:0!important;table-layout:auto!important;margin-top:10px;font-size:9.5px;background:white!important;border:1px solid #d8e4ef!important;border-radius:11px!important;overflow:hidden!important;}',
+                  'thead{display:table-header-group;background:#eef4fb!important;} tr{page-break-inside:avoid;} th,td{border-bottom:1px solid #d8e4ef!important;border-right:1px solid #e5edf6!important;padding:7px 8px!important;text-align:left;vertical-align:top;white-space:normal!important;} th:last-child,td:last-child{border-right:0!important;} tbody tr:last-child td{border-bottom:0!important;} th{text-transform:uppercase;font-size:8.5px;color:#334155;font-weight:900;background:#f3f7fb!important;}',
+                  'details{page-break-inside:avoid;border:1px solid #d8e4ef!important;border-radius:14px!important;margin:12px 0!important;padding:12px!important;background:#fff!important;} summary{display:block!important;cursor:default!important;list-style:none!important;} summary::-webkit-details-marker{display:none!important;}',
+                  '.hidden{display:table-cell!important}.md\\:hidden,.sm\\:hidden{display:none!important}.md\\:table-cell,.sm\\:table-cell,.lg\\:table-cell{display:table-cell!important}',
+                  'a{color:#1d4ed8;text-decoration:none;font-weight:800;word-break:break-word;}',
+                  'img{max-width:260px!important;max-height:220px!important;object-fit:contain!important;border:1px solid #d8e4ef!important;border-radius:10px!important;background:white!important;padding:5px!important;}',
+                  '.receipt-pages{page-break-before:always;background:white;border:1px solid #d8e4ef;border-radius:16px;overflow:hidden;margin-top:18px;}',
+                  '.receipt-grid{padding:18px;display:grid;grid-template-columns:1fr;gap:18px;}',
+                  '.receipt-card{display:grid;grid-template-columns:minmax(0,1.25fr) 260px;gap:24px;align-items:start;border-bottom:1px solid #d8e4ef;padding-bottom:18px;page-break-inside:avoid;}',
+                  '.receipt-card:last-child{border-bottom:0;padding-bottom:0;}',
+                  '.receipt-preview{min-height:240px;display:flex;align-items:flex-start;justify-content:center;background:#fff;border:1px solid #e5edf6;border-radius:14px;padding:14px;}',
+                  '.receipt-image{max-width:100%!important;max-height:420px!important;border:0!important;padding:0!important;}',
+                  '.receipt-placeholder{width:100%;min-height:220px;border:2px dashed #bfdbfe;border-radius:14px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;color:#0B1F4D;background:#eff6ff;line-height:1.5;}',
+                  '.receipt-placeholder span{display:block;margin-top:8px;font-size:10px;color:#475569;font-weight:700;}',
+                  '.receipt-detail{padding:8px 0;font-size:11px;line-height:1.55;color:#334155;}',
+                  '.receipt-label{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#94a3b8;font-weight:900;}',
+                  '.receipt-name{font-size:15px;font-weight:900;color:#0f172a;margin:6px 0 8px;word-break:break-word;}',
+                  '.print-disclaimer{margin-top:18px;background:#f8fafc;border:1px solid #d8e4ef;border-radius:14px;padding:14px;font-size:9.5px;line-height:1.45;color:#475569;page-break-inside:avoid;}',
+                  '.print-footer{position:fixed;left:.42in;right:.42in;bottom:.18in;background:#0B1F4D;color:white;padding:7px 12px;border-radius:8px;display:flex;justify-content:space-between;font-size:9px;font-weight:800;}',
+                  '@media print{.print-shell{padding:0 0 34px;max-width:none}.cover{min-height:9.25in}.receipt-card{grid-template-columns:minmax(0,1.25fr) 250px}.print-footer{display:flex}}'
+                ].join('');
+              }
+
+              function buildCover(title, generatedAt, clone) {
+                var statCards = Array.from(document.querySelectorAll('section.grid div.rounded-2xl')).slice(0, 6).map(function (card) {
+                  var label = card.querySelector('p:first-child') ? card.querySelector('p:first-child').textContent.trim() : '';
+                  var value = card.querySelector('p:nth-child(2)') ? card.querySelector('p:nth-child(2)').textContent.trim() : '';
+                  if (!label || !value) return '';
+                  return '<div class="summary-card"><div class="label">' + escapeHtml(label) + '</div><div class="value">' + escapeHtml(value) + '</div></div>';
+                }).join('');
+
+                return '<section class="cover"><div class="cover-top"><div><div class="brand">Indiana Notary Solutions • INS Pro</div><h1 class="cover-title">' + escapeHtml(title) + '</h1><div class="cover-subtitle">Professional report package with summary totals, transaction detail, source records, receipt previews, and review disclaimer.</div></div><div class="meta-box"><strong>Generated</strong><br>' + escapeHtml(generatedAt) + '<br><br><strong>Report Source</strong><br>INS Pro workspace data</div></div><div class="summary-grid">' + statCards + '</div><div class="cover-note"><strong>Review Required:</strong> Reports are estimates based on data saved in your INS Pro account. Verify totals, classifications, mileage, receipts, and tax treatment before filing taxes or using this report for official purposes.</div></section>';
               }
 
               function printTarget(targetId) {
@@ -2348,61 +2460,26 @@ export default async function ReportsPage({
 
                 var title = source.getAttribute('data-print-title') || 'INS Pro Report';
                 var clone = cleanClone(source.cloneNode(true));
-                var printWindow = window.open('', '_blank', 'width=1100,height=850');
+                clone.classList.add('report-page');
 
+                var printWindow = window.open('', '_blank', 'width=1100,height=850');
                 if (!printWindow) {
                   window.print();
                   return;
                 }
 
                 var generatedAt = new Date().toLocaleString();
+                var receipts = receiptPageHtml(clone);
+                var html = '<!doctype html><html><head><meta charset="utf-8"><title>' + escapeHtml(title) + '</title><style>' + reportStyles() + '</style></head><body><div class="print-shell">' + buildCover(title, generatedAt, clone) + clone.outerHTML + receipts + '<div class="print-disclaimer"><strong>Report Disclaimer</strong><br><br>The information contained in this report is generated from data entered into the Indiana Notary Solutions platform by you or other authorized users. While Indiana Notary Solutions makes reasonable efforts to accurately calculate totals, summaries, mileage, expenses, invoices, journal activity, and other report data, we do not guarantee the accuracy, completeness, or suitability of any report.<br><br>These reports are provided for informational and business management purposes only and should not be relied upon as accounting, tax, legal, or financial advice.<br><br>It is your responsibility to review and verify all information before using these reports for tax filings, financial statements, audits, regulatory compliance, or any other official purpose.<br><br>Indiana Notary Solutions, LLC shall not be liable for any errors, omissions, inaccurate data entry, calculation discrepancies, lost profits, tax liabilities, penalties, or damages arising from the use of these reports or reliance upon the information contained within them.<br><br>Users are strongly encouraged to consult a qualified CPA, tax professional, or attorney regarding the appropriate use of these records.</div></div><div class="print-footer"><span>Powered by Indiana Notary Solutions PRO</span><span>' + escapeHtml(generatedAt) + '</span></div></body></html>';
 
                 printWindow.document.open();
-                printWindow.document.write('<!doctype html><html><head><title>' + title + '</title>');
-                printWindow.document.write('<style>');
-                printWindow.document.write('@page{size:letter;margin:.45in;}');
-                printWindow.document.write('body{font-family:Inter,Arial,Helvetica,sans-serif;color:#111827;background:#f8fafc;margin:0;font-size:12px;}');
-                printWindow.document.write('.print-header{display:flex;justify-content:space-between;gap:24px;border-bottom:5px solid #0B1F4D;background:white;margin-bottom:22px;padding:18px 20px 14px;border-radius:14px;}');
-                printWindow.document.write('.print-brand{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.14em;color:#1d4ed8;}');
-                printWindow.document.write('.print-title{font-size:25px;font-weight:900;margin:5px 0;color:#0f172a;}');
-                printWindow.document.write('.print-meta{font-size:10px;color:#475569;text-align:right;line-height:1.5;}');
-                printWindow.document.write('section,article,aside,div{box-shadow:none!important;}');
-                printWindow.document.write('section{background:white!important;border:1px solid #d8e2ef!important;border-radius:14px!important;margin:0 0 16px!important;padding:0!important;overflow:hidden!important;}');
-                printWindow.document.write('section>div:first-child{background:#f8fafc!important;border-bottom:1px solid #d8e2ef!important;padding:14px 16px!important;}');
-                printWindow.document.write('h1,h2,h3{break-after:avoid;color:#0f172a;margin-top:0;}');
-                printWindow.document.write('h2{font-size:21px!important;margin:4px 0 2px!important;} h3{font-size:15px!important;}');
-                printWindow.document.write('p{line-height:1.45;margin-top:4px;}');
-                printWindow.document.write('table{width:100%!important;border-collapse:separate!important;border-spacing:0!important;table-layout:auto!important;margin-top:10px;font-size:9.5px;background:white!important;border:1px solid #d8e2ef!important;border-radius:10px!important;overflow:hidden!important;}');
-                printWindow.document.write('thead{display:table-header-group;background:#eef4fb!important;}');
-                printWindow.document.write('tr{break-inside:avoid;}');
-                printWindow.document.write('th,td{border-bottom:1px solid #d8e2ef!important;border-right:1px solid #e5edf6!important;padding:7px 8px!important;text-align:left;vertical-align:top;white-space:normal!important;}');
-                printWindow.document.write('th:last-child,td:last-child{border-right:0!important;} tbody tr:last-child td{border-bottom:0!important;}');
-                printWindow.document.write('th{text-transform:uppercase;font-size:8.5px;color:#334155;font-weight:900;background:#f3f7fb!important;}');
-                printWindow.document.write('details{break-inside:avoid;border:1px solid #d8e2ef!important;border-radius:14px!important;margin:12px 0!important;padding:12px!important;background:#fff!important;}');
-                printWindow.document.write('summary{display:block!important;cursor:default!important;list-style:none!important;} summary::-webkit-details-marker{display:none!important;}');
-                printWindow.document.write('.flex,.inline-flex{display:flex!important}.items-center{align-items:center!important}.items-start{align-items:flex-start!important}.justify-between{justify-content:space-between!important}.justify-center{justify-content:center!important}.gap-3{gap:12px!important}.gap-4{gap:16px!important}.shrink-0{flex-shrink:0!important}.min-w-0{min-width:0!important}');
-                printWindow.document.write('.hidden{display:table-cell!important}.md\:hidden,.sm\:hidden{display:none!important}.md\:table-cell,.sm\:table-cell,.lg\:table-cell{display:table-cell!important}');
-                printWindow.document.write('.rounded-2xl,.rounded-xl{border-radius:12px!important}.rounded-full{border-radius:999px!important}');
-                printWindow.document.write('.bg-\[\#0B1F4D\],.bg-blue-600{background:#0B1F4D!important;color:white!important}.bg-slate-50{background:#f8fafc!important}.bg-white{background:white!important}.bg-blue-50{background:#eff6ff!important}.bg-green-50{background:#f0fdf4!important}.bg-amber-50{background:#fffbeb!important}.bg-red-50{background:#fef2f2!important}');
-                printWindow.document.write('.text-green-700{color:#15803d!important}.text-red-700{color:#b91c1c!important}.text-amber-700{color:#b45309!important}.text-blue-700{color:#1d4ed8!important}.text-slate-950{color:#020617!important}.text-slate-700{color:#334155!important}.text-slate-500{color:#64748b!important}');
-                printWindow.document.write('.font-black{font-weight:900!important}.font-bold{font-weight:700!important}.font-semibold{font-weight:600!important}.text-right{text-align:right!important}.uppercase{text-transform:uppercase!important}');
-                printWindow.document.write('.grid{display:block!important}.space-y-6>*+*{margin-top:18px!important}.space-y-4>*+*{margin-top:12px!important}.space-y-3>*+*{margin-top:9px!important}');
-                printWindow.document.write('.ring-1,.border{border:1px solid #d8e2ef!important}.p-5,.p-4,.p-3{padding:12px!important}');
-                printWindow.document.write('.mt-1{margin-top:3px!important}.mt-2{margin-top:6px!important}.mt-3{margin-top:8px!important}.mt-4{margin-top:10px!important}.mt-5{margin-top:12px!important}.mt-6{margin-top:14px!important}');
-                printWindow.document.write('.truncate{overflow:visible!important;text-overflow:clip!important;white-space:normal!important}');
-                printWindow.document.write('img{max-width:220px!important;max-height:180px!important;object-fit:contain!important;border:1px solid #d8e2ef!important;border-radius:10px!important;background:white!important;padding:4px!important;} a{color:#1d4ed8;text-decoration:none;font-weight:700}');
-                printWindow.document.write('.print-note{margin-top:18px;background:white;border:1px solid #d8e2ef;border-radius:12px;padding:12px;font-size:10px;color:#475569;}');
-                printWindow.document.write('</style></head><body>');
-                printWindow.document.write('<div class="print-header"><div><div class="print-brand">Indiana Notary Solutions • INS Pro</div><div class="print-title">' + title + '</div><div>Professional report package with transaction details and receipt previews/references.</div></div><div class="print-meta">Generated<br>' + generatedAt + '</div></div>');
-                printWindow.document.body.appendChild(clone);
-                printWindow.document.write('<div class="print-note"><strong>Report Disclaimer</strong><br><br>The information contained in this report is generated from data entered into the Indiana Notary Solutions platform by you or other authorized users. While Indiana Notary Solutions makes reasonable efforts to accurately calculate totals, summaries, mileage, expenses, invoices, journal activity, and other report data, we do not guarantee the accuracy, completeness, or suitability of any report.<br><br>These reports are provided for informational and business management purposes only and should not be relied upon as accounting, tax, legal, or financial advice.<br><br>It is your responsibility to review and verify all information before using these reports for tax filings, financial statements, audits, regulatory compliance, or any other official purpose.<br><br>Indiana Notary Solutions, LLC shall not be liable for any errors, omissions, inaccurate data entry, calculation discrepancies, lost profits, tax liabilities, penalties, or damages arising from the use of these reports or reliance upon the information contained within them.<br><br>Users are strongly encouraged to consult a qualified CPA, tax professional, or attorney regarding the appropriate use of these records.</div>');
-                printWindow.document.write('</body></html>');
+                printWindow.document.write(html);
                 printWindow.document.close();
 
                 setTimeout(function () {
                   printWindow.focus();
                   printWindow.print();
-                }, 300);
+                }, 600);
               }
 
               document.addEventListener('click', function (event) {
