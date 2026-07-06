@@ -1148,14 +1148,13 @@ export default async function ReportsPage({
               >
                 View
               </a>
-              <a
-                href={`#${card.printTarget}`}
+              <button
+                type="button"
                 data-print-target={card.printTarget}
-                role="button"
                 className="relative z-10 inline-flex w-full cursor-pointer justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 sm:w-auto"
               >
                 Print
-              </a>
+              </button>
             </div>
           </div>
         ))}
