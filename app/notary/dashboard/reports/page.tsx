@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Script from "next/script";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../../src/lib/supabase-server";
 import { supabaseAdmin } from "../../../../src/lib/supabase-admin";
@@ -2324,9 +2323,8 @@ export default async function ReportsPage({
         </div>
       </section>
 
-      <Script
+      <script
         id="ins-pro-report-printing"
-        strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: `
             (function () {
