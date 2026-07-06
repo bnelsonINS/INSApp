@@ -66,6 +66,11 @@ type ExpenseRow = {
   created_at: string | null;
 };
 
+type ExpenseReportRow = ExpenseRow & {
+  receipt_url: string | null;
+  receipt_kind: "image" | "pdf" | "file" | "none";
+};
+
 type MileageRow = {
   id: string;
   assignment_id: string | null;
@@ -330,7 +335,122 @@ function statusPill(status: string | null | undefined) {
 }
 
 function receiptLabel(expense: ExpenseRow) {
-  return expense.receipt_file_name || expense.receipt_file_path || "No receipt attached";
+  return (
+    expense.receipt_file_name ||
+    expense.receipt_file_path ||
+    "No receipt attached"
+  );
+}
+
+function receiptKind(
+  path: string | null | undefined,
+  name: string | null | undefined,
+) {
+  const value = String(name || path || "").toLowerCase();
+
+  if (!value) return "none" as const;
+  if (
+    value.endsWith(".png") ||
+    value.endsWith(".jpg") ||
+    value.endsWith(".jpeg") ||
+    value.endsWith(".webp") ||
+    value.endsWith(".gif")
+  ) {
+    return "image" as const;
+  }
+  if (value.endsWith(".pdf")) return "pdf" as const;
+  return "file" as const;
+}
+
+async function buildReceiptUrl(path: string | null | undefined) {
+  if (!path) return null;
+
+  const cleanPath = String(path).trim();
+  if (!cleanPath) return null;
+  if (cleanPath.startsWith("http://") || cleanPath.startsWith("https://"))
+    return cleanPath;
+
+  const bucketAttempts: { bucket: string; objectPath: string }[] = [];
+  const parts = cleanPath.split("/").filter(Boolean);
+
+  if (parts.length > 1) {
+    bucketAttempts.push({
+      bucket: parts[0],
+      objectPath: parts.slice(1).join("/"),
+    });
+  }
+
+  for (const bucket of [
+    "assignment-receipts",
+    "expense-receipts",
+    "receipts",
+    "assignment-expenses",
+    "notary-receipts",
+    "documents",
+  ]) {
+    bucketAttempts.push({ bucket, objectPath: cleanPath });
+  }
+
+  for (const attempt of bucketAttempts) {
+    const { data, error } = await supabaseAdmin.storage
+      .from(attempt.bucket)
+      .createSignedUrl(attempt.objectPath, 60 * 60);
+
+    if (!error && data?.signedUrl) return data.signedUrl;
+  }
+
+  return null;
+}
+
+function ReceiptAttachment({ expense }: { expense: ExpenseReportRow }) {
+  const label = receiptLabel(expense);
+
+  if (!expense.receipt_file_path && !expense.receipt_file_name) {
+    return (
+      <span className="inline-flex rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
+        No receipt
+      </span>
+    );
+  }
+
+  if (expense.receipt_url && expense.receipt_kind === "image") {
+    return (
+      <a
+        href={expense.receipt_url}
+        target="_blank"
+        rel="noreferrer"
+        className="block max-w-[220px] rounded-xl border border-slate-200 bg-white p-2 shadow-sm"
+      >
+        <img
+          src={expense.receipt_url}
+          alt={`Receipt for ${expense.category || "expense"}`}
+          className="h-28 w-full rounded-lg object-contain print:h-40"
+        />
+        <span className="mt-2 block truncate text-xs font-bold text-blue-700">
+          {label}
+        </span>
+      </a>
+    );
+  }
+
+  if (expense.receipt_url) {
+    return (
+      <a
+        href={expense.receipt_url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex max-w-full items-center rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700"
+      >
+        Open receipt: {label}
+      </a>
+    );
+  }
+
+  return (
+    <span className="inline-flex max-w-full rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+      Receipt saved: {label}
+    </span>
+  );
 }
 
 function reportPrintTitle(title: string, rangeLabel: string) {
@@ -475,7 +595,16 @@ export default async function ReportsPage({
     console.error("Reports expenses lookup error:", expensesError);
   }
 
-  const expenses = (expensesData ?? []) as ExpenseRow[];
+  const expenses = (await Promise.all(
+    ((expensesData ?? []) as ExpenseRow[]).map(async (expense) => ({
+      ...expense,
+      receipt_url: await buildReceiptUrl(expense.receipt_file_path),
+      receipt_kind: receiptKind(
+        expense.receipt_file_path,
+        expense.receipt_file_name,
+      ),
+    })),
+  )) satisfies ExpenseReportRow[];
 
   const { data: mileageData, error: mileageError } = assignmentIds.length
     ? await supabaseAdmin
@@ -1083,7 +1212,10 @@ export default async function ReportsPage({
 
       <section
         id="profit-loss"
-        data-print-title={reportPrintTitle("Profit & Loss Report", selectedRange.label)}
+        data-print-title={reportPrintTitle(
+          "Profit & Loss Report",
+          selectedRange.label,
+        )}
         className="rounded-2xl border border-slate-200 bg-white shadow-sm print:break-inside-avoid"
       >
         <div className="border-b border-slate-200 p-5">
@@ -1130,9 +1262,11 @@ export default async function ReportsPage({
                 <div className="mt-3 space-y-3">
                   {categoryRows.map((row) => {
                     const matchingExpenses = expenses.filter(
-                      (expense) => (expense.category || "Misc.") === row.category,
+                      (expense) =>
+                        (expense.category || "Misc.") === row.category,
                     );
-                    const isMileageCategory = row.category === "Mileage - Personal Auto";
+                    const isMileageCategory =
+                      row.category === "Mileage - Personal Auto";
 
                     return (
                       <details
@@ -1142,8 +1276,12 @@ export default async function ReportsPage({
                       >
                         <summary className="cursor-pointer list-none">
                           <div className="mb-2 flex items-center justify-between gap-3 text-sm font-black text-slate-800">
-                            <span className="min-w-0 truncate">{row.category}</span>
-                            <span className="shrink-0">{money(row.amount)}</span>
+                            <span className="min-w-0 truncate">
+                              {row.category}
+                            </span>
+                            <span className="shrink-0">
+                              {money(row.amount)}
+                            </span>
                           </div>
                           <Bar value={row.amount} max={maxCategoryAmount} />
                           <p className="mt-2 text-xs font-semibold text-blue-700 print:hidden">
@@ -1161,10 +1299,18 @@ export default async function ReportsPage({
                               <table className="w-full text-left text-xs">
                                 <thead className="bg-slate-50 uppercase text-slate-500">
                                   <tr>
-                                    <th className="px-3 py-2 font-bold">Date</th>
-                                    <th className="px-3 py-2 font-bold">Assignment</th>
-                                    <th className="px-3 py-2 text-right font-bold">Miles</th>
-                                    <th className="px-3 py-2 text-right font-bold">Deduction</th>
+                                    <th className="px-3 py-2 font-bold">
+                                      Date
+                                    </th>
+                                    <th className="px-3 py-2 font-bold">
+                                      Assignment
+                                    </th>
+                                    <th className="px-3 py-2 text-right font-bold">
+                                      Miles
+                                    </th>
+                                    <th className="px-3 py-2 text-right font-bold">
+                                      Deduction
+                                    </th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200">
@@ -1194,7 +1340,8 @@ export default async function ReportsPage({
                                             entry.amount ||
                                               numberValue(entry.miles) *
                                                 numberValue(
-                                                  entry.rate || FEDERAL_MILEAGE_RATE,
+                                                  entry.rate ||
+                                                    FEDERAL_MILEAGE_RATE,
                                                 ),
                                           )}
                                         </td>
@@ -1213,10 +1360,16 @@ export default async function ReportsPage({
                               <thead className="bg-slate-50 uppercase text-slate-500">
                                 <tr>
                                   <th className="px-3 py-2 font-bold">Date</th>
-                                  <th className="px-3 py-2 font-bold">Vendor</th>
+                                  <th className="px-3 py-2 font-bold">
+                                    Vendor
+                                  </th>
                                   <th className="px-3 py-2 font-bold">Notes</th>
-                                  <th className="px-3 py-2 font-bold">Receipt</th>
-                                  <th className="px-3 py-2 text-right font-bold">Amount</th>
+                                  <th className="px-3 py-2 font-bold">
+                                    Receipt
+                                  </th>
+                                  <th className="px-3 py-2 text-right font-bold">
+                                    Amount
+                                  </th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-200">
@@ -1232,7 +1385,7 @@ export default async function ReportsPage({
                                       {expense.description || "—"}
                                     </td>
                                     <td className="px-3 py-2 text-slate-600">
-                                      {receiptLabel(expense)}
+                                      <ReceiptAttachment expense={expense} />
                                     </td>
                                     <td className="px-3 py-2 text-right font-black text-slate-950">
                                       {money(expense.amount)}
@@ -1324,12 +1477,24 @@ export default async function ReportsPage({
             <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="hidden px-2 py-3 font-bold md:table-cell md:px-5">Client</th>
-                  <th className="px-2 py-3 sm:px-5 text-right font-bold">Orders</th>
-                  <th className="px-2 py-3 sm:px-5 text-right font-bold">Revenue</th>
-                  <th className="hidden px-2 py-3 text-right font-bold md:table-cell md:px-5">Paid</th>
-                  <th className="hidden px-2 py-3 text-right font-bold sm:table-cell sm:px-5">Balance</th>
-                  <th className="px-2 py-3 sm:px-5 text-right font-bold">Miles</th>
+                  <th className="hidden px-2 py-3 font-bold md:table-cell md:px-5">
+                    Client
+                  </th>
+                  <th className="px-2 py-3 sm:px-5 text-right font-bold">
+                    Orders
+                  </th>
+                  <th className="px-2 py-3 sm:px-5 text-right font-bold">
+                    Revenue
+                  </th>
+                  <th className="hidden px-2 py-3 text-right font-bold md:table-cell md:px-5">
+                    Paid
+                  </th>
+                  <th className="hidden px-2 py-3 text-right font-bold sm:table-cell sm:px-5">
+                    Balance
+                  </th>
+                  <th className="px-2 py-3 sm:px-5 text-right font-bold">
+                    Miles
+                  </th>
                   <th className="px-2 py-3 sm:px-5 font-bold">Share</th>
                 </tr>
               </thead>
@@ -1410,7 +1575,10 @@ export default async function ReportsPage({
 
       <section
         id="mileage-report"
-        data-print-title={reportPrintTitle("Mileage Report", selectedRange.label)}
+        data-print-title={reportPrintTitle(
+          "Mileage Report",
+          selectedRange.label,
+        )}
         className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(320px,.8fr)_minmax(0,1.2fr)]"
       >
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1472,9 +1640,15 @@ export default async function ReportsPage({
                 <tr>
                   <th className="px-2 py-3 sm:px-5 font-bold">Date</th>
                   <th className="px-2 py-3 font-bold sm:px-5">Assignment</th>
-                  <th className="px-2 py-3 sm:px-5 text-right font-bold">Miles</th>
-                  <th className="hidden px-2 py-3 text-right font-bold sm:table-cell sm:px-5">Rate</th>
-                  <th className="px-2 py-3 sm:px-5 text-right font-bold">Deduction</th>
+                  <th className="px-2 py-3 sm:px-5 text-right font-bold">
+                    Miles
+                  </th>
+                  <th className="hidden px-2 py-3 text-right font-bold sm:table-cell sm:px-5">
+                    Rate
+                  </th>
+                  <th className="px-2 py-3 sm:px-5 text-right font-bold">
+                    Deduction
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -1533,7 +1707,10 @@ export default async function ReportsPage({
 
       <section
         id="invoice-aging"
-        data-print-title={reportPrintTitle("Invoice Aging Report", selectedRange.label)}
+        data-print-title={reportPrintTitle(
+          "Invoice Aging Report",
+          selectedRange.label,
+        )}
         className="rounded-2xl border border-slate-200 bg-white shadow-sm"
       >
         <div className="border-b border-slate-200 p-5">
@@ -1564,12 +1741,24 @@ export default async function ReportsPage({
               <tr>
                 <th className="px-2 py-3 sm:px-5 font-bold">Invoice</th>
                 <th className="px-2 py-3 font-bold sm:px-5">Assignment</th>
-                <th className="hidden px-2 py-3 font-bold md:table-cell md:px-5">Client</th>
-                <th className="hidden px-2 py-3 font-bold sm:table-cell sm:px-5">Due</th>
-                <th className="px-2 py-3 sm:px-5 text-right font-bold">Total</th>
-                <th className="hidden px-2 py-3 text-right font-bold md:table-cell md:px-5">Paid</th>
-                <th className="hidden px-2 py-3 text-right font-bold sm:table-cell sm:px-5">Balance</th>
-                <th className="hidden px-2 py-3 font-bold lg:table-cell lg:px-5">Status</th>
+                <th className="hidden px-2 py-3 font-bold md:table-cell md:px-5">
+                  Client
+                </th>
+                <th className="hidden px-2 py-3 font-bold sm:table-cell sm:px-5">
+                  Due
+                </th>
+                <th className="px-2 py-3 sm:px-5 text-right font-bold">
+                  Total
+                </th>
+                <th className="hidden px-2 py-3 text-right font-bold md:table-cell md:px-5">
+                  Paid
+                </th>
+                <th className="hidden px-2 py-3 text-right font-bold sm:table-cell sm:px-5">
+                  Balance
+                </th>
+                <th className="hidden px-2 py-3 font-bold lg:table-cell lg:px-5">
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -1636,7 +1825,10 @@ export default async function ReportsPage({
 
       <section
         id="expense-report"
-        data-print-title={reportPrintTitle("Expense Report", selectedRange.label)}
+        data-print-title={reportPrintTitle(
+          "Expense Report",
+          selectedRange.label,
+        )}
         className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]"
       >
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -1656,8 +1848,12 @@ export default async function ReportsPage({
                   <th className="px-2 py-3 sm:px-5 font-bold">Category</th>
                   <th className="px-2 py-3 font-bold sm:px-5">Vendor</th>
                   <th className="px-2 py-3 font-bold sm:px-5">Assignment</th>
-                  <th className="px-2 py-3 sm:px-5 text-right font-bold">Amount</th>
-                  <th className="hidden px-2 py-3 font-bold sm:table-cell sm:px-5">Receipt</th>
+                  <th className="px-2 py-3 sm:px-5 text-right font-bold">
+                    Amount
+                  </th>
+                  <th className="hidden px-2 py-3 font-bold sm:table-cell sm:px-5">
+                    Receipt
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -1700,11 +1896,7 @@ export default async function ReportsPage({
                           {money(expense.amount)}
                         </td>
                         <td className="hidden px-2 py-4 sm:table-cell sm:px-5">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${expense.receipt_file_path || expense.receipt_file_name ? "bg-green-50 text-green-700 ring-green-200" : "bg-slate-50 text-slate-600 ring-slate-200"}`}
-                          >
-                            {receiptLabel(expense)}
-                          </span>
+                          <ReceiptAttachment expense={expense} />
                         </td>
                       </tr>
                     );
@@ -1744,7 +1936,10 @@ export default async function ReportsPage({
 
       <section
         id="journal-report"
-        data-print-title={reportPrintTitle("Journal Report", selectedRange.label)}
+        data-print-title={reportPrintTitle(
+          "Journal Report",
+          selectedRange.label,
+        )}
         className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(320px,.8fr)_minmax(0,1.2fr)]"
       >
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1808,7 +2003,9 @@ export default async function ReportsPage({
                   <th className="px-2 py-3 sm:px-5 font-bold">Date</th>
                   <th className="px-2 py-3 font-bold sm:px-5">Assignment</th>
                   <th className="px-2 py-3 sm:px-5 font-bold">Type</th>
-                  <th className="hidden px-2 py-3 font-bold lg:table-cell lg:px-5">Status</th>
+                  <th className="hidden px-2 py-3 font-bold lg:table-cell lg:px-5">
+                    Status
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -1861,7 +2058,10 @@ export default async function ReportsPage({
 
       <section
         id="client-report"
-        data-print-title={reportPrintTitle("Client Profitability Report", selectedRange.label)}
+        data-print-title={reportPrintTitle(
+          "Client Profitability Report",
+          selectedRange.label,
+        )}
         className="rounded-2xl border border-slate-200 bg-white shadow-sm"
       >
         <div className="border-b border-slate-200 p-5">
@@ -1956,12 +2156,24 @@ export default async function ReportsPage({
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <th className="w-[24%] px-4 py-3 font-bold">Client</th>
-                <th className="w-[10%] px-4 py-3 text-right font-bold">Orders</th>
-                <th className="w-[14%] px-4 py-3 text-right font-bold">Revenue</th>
-                <th className="w-[14%] px-4 py-3 text-right font-bold">Expenses</th>
-                <th className="w-[12%] px-4 py-3 text-right font-bold">Mileage</th>
-                <th className="w-[12%] px-4 py-3 text-right font-bold">Balance</th>
-                <th className="w-[14%] px-4 py-3 text-right font-bold">Est. Profit</th>
+                <th className="w-[10%] px-4 py-3 text-right font-bold">
+                  Orders
+                </th>
+                <th className="w-[14%] px-4 py-3 text-right font-bold">
+                  Revenue
+                </th>
+                <th className="w-[14%] px-4 py-3 text-right font-bold">
+                  Expenses
+                </th>
+                <th className="w-[12%] px-4 py-3 text-right font-bold">
+                  Mileage
+                </th>
+                <th className="w-[12%] px-4 py-3 text-right font-bold">
+                  Balance
+                </th>
+                <th className="w-[14%] px-4 py-3 text-right font-bold">
+                  Est. Profit
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -2014,8 +2226,14 @@ export default async function ReportsPage({
         </div>
       </section>
 
-      <section id="performance-report"
-        data-print-title={reportPrintTitle("Performance Report", selectedRange.label)} className="grid gap-6 xl:grid-cols-3">
+      <section
+        id="performance-report"
+        data-print-title={reportPrintTitle(
+          "Performance Report",
+          selectedRange.label,
+        )}
+        className="grid gap-6 xl:grid-cols-3"
+      >
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-black uppercase tracking-wide text-blue-700">
             Performance
@@ -2140,39 +2358,41 @@ export default async function ReportsPage({
                 printWindow.document.write('<!doctype html><html><head><title>' + title + '</title>');
                 printWindow.document.write('<style>');
                 printWindow.document.write('@page{size:letter;margin:.45in;}');
-                printWindow.document.write('body{font-family:Arial,Helvetica,sans-serif;color:#111827;background:white;margin:0;font-size:12px;}');
-                printWindow.document.write('.print-header{display:flex;justify-content:space-between;gap:24px;border-bottom:4px solid #0B1F4D;margin-bottom:20px;padding-bottom:14px;}');
+                printWindow.document.write('body{font-family:Inter,Arial,Helvetica,sans-serif;color:#111827;background:#f8fafc;margin:0;font-size:12px;}');
+                printWindow.document.write('.print-header{display:flex;justify-content:space-between;gap:24px;border-bottom:5px solid #0B1F4D;background:white;margin-bottom:22px;padding:18px 20px 14px;border-radius:14px;}');
                 printWindow.document.write('.print-brand{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.14em;color:#1d4ed8;}');
-                printWindow.document.write('.print-title{font-size:24px;font-weight:900;margin:4px 0;color:#0f172a;}');
-                printWindow.document.write('.print-meta{font-size:10px;color:#475569;text-align:right;}');
+                printWindow.document.write('.print-title{font-size:25px;font-weight:900;margin:5px 0;color:#0f172a;}');
+                printWindow.document.write('.print-meta{font-size:10px;color:#475569;text-align:right;line-height:1.5;}');
                 printWindow.document.write('section,article,aside,div{box-shadow:none!important;}');
-                printWindow.document.write('section{border:0!important;margin:0!important;padding:0!important;}');
+                printWindow.document.write('section{background:white!important;border:1px solid #d8e2ef!important;border-radius:14px!important;margin:0 0 16px!important;padding:0!important;overflow:hidden!important;}');
+                printWindow.document.write('section>div:first-child{background:#f8fafc!important;border-bottom:1px solid #d8e2ef!important;padding:14px 16px!important;}');
                 printWindow.document.write('h1,h2,h3{break-after:avoid;color:#0f172a;margin-top:0;}');
-                printWindow.document.write('h2{font-size:20px!important;} h3{font-size:15px!important;}');
-                printWindow.document.write('p{line-height:1.4;}');
-                printWindow.document.write('table{width:100%!important;border-collapse:collapse!important;table-layout:auto!important;margin-top:10px;font-size:9.5px;}');
-                printWindow.document.write('thead{display:table-header-group;background:#f1f5f9!important;}');
+                printWindow.document.write('h2{font-size:21px!important;margin:4px 0 2px!important;} h3{font-size:15px!important;}');
+                printWindow.document.write('p{line-height:1.45;margin-top:4px;}');
+                printWindow.document.write('table{width:100%!important;border-collapse:separate!important;border-spacing:0!important;table-layout:auto!important;margin-top:10px;font-size:9.5px;background:white!important;border:1px solid #d8e2ef!important;border-radius:10px!important;overflow:hidden!important;}');
+                printWindow.document.write('thead{display:table-header-group;background:#eef4fb!important;}');
                 printWindow.document.write('tr{break-inside:avoid;}');
-                printWindow.document.write('th,td{border:1px solid #cbd5e1!important;padding:5px 6px!important;text-align:left;vertical-align:top;white-space:normal!important;}');
-                printWindow.document.write('th{text-transform:uppercase;font-size:8.5px;color:#334155;font-weight:900;background:#f8fafc!important;}');
-                printWindow.document.write('details{break-inside:avoid;border:1px solid #cbd5e1!important;margin:10px 0!important;padding:8px!important;}');
-                printWindow.document.write('summary{display:block!important;cursor:default!important;}');
-                printWindow.document.write('.hidden{display:table-cell!important;}');
-                printWindow.document.write('.md\\:hidden,.sm\\:hidden{display:none!important;}');
-                printWindow.document.write('.md\\:table-cell,.sm\\:table-cell,.lg\\:table-cell{display:table-cell!important;}');
-                printWindow.document.write('.rounded-2xl,.rounded-xl,.rounded-full{border-radius:0!important;}');
-                printWindow.document.write('.bg-\\[\\#0B1F4D\\],.bg-blue-600{background:#0B1F4D!important;color:white!important;}');
-                printWindow.document.write('.text-green-700{color:#15803d!important}.text-red-700{color:#b91c1c!important}.text-amber-700{color:#b45309!important}.text-blue-700{color:#1d4ed8!important}');
-                printWindow.document.write('.grid{display:block!important}.space-y-6>*+*{margin-top:16px}.space-y-4>*+*{margin-top:10px}.space-y-3>*+*{margin-top:8px}');
-                printWindow.document.write('.ring-1,.border{border:1px solid #cbd5e1!important;}');
-                printWindow.document.write('.p-5,.p-4,.p-3{padding:8px!important;}');
-                printWindow.document.write('.mt-1{margin-top:3px}.mt-2{margin-top:6px}.mt-3{margin-top:8px}.mt-4{margin-top:10px}.mt-5{margin-top:12px}.mt-6{margin-top:14px}');
-                printWindow.document.write('.truncate{overflow:visible!important;text-overflow:clip!important;white-space:normal!important;}');
-                printWindow.document.write('.print-note{margin-top:18px;border-top:1px solid #cbd5e1;padding-top:10px;font-size:10px;color:#475569;}');
+                printWindow.document.write('th,td{border-bottom:1px solid #d8e2ef!important;border-right:1px solid #e5edf6!important;padding:7px 8px!important;text-align:left;vertical-align:top;white-space:normal!important;}');
+                printWindow.document.write('th:last-child,td:last-child{border-right:0!important;} tbody tr:last-child td{border-bottom:0!important;}');
+                printWindow.document.write('th{text-transform:uppercase;font-size:8.5px;color:#334155;font-weight:900;background:#f3f7fb!important;}');
+                printWindow.document.write('details{break-inside:avoid;border:1px solid #d8e2ef!important;border-radius:14px!important;margin:12px 0!important;padding:12px!important;background:#fff!important;}');
+                printWindow.document.write('summary{display:block!important;cursor:default!important;list-style:none!important;} summary::-webkit-details-marker{display:none!important;}');
+                printWindow.document.write('.flex,.inline-flex{display:flex!important}.items-center{align-items:center!important}.items-start{align-items:flex-start!important}.justify-between{justify-content:space-between!important}.justify-center{justify-content:center!important}.gap-3{gap:12px!important}.gap-4{gap:16px!important}.shrink-0{flex-shrink:0!important}.min-w-0{min-width:0!important}');
+                printWindow.document.write('.hidden{display:table-cell!important}.md\:hidden,.sm\:hidden{display:none!important}.md\:table-cell,.sm\:table-cell,.lg\:table-cell{display:table-cell!important}');
+                printWindow.document.write('.rounded-2xl,.rounded-xl{border-radius:12px!important}.rounded-full{border-radius:999px!important}');
+                printWindow.document.write('.bg-\[\#0B1F4D\],.bg-blue-600{background:#0B1F4D!important;color:white!important}.bg-slate-50{background:#f8fafc!important}.bg-white{background:white!important}.bg-blue-50{background:#eff6ff!important}.bg-green-50{background:#f0fdf4!important}.bg-amber-50{background:#fffbeb!important}.bg-red-50{background:#fef2f2!important}');
+                printWindow.document.write('.text-green-700{color:#15803d!important}.text-red-700{color:#b91c1c!important}.text-amber-700{color:#b45309!important}.text-blue-700{color:#1d4ed8!important}.text-slate-950{color:#020617!important}.text-slate-700{color:#334155!important}.text-slate-500{color:#64748b!important}');
+                printWindow.document.write('.font-black{font-weight:900!important}.font-bold{font-weight:700!important}.font-semibold{font-weight:600!important}.text-right{text-align:right!important}.uppercase{text-transform:uppercase!important}');
+                printWindow.document.write('.grid{display:block!important}.space-y-6>*+*{margin-top:18px!important}.space-y-4>*+*{margin-top:12px!important}.space-y-3>*+*{margin-top:9px!important}');
+                printWindow.document.write('.ring-1,.border{border:1px solid #d8e2ef!important}.p-5,.p-4,.p-3{padding:12px!important}');
+                printWindow.document.write('.mt-1{margin-top:3px!important}.mt-2{margin-top:6px!important}.mt-3{margin-top:8px!important}.mt-4{margin-top:10px!important}.mt-5{margin-top:12px!important}.mt-6{margin-top:14px!important}');
+                printWindow.document.write('.truncate{overflow:visible!important;text-overflow:clip!important;white-space:normal!important}');
+                printWindow.document.write('img{max-width:220px!important;max-height:180px!important;object-fit:contain!important;border:1px solid #d8e2ef!important;border-radius:10px!important;background:white!important;padding:4px!important;} a{color:#1d4ed8;text-decoration:none;font-weight:700}');
+                printWindow.document.write('.print-note{margin-top:18px;background:white;border:1px solid #d8e2ef;border-radius:12px;padding:12px;font-size:10px;color:#475569;}');
                 printWindow.document.write('</style></head><body>');
-                printWindow.document.write('<div class="print-header"><div><div class="print-brand">Indiana Notary Solutions • INS Pro</div><div class="print-title">' + title + '</div><div>Professional report package with transaction drilldowns and attachment references.</div></div><div class="print-meta">Generated<br>' + generatedAt + '</div></div>');
+                printWindow.document.write('<div class="print-header"><div><div class="print-brand">Indiana Notary Solutions • INS Pro</div><div class="print-title">' + title + '</div><div>Professional report package with transaction details and receipt previews/references.</div></div><div class="print-meta">Generated<br>' + generatedAt + '</div></div>');
                 printWindow.document.body.appendChild(clone);
-                printWindow.document.write('<div class="print-note">Receipt attachments are listed by saved file name/path. Open the assignment expense workspace to view or download the original receipt image/PDF.</div>');
+                printWindow.document.write('<div class="print-note">Image receipts are shown when INS Pro can generate a secure preview URL. PDF receipts and unsupported file types are linked by saved file name/path.</div>');
                 printWindow.document.write('</body></html>');
                 printWindow.document.close();
 
@@ -2192,7 +2412,6 @@ export default async function ReportsPage({
           `,
         }}
       />
-
     </main>
   );
 }
