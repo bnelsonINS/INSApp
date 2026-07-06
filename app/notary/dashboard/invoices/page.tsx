@@ -6,7 +6,7 @@ import { supabaseAdmin } from "../../../../src/lib/supabase-admin";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type InvoiceRow = {
+type InvoiceBase = {
   id: string;
   assignment_id: string | null;
   notary_id: string | null;
@@ -21,28 +21,29 @@ type InvoiceRow = {
   balance_due: number | string | null;
   notes: string | null;
   created_at: string | null;
-  assignments?: {
-    id: string;
-    borrower_name: string | null;
-    control_number: string | null;
-    signing_date: string | null;
-    signing_address: string | null;
-    signing_city: string | null;
-    signing_state: string | null;
-    signing_zip: string | null;
-    title_company_name: string | null;
-    title_company: string | null;
-    company_name: string | null;
-    client_name: string | null;
-    client_id: string | null;
-  } | null;
-  clientProfile?: {
-    id: string;
-    company_name: string | null;
-    business_name: string | null;
-    full_name: string | null;
-    email: string | null;
-  } | null;
+};
+
+type AssignmentRow = Record<string, any> & {
+  id: string;
+  client_id?: string | null;
+  borrower_name?: string | null;
+  control_number?: string | null;
+  signing_date?: string | null;
+  signing_address?: string | null;
+  signing_city?: string | null;
+  signing_state?: string | null;
+  signing_zip?: string | null;
+};
+
+type ClientProfile = Record<string, any> & {
+  id: string;
+  email?: string | null;
+  full_name?: string | null;
+};
+
+type InvoiceRow = InvoiceBase & {
+  assignment: AssignmentRow | null;
+  client: ClientProfile | null;
 };
 
 function money(value: number | string | null | undefined) {
@@ -85,24 +86,40 @@ function statusClass(value: string | null | undefined) {
   return "bg-slate-50 text-slate-700 ring-slate-200";
 }
 
-function clientName(
-  assignment: InvoiceRow["assignments"],
-  clientProfile?: InvoiceRow["clientProfile"],
-) {
-  return (
-    assignment?.title_company_name ||
-    assignment?.title_company ||
-    assignment?.company_name ||
-    assignment?.client_name ||
-    clientProfile?.company_name ||
-    clientProfile?.business_name ||
-    clientProfile?.full_name ||
-    clientProfile?.email ||
-    "—"
+function firstTextValue(...values: Array<string | number | null | undefined>) {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+
+    const text = String(value).trim();
+    if (text && text !== "—") return text;
+  }
+
+  return "—";
+}
+
+function assignmentTitle(assignment: AssignmentRow | null) {
+  return firstTextValue(assignment?.borrower_name, "Assignment");
+}
+
+function clientName(assignment: AssignmentRow | null, client: ClientProfile | null) {
+  return firstTextValue(
+    assignment?.title_company_name,
+    assignment?.title_company,
+    assignment?.company_name,
+    assignment?.client_name,
+    assignment?.client_company,
+    assignment?.title_company_contact,
+    client?.company_name,
+    client?.business_name,
+    client?.company,
+    client?.organization_name,
+    client?.full_name,
+    client?.name,
+    client?.email,
   );
 }
 
-function signingLocation(assignment: InvoiceRow["assignments"]) {
+function signingLocation(assignment: AssignmentRow | null) {
   if (!assignment) return "—";
 
   const cityStateZip = [
@@ -144,6 +161,10 @@ export default async function InvoicesPage() {
     .order("invoice_date", { ascending: false })
     .order("created_at", { ascending: false });
 
+  if (error) {
+    console.error("Invoices lookup error:", error);
+  }
+
   const assignmentIds = Array.from(
     new Set(
       (rawInvoices ?? [])
@@ -152,76 +173,69 @@ export default async function InvoicesPage() {
     ),
   );
 
+  // Use select("*") here on purpose. Your assignments table has had column-name drift
+  // across the app. Selecting a missing named column makes Supabase return no rows.
   const { data: assignmentRows, error: assignmentsError } = assignmentIds.length
     ? await supabaseAdmin
         .from("assignments")
-        .select(
-          "id, borrower_name, control_number, signing_date, signing_address, signing_city, signing_state, signing_zip, title_company_name, title_company, company_name, client_name, client_id",
-        )
+        .select("*")
         .in("id", assignmentIds)
     : { data: [], error: null };
-
-  if (error) {
-    console.error("Invoices lookup error:", error);
-  }
 
   if (assignmentsError) {
     console.error("Invoice assignment lookup error:", assignmentsError);
   }
 
-  const assignmentById = new Map(
-    ((assignmentRows ?? []) as NonNullable<InvoiceRow["assignments"]>[]).map(
-      (assignment) => [assignment.id, assignment],
-    ),
+  const assignmentById = new Map<string, AssignmentRow>(
+    ((assignmentRows ?? []) as AssignmentRow[]).map((assignment) => [
+      String(assignment.id),
+      assignment,
+    ]),
   );
 
   const clientIds = Array.from(
     new Set(
-      ((assignmentRows ?? []) as NonNullable<InvoiceRow["assignments"]>[])
+      ((assignmentRows ?? []) as AssignmentRow[])
         .map((assignment) => String(assignment.client_id ?? "").trim())
         .filter(Boolean),
     ),
   );
 
-  const { data: clientProfiles, error: clientProfilesError } = clientIds.length
+  const { data: clientRows, error: clientsError } = clientIds.length
     ? await supabaseAdmin
         .from("profiles")
-        .select("id, company_name, business_name, full_name, email")
+        .select("*")
         .in("id", clientIds)
     : { data: [], error: null };
 
-  if (clientProfilesError) {
-    console.error("Invoice client profile lookup error:", clientProfilesError);
+  if (clientsError) {
+    console.error("Invoice client lookup error:", clientsError);
   }
 
-  const clientProfileById = new Map(
-    ((clientProfiles ?? []) as NonNullable<InvoiceRow["clientProfile"]>[]).map(
-      (client) => [client.id, client],
-    ),
+  const clientById = new Map<string, ClientProfile>(
+    ((clientRows ?? []) as ClientProfile[]).map((client) => [String(client.id), client]),
   );
 
+  const rows = ((rawInvoices ?? []) as InvoiceBase[]).map((invoice) => {
+    const assignment = invoice.assignment_id
+      ? assignmentById.get(String(invoice.assignment_id)) ?? null
+      : null;
 
-  const rows = ((rawInvoices ?? []) as Omit<InvoiceRow, "assignments" | "clientProfile">[]).map(
-    (invoice) => {
-      const assignment = invoice.assignment_id
-        ? assignmentById.get(invoice.assignment_id) ?? null
-        : null;
+    const client = assignment?.client_id
+      ? clientById.get(String(assignment.client_id)) ?? null
+      : null;
 
-      const clientProfile = assignment?.client_id
-        ? clientProfileById.get(assignment.client_id) ?? null
-        : null;
-
-      return {
-        ...invoice,
-        assignments: assignment,
-        clientProfile,
-      };
-    },
-  ) as InvoiceRow[];
+    return {
+      ...invoice,
+      assignment,
+      client,
+    };
+  }) as InvoiceRow[];
 
   const totalInvoiced = rows.reduce((sum, row) => sum + Number(row.subtotal ?? 0), 0);
   const totalPaid = rows.reduce((sum, row) => sum + Number(row.payments_total ?? 0), 0);
   const totalBalance = rows.reduce((sum, row) => sum + Number(row.balance_due ?? 0), 0);
+
   const unpaidCount = rows.filter((row) => {
     const status = String(row.status ?? "draft").toLowerCase();
     return status === "unpaid" || status === "sent" || Number(row.balance_due ?? 0) > 0;
@@ -313,7 +327,7 @@ export default async function InvoicesPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1050px] text-left text-sm">
+            <table className="w-full min-w-[1100px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-5 py-3 font-bold">Invoice</th>
@@ -330,8 +344,8 @@ export default async function InvoicesPage() {
 
               <tbody className="divide-y divide-slate-200">
                 {rows.map((row) => {
-                  const assignment = row.assignments;
-                  const displayClientName = clientName(assignment, row.clientProfile);
+                  const assignment = row.assignment;
+                  const client = row.client;
 
                   return (
                     <tr key={row.id} className="align-top">
@@ -346,23 +360,25 @@ export default async function InvoicesPage() {
 
                       <td className="px-5 py-4">
                         <p className="font-bold text-slate-950">
-                          {assignment?.borrower_name || "Assignment"}
+                          {assignmentTitle(assignment)}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
-                          Control # {assignment?.control_number || "—"}
+                          Control # {firstTextValue(assignment?.control_number)}
                         </p>
                         <p className="mt-1 max-w-xs break-words text-xs text-slate-500">
                           {signingLocation(assignment)}
                         </p>
                       </td>
 
-                      <td className="px-5 py-4 font-semibold text-slate-700">
-                        <p>{displayClientName}</p>
-                        {row.clientProfile?.email && displayClientName !== row.clientProfile.email ? (
-                          <p className="mt-1 break-all text-xs font-medium text-slate-500">
-                            {row.clientProfile.email}
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-slate-700">
+                          {clientName(assignment, client)}
+                        </p>
+                        {client?.email && (
+                          <p className="mt-1 break-all text-xs text-slate-500">
+                            {client.email}
                           </p>
-                        ) : null}
+                        )}
                       </td>
 
                       <td className="px-5 py-4 font-semibold text-slate-700">
