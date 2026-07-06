@@ -156,10 +156,7 @@ export default async function InvoicesPage() {
       `,
     )
     .eq("notary_id", user.id)
-    .gte("invoice_date", `${currentYear}-01-01`)
-    .lte("invoice_date", `${currentYear}-12-31`)
-    .order("invoice_date", { ascending: false })
-    .order("created_at", { ascending: false });
+.order("invoice_date", { ascending: false })
 
   if (error) {
     console.error("Invoices lookup error:", error);
