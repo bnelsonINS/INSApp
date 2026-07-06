@@ -1,4 +1,4 @@
-import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../../src/lib/supabase-server";
 
@@ -7,36 +7,96 @@ export const revalidate = 0;
 
 const FEDERAL_MILEAGE_RATE = 0.725;
 
-type MileageEntry = {
+type AssignmentMileageRow = {
   id: string;
-  trip_date: string;
-  purpose: string | null;
-  start_location: string | null;
-  end_location: string | null;
+  assignment_id: string | null;
+  notary_id: string;
+  mileage_date: string | null;
   miles: number | string | null;
-  mileage_rate: number | string | null;
+  rate: number | string | null;
+  amount: number | string | null;
   notes: string | null;
-  created_at: string;
+  created_at: string | null;
 };
 
-function formatDate(date: string | null) {
+type AssignmentSummary = {
+  id: string;
+  borrower_name: string | null;
+  control_number: string | null;
+  signing_date: string | null;
+  signing_address: string | null;
+  signing_city: string | null;
+  signing_state: string | null;
+  signing_zip: string | null;
+};
+
+function formatDate(date: string | null | undefined) {
   if (!date) return "—";
 
-  return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return new Date(`${String(date).slice(0, 10)}T00:00:00`).toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }
+  );
 }
 
-function formatMoney(value: number) {
-  return `$${value.toFixed(2)}`;
+function formatMoney(value: number | string | null | undefined) {
+  const amount = Number(value ?? 0);
+  if (!Number.isFinite(amount)) return "$0.00";
+  return `$${amount.toFixed(2)}`;
 }
 
 function formatMiles(value: number | string | null | undefined) {
   const miles = Number(value ?? 0);
-  if (Number.isNaN(miles)) return "0.00";
+  if (!Number.isFinite(miles)) return "0.00";
   return miles.toFixed(2);
+}
+
+function getMileageAmount(row: AssignmentMileageRow) {
+  const savedAmount = Number(row.amount ?? 0);
+
+  if (Number.isFinite(savedAmount) && savedAmount > 0) {
+    return savedAmount;
+  }
+
+  const miles = Number(row.miles ?? 0);
+  const rate = Number(row.rate ?? FEDERAL_MILEAGE_RATE);
+
+  if (!Number.isFinite(miles) || !Number.isFinite(rate)) {
+    return 0;
+  }
+
+  return miles * rate;
+}
+
+function cleanMileageNotes(notes: string | null | undefined): string[] {
+  if (!notes) return ["Mileage entry"];
+
+  const cleanedNotes = notes
+    .split("|")
+    .map((part: string) => part.trim())
+    .filter(Boolean);
+
+  return cleanedNotes.length > 0 ? cleanedNotes : ["Mileage entry"];
+}
+
+function buildSigningLocation(assignment: AssignmentSummary | undefined) {
+  if (!assignment) return "—";
+
+  const cityStateZip = [
+    assignment.signing_city,
+    assignment.signing_state ?? "IN",
+    assignment.signing_zip,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    [assignment.signing_address, cityStateZip].filter(Boolean).join(", ") || "—"
+  );
 }
 
 async function getCurrentNotary() {
@@ -61,111 +121,72 @@ async function getCurrentNotary() {
   return { supabase, user };
 }
 
-async function addMileageEntry(formData: FormData) {
-  "use server";
-
-  const { supabase, user } = await getCurrentNotary();
-
-  const tripDate = String(formData.get("trip_date") || "");
-  const purpose = String(formData.get("purpose") || "").trim();
-  const startLocation = String(formData.get("start_location") || "").trim();
-  const endLocation = String(formData.get("end_location") || "").trim();
-  const notes = String(formData.get("notes") || "").trim();
-  const miles = Number(formData.get("miles") || 0);
-
-  if (!tripDate || !purpose || !Number.isFinite(miles) || miles <= 0) {
-    redirect("/notary/dashboard/mileage?error=missing");
-  }
-
-  const { error } = await supabase.from("assignment_mileage").insert({
-    notary_id: user.id,
-    trip_date: tripDate,
-    purpose,
-    start_location: startLocation || null,
-    end_location: endLocation || null,
-    miles,
-    mileage_rate: FEDERAL_MILEAGE_RATE,
-    notes: notes || null,
-  });
-
-  if (error) {
-    console.error("Add mileage entry error:", error);
-    redirect("/notary/dashboard/mileage?error=insert");
-  }
-
-  revalidatePath("/notary/dashboard/mileage");
-  redirect("/notary/dashboard/mileage?success=added");
-}
-
-async function deleteMileageEntry(formData: FormData) {
-  "use server";
-
-  const { supabase, user } = await getCurrentNotary();
-
-  const id = String(formData.get("id") || "");
-
-  if (!id) {
-    redirect("/notary/dashboard/mileage?error=missing");
-  }
-
-  const { error } = await supabase
-    .from("assignment_mileage")
-    .delete()
-    .eq("id", id)
-    .eq("notary_id", user.id);
-
-  if (error) {
-    console.error("Delete mileage entry error:", error);
-    redirect("/notary/dashboard/mileage?error=delete");
-  }
-
-  revalidatePath("/notary/dashboard/mileage");
-  redirect("/notary/dashboard/mileage?success=deleted");
-}
-
-export default async function MileagePage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ success?: string; error?: string }>;
-}) {
-  const params = await searchParams;
+export default async function MileagePage() {
   const { supabase, user } = await getCurrentNotary();
 
   const currentYear = new Date().getFullYear();
+  const startOfYear = `${currentYear}-01-01`;
+  const endOfYear = `${currentYear}-12-31`;
+  const thisMonth = new Date().toISOString().slice(0, 7);
 
-  const { data: entries, error } = await supabase
+  const { data: mileageRows, error: mileageError } = await supabase
     .from("assignment_mileage")
     .select(
-      "id, trip_date, purpose, start_location, end_location, miles, mileage_rate, notes, created_at"
+      "id, assignment_id, notary_id, mileage_date, miles, rate, amount, notes, created_at"
     )
     .eq("notary_id", user.id)
-    .gte("trip_date", `${currentYear}-01-01`)
-    .lte("trip_date", `${currentYear}-12-31`)
-    .order("trip_date", { ascending: false })
+    .gte("mileage_date", startOfYear)
+    .lte("mileage_date", endOfYear)
+    .order("mileage_date", { ascending: false })
     .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("Mileage entries lookup error:", error);
+  if (mileageError) {
+    console.error("Mileage dashboard lookup error:", mileageError);
   }
 
-  const safeEntries = (entries ?? []) as MileageEntry[];
+  const safeMileageRows = (mileageRows ?? []) as AssignmentMileageRow[];
 
-  const totalMiles = safeEntries.reduce(
-    (sum, entry) => sum + Number(entry.miles ?? 0),
+  const assignmentIds = Array.from(
+    new Set(
+      safeMileageRows
+        .map((row) => row.assignment_id)
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+
+  const { data: assignments, error: assignmentsError } = assignmentIds.length
+    ? await supabase
+        .from("assignments")
+        .select(
+          "id, borrower_name, control_number, signing_date, signing_address, signing_city, signing_state, signing_zip"
+        )
+        .in("id", assignmentIds)
+    : { data: [], error: null };
+
+  if (assignmentsError) {
+    console.error("Mileage dashboard assignment lookup error:", assignmentsError);
+  }
+
+  const assignmentById = new Map<string, AssignmentSummary>(
+    ((assignments ?? []) as AssignmentSummary[]).map((assignment) => [
+      assignment.id,
+      assignment,
+    ])
+  );
+
+  const totalMiles = safeMileageRows.reduce(
+    (sum, row) => sum + Number(row.miles ?? 0),
     0
   );
 
-  const totalDeduction = safeEntries.reduce((sum, entry) => {
-    const miles = Number(entry.miles ?? 0);
-    const rate = Number(entry.mileage_rate ?? FEDERAL_MILEAGE_RATE);
-    return sum + miles * rate;
-  }, 0);
+  const totalDeduction = safeMileageRows.reduce(
+    (sum, row) => sum + getMileageAmount(row),
+    0
+  );
 
-  const thisMonth = new Date().toISOString().slice(0, 7);
-
-  const monthMiles = safeEntries
-    .filter((entry) => entry.trip_date?.startsWith(thisMonth))
-    .reduce((sum, entry) => sum + Number(entry.miles ?? 0), 0);
+  const monthMiles = safeMileageRows
+    .filter((row) => String(row.mileage_date ?? "").startsWith(thisMonth))
+    .reduce((sum, row) => sum + Number(row.miles ?? 0), 0);
 
   return (
     <main className="space-y-6 bg-slate-50 p-4 sm:p-6">
@@ -179,37 +200,19 @@ export default async function MileagePage({
               Mileage Tracker
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-blue-100/90">
-              Track business miles and estimate your deduction using the current
-              federal mileage rate of $0.725 per mile.
+              Assignment mileage and Google Maps mileage saved from your INS Pro
+              workspace. Current rate: $0.725 per mile.
             </p>
           </div>
 
-          <a
+          <Link
             href="/notary/dashboard"
             className="rounded-xl bg-white px-5 py-3 text-center text-sm font-bold text-[#0B1F4D] shadow-sm transition hover:bg-slate-100"
           >
             Back to Dashboard
-          </a>
+          </Link>
         </div>
       </section>
-
-      {params?.success === "added" && (
-        <section className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-700">
-          Mileage entry added.
-        </section>
-      )}
-
-      {params?.success === "deleted" && (
-        <section className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-700">
-          Mileage entry deleted.
-        </section>
-      )}
-
-      {params?.error && (
-        <section className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
-          Something went wrong. Check the required fields and try again.
-        </section>
-      )}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -235,7 +238,7 @@ export default async function MileagePage({
             Trips Logged
           </p>
           <p className="mt-2 text-4xl font-bold text-slate-950">
-            {safeEntries.length}
+            {safeMileageRows.length}
           </p>
         </div>
 
@@ -249,200 +252,129 @@ export default async function MileagePage({
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1fr_1.4fr]">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-950">Add Trip</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Log business mileage for signings, print runs, scanbacks, supplies,
-            or client meetings.
-          </p>
-
-          <form action={addMileageEntry} className="mt-5 space-y-4">
-            <div>
-              <label className="text-sm font-bold text-slate-700">
-                Trip Date
-              </label>
-              <input
-                required
-                type="date"
-                name="trip_date"
-                defaultValue={new Date().toISOString().slice(0, 10)}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none focus:border-[#0B1F4D] focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-bold text-slate-700">
-                Purpose
-              </label>
-              <input
-                required
-                name="purpose"
-                placeholder="Example: Smith signing"
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none focus:border-[#0B1F4D] focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="text-sm font-bold text-slate-700">
-                  Start Location
-                </label>
-                <input
-                  name="start_location"
-                  placeholder="Home office"
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none focus:border-[#0B1F4D] focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-bold text-slate-700">
-                  End Location
-                </label>
-                <input
-                  name="end_location"
-                  placeholder="Signing location"
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none focus:border-[#0B1F4D] focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-bold text-slate-700">
-                Miles
-              </label>
-              <input
-                required
-                type="number"
-                name="miles"
-                min="0.01"
-                step="0.01"
-                placeholder="42.50"
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none focus:border-[#0B1F4D] focus:ring-2 focus:ring-blue-100"
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                Deduction uses $0.725 per mile.
-              </p>
-            </div>
-
-            <div>
-              <label className="text-sm font-bold text-slate-700">Notes</label>
-              <textarea
-                name="notes"
-                rows={3}
-                placeholder="Optional notes"
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none focus:border-[#0B1F4D] focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-            >
-              Save Mileage Entry
-            </button>
-          </form>
-        </section>
-
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col justify-between gap-3 border-b border-slate-200 p-5 md:flex-row md:items-center">
-            <div>
-              <h2 className="text-xl font-bold text-slate-950">
-                Mileage Entries
-              </h2>
-              <p className="text-sm text-slate-500">
-                Showing trips for {currentYear}.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
-              Rate: $0.725 / mile
-            </div>
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col justify-between gap-3 border-b border-slate-200 p-5 md:flex-row md:items-center">
+          <div>
+            <h2 className="text-xl font-bold text-slate-950">
+              Mileage Entries
+            </h2>
+            <p className="text-sm text-slate-500">
+              Showing assignment mileage for {currentYear}. Add or correct
+              mileage from the assignment workspace.
+            </p>
           </div>
 
-          {!safeEntries.length ? (
-            <div className="p-8 text-center">
-              <p className="text-lg font-semibold text-slate-800">
-                No mileage logged yet.
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Add your first trip on the left.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                  <tr>
-                    <th className="px-5 py-3 font-bold">Date</th>
-                    <th className="px-5 py-3 font-bold">Purpose</th>
-                    <th className="px-5 py-3 font-bold">Route</th>
-                    <th className="px-5 py-3 text-right font-bold">Miles</th>
-                    <th className="px-5 py-3 text-right font-bold">
-                      Deduction
-                    </th>
-                    <th className="px-5 py-3 text-right font-bold">Action</th>
-                  </tr>
-                </thead>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
+            Rate: $0.725 / mile
+          </div>
+        </div>
 
-                <tbody className="divide-y divide-slate-200">
-                  {safeEntries.map((entry) => {
-                    const miles = Number(entry.miles ?? 0);
-                    const rate = Number(
-                      entry.mileage_rate ?? FEDERAL_MILEAGE_RATE
-                    );
-                    const deduction = miles * rate;
+        {mileageError ? (
+          <div className="p-8 text-center">
+            <p className="text-lg font-semibold text-red-700">
+              Mileage could not be loaded.
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              Check the server logs for the Supabase error.
+            </p>
+          </div>
+        ) : !safeMileageRows.length ? (
+          <div className="p-8 text-center">
+            <p className="text-lg font-semibold text-slate-800">
+              No mileage logged yet.
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              Open an assignment, use the INS Pro Mileage workspace, and the
+              saved mileage will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-5 py-3 font-bold">Date</th>
+                  <th className="px-5 py-3 font-bold">Assignment</th>
+                  <th className="px-5 py-3 font-bold">Location / Notes</th>
+                  <th className="px-5 py-3 text-right font-bold">Miles</th>
+                  <th className="px-5 py-3 text-right font-bold">Rate</th>
+                  <th className="px-5 py-3 text-right font-bold">
+                    Deduction
+                  </th>
+                  <th className="px-5 py-3 text-right font-bold">Action</th>
+                </tr>
+              </thead>
 
-                    return (
-                      <tr key={entry.id} className="align-top">
-                        <td className="px-5 py-4 font-semibold text-slate-800">
-                          {formatDate(entry.trip_date)}
-                        </td>
+              <tbody className="divide-y divide-slate-200">
+                {safeMileageRows.map((row) => {
+                  const assignment = row.assignment_id
+                    ? assignmentById.get(row.assignment_id)
+                    : undefined;
 
-                        <td className="px-5 py-4">
-                          <p className="font-bold text-slate-950">
-                            {entry.purpose || "Business trip"}
-                          </p>
-                          {entry.notes && (
-                            <p className="mt-1 max-w-xs text-xs text-slate-500">
-                              {entry.notes}
-                            </p>
-                          )}
-                        </td>
+                  const noteLines = cleanMileageNotes(row.notes);
+                  const assignmentHref = row.assignment_id
+                    ? `/notary/assignments/${row.assignment_id}#assignment-workspace`
+                    : "/notary/assignments";
 
-                        <td className="px-5 py-4 text-slate-600">
-                          <p>{entry.start_location || "—"}</p>
-                          <p className="text-xs text-slate-400">to</p>
-                          <p>{entry.end_location || "—"}</p>
-                        </td>
+                  return (
+                    <tr key={row.id} className="align-top">
+                      <td className="px-5 py-4 font-semibold text-slate-800">
+                        {formatDate(row.mileage_date)}
+                      </td>
 
-                        <td className="px-5 py-4 text-right font-bold text-slate-950">
-                          {formatMiles(entry.miles)}
-                        </td>
+                      <td className="px-5 py-4">
+                        <p className="font-bold text-slate-950">
+                          {assignment?.borrower_name || "Assignment mileage"}
+                        </p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                          Control # {assignment?.control_number || "—"}
+                        </p>
+                      </td>
 
-                        <td className="px-5 py-4 text-right font-bold text-green-700">
-                          {formatMoney(deduction)}
-                        </td>
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-slate-700">
+                          {buildSigningLocation(assignment)}
+                        </p>
 
-                        <td className="px-5 py-4 text-right">
-                          <form action={deleteMileageEntry}>
-                            <input type="hidden" name="id" value={entry.id} />
-                            <button
-                              type="submit"
-                              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-100"
+                        <div className="mt-2 space-y-1">
+                          {noteLines.map((line: string, index: number) => (
+                            <p
+                              key={`${row.id}-note-${index}`}
+                              className="max-w-xl break-words text-xs text-slate-500"
                             >
-                              Delete
-                            </button>
-                          </form>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+                              {line}
+                            </p>
+                          ))}
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4 text-right font-bold text-slate-950">
+                        {formatMiles(row.miles)}
+                      </td>
+
+                      <td className="px-5 py-4 text-right font-bold text-slate-700">
+                        {formatMoney(row.rate)}
+                      </td>
+
+                      <td className="px-5 py-4 text-right font-bold text-green-700">
+                        {formatMoney(getMileageAmount(row))}
+                      </td>
+
+                      <td className="px-5 py-4 text-right">
+                        <Link
+                          href={assignmentHref}
+                          className="inline-flex rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100"
+                        >
+                          Open Assignment
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </main>
   );
