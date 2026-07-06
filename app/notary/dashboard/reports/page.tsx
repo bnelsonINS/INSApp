@@ -329,6 +329,14 @@ function statusPill(status: string | null | undefined) {
   return "bg-blue-50 text-blue-700 ring-blue-200";
 }
 
+function receiptLabel(expense: ExpenseRow) {
+  return expense.receipt_file_name || expense.receipt_file_path || "No receipt attached";
+}
+
+function reportPrintTitle(title: string, rangeLabel: string) {
+  return `${title} - ${rangeLabel}`;
+}
+
 function Bar({ value, max }: { value: number; max: number }) {
   const width = Math.max(4, Math.min(100, max > 0 ? (value / max) * 100 : 0));
 
@@ -1075,26 +1083,17 @@ export default async function ReportsPage({
 
       <section
         id="profit-loss"
-        data-print-title="Profit & Loss Report"
+        data-print-title={reportPrintTitle("Profit & Loss Report", selectedRange.label)}
         className="rounded-2xl border border-slate-200 bg-white shadow-sm print:break-inside-avoid"
       >
-        <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-              Profit & Loss
-            </p>
-            <h2 className="mt-1 text-2xl font-black text-slate-950">
-              Profit & Loss Report
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">{selectedRange.label}</p>
-          </div>
-          <button
-            type="button"
-            data-print-target="profit-loss"
-            className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-          >
-            Print Report
-          </button>
+        <div className="border-b border-slate-200 p-5">
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Profit & Loss
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Profit & Loss Report
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">{selectedRange.label}</p>
         </div>
 
         <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_420px]">
@@ -1129,15 +1128,124 @@ export default async function ReportsPage({
                 </p>
               ) : (
                 <div className="mt-3 space-y-3">
-                  {categoryRows.map((row) => (
-                    <div key={row.category}>
-                      <div className="mb-1 flex items-center justify-between gap-3 text-sm font-semibold text-slate-700">
-                        <span className="truncate">{row.category}</span>
-                        <span className="shrink-0">{money(row.amount)}</span>
-                      </div>
-                      <Bar value={row.amount} max={maxCategoryAmount} />
-                    </div>
-                  ))}
+                  {categoryRows.map((row) => {
+                    const matchingExpenses = expenses.filter(
+                      (expense) => (expense.category || "Misc.") === row.category,
+                    );
+                    const isMileageCategory = row.category === "Mileage - Personal Auto";
+
+                    return (
+                      <details
+                        key={row.category}
+                        open
+                        className="rounded-xl border border-slate-200 bg-white p-3"
+                      >
+                        <summary className="cursor-pointer list-none">
+                          <div className="mb-2 flex items-center justify-between gap-3 text-sm font-black text-slate-800">
+                            <span className="min-w-0 truncate">{row.category}</span>
+                            <span className="shrink-0">{money(row.amount)}</span>
+                          </div>
+                          <Bar value={row.amount} max={maxCategoryAmount} />
+                          <p className="mt-2 text-xs font-semibold text-blue-700 print:hidden">
+                            View transaction detail
+                          </p>
+                        </summary>
+
+                        <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
+                          {isMileageCategory ? (
+                            mileage.length === 0 ? (
+                              <p className="p-3 text-xs font-semibold text-slate-500">
+                                No mileage entries attached to this report.
+                              </p>
+                            ) : (
+                              <table className="w-full text-left text-xs">
+                                <thead className="bg-slate-50 uppercase text-slate-500">
+                                  <tr>
+                                    <th className="px-3 py-2 font-bold">Date</th>
+                                    <th className="px-3 py-2 font-bold">Assignment</th>
+                                    <th className="px-3 py-2 text-right font-bold">Miles</th>
+                                    <th className="px-3 py-2 text-right font-bold">Deduction</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200">
+                                  {mileage.map((entry) => {
+                                    const assignment = entry.assignment_id
+                                      ? assignmentById.get(entry.assignment_id)
+                                      : null;
+
+                                    return (
+                                      <tr key={`pl-mileage-${entry.id}`}>
+                                        <td className="px-3 py-2 font-semibold text-slate-700">
+                                          {formatDate(entry.mileage_date)}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                          <p className="font-bold text-slate-900">
+                                            {assignmentTitle(assignment)}
+                                          </p>
+                                          <p className="text-slate-500">
+                                            {assignment?.control_number || "—"}
+                                          </p>
+                                        </td>
+                                        <td className="px-3 py-2 text-right font-bold text-slate-900">
+                                          {numberValue(entry.miles).toFixed(2)}
+                                        </td>
+                                        <td className="px-3 py-2 text-right font-black text-green-700">
+                                          {money(
+                                            entry.amount ||
+                                              numberValue(entry.miles) *
+                                                numberValue(
+                                                  entry.rate || FEDERAL_MILEAGE_RATE,
+                                                ),
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            )
+                          ) : matchingExpenses.length === 0 ? (
+                            <p className="p-3 text-xs font-semibold text-slate-500">
+                              No transactions listed under this category.
+                            </p>
+                          ) : (
+                            <table className="w-full text-left text-xs">
+                              <thead className="bg-slate-50 uppercase text-slate-500">
+                                <tr>
+                                  <th className="px-3 py-2 font-bold">Date</th>
+                                  <th className="px-3 py-2 font-bold">Vendor</th>
+                                  <th className="px-3 py-2 font-bold">Notes</th>
+                                  <th className="px-3 py-2 font-bold">Receipt</th>
+                                  <th className="px-3 py-2 text-right font-bold">Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-200">
+                                {matchingExpenses.map((expense) => (
+                                  <tr key={`pl-expense-${expense.id}`}>
+                                    <td className="px-3 py-2 font-semibold text-slate-700">
+                                      {formatDate(expense.expense_date)}
+                                    </td>
+                                    <td className="px-3 py-2 font-semibold text-slate-900">
+                                      {expense.vendor || "—"}
+                                    </td>
+                                    <td className="px-3 py-2 text-slate-600">
+                                      {expense.description || "—"}
+                                    </td>
+                                    <td className="px-3 py-2 text-slate-600">
+                                      {receiptLabel(expense)}
+                                    </td>
+                                    <td className="px-3 py-2 text-right font-black text-slate-950">
+                                      {money(expense.amount)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      </details>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1195,30 +1303,21 @@ export default async function ReportsPage({
 
       <section
         id="sales-report"
-        data-print-title="Sales Report"
+        data-print-title={reportPrintTitle("Sales Report", selectedRange.label)}
         className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]"
       >
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-                Sales Report
-              </p>
-              <h2 className="mt-1 text-2xl font-black text-slate-950">
-                Client Revenue
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Revenue, orders, payment status, and estimated client
-                profitability.
-              </p>
-            </div>
-            <button
-              type="button"
-              data-print-target="sales-report"
-              className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-            >
-              Print Report
-            </button>
+          <div className="border-b border-slate-200 p-5">
+            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+              Sales Report
+            </p>
+            <h2 className="mt-1 text-2xl font-black text-slate-950">
+              Client Revenue
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Revenue, orders, payment status, and estimated client
+              profitability.
+            </p>
           </div>
 
           <div className="w-full overflow-hidden">
@@ -1311,27 +1410,16 @@ export default async function ReportsPage({
 
       <section
         id="mileage-report"
-        data-print-title="Mileage Report"
+        data-print-title={reportPrintTitle("Mileage Report", selectedRange.label)}
         className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(320px,.8fr)_minmax(0,1.2fr)]"
       >
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-                Mileage Report
-              </p>
-              <h2 className="mt-1 text-2xl font-black text-slate-950">
-                Mileage Summary
-              </h2>
-            </div>
-            <button
-              type="button"
-              data-print-target="mileage-report"
-              className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-            >
-              Print Report
-            </button>
-          </div>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Mileage Report
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Mileage Summary
+          </h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-bold uppercase text-slate-500">
@@ -1400,7 +1488,7 @@ export default async function ReportsPage({
                     </td>
                   </tr>
                 ) : (
-                  mileage.slice(0, 10).map((row) => {
+                  mileage.map((row) => {
                     const assignment = row.assignment_id
                       ? assignmentById.get(row.assignment_id)
                       : null;
@@ -1445,39 +1533,30 @@ export default async function ReportsPage({
 
       <section
         id="invoice-aging"
-        data-print-title="Invoice Aging Report"
+        data-print-title={reportPrintTitle("Invoice Aging Report", selectedRange.label)}
         className="rounded-2xl border border-slate-200 bg-white shadow-sm"
       >
-        <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-              Invoice Aging
-            </p>
-            <h2 className="mt-1 text-2xl font-black text-slate-950">
-              Invoices & Payments
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Paid:{" "}
-              {
-                invoices.filter(
-                  (row) => String(row.status ?? "").toLowerCase() === "paid",
-                ).length
-              }
-              . Open:{" "}
-              {invoices.length -
-                invoices.filter(
-                  (row) => String(row.status ?? "").toLowerCase() === "paid",
-                ).length}
-              . Overdue: {overdueInvoices.length}.
-            </p>
-          </div>
-          <button
-            type="button"
-            data-print-target="invoice-aging"
-            className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-          >
-            Print Report
-          </button>
+        <div className="border-b border-slate-200 p-5">
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Invoice Aging
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Invoices & Payments
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Paid:{" "}
+            {
+              invoices.filter(
+                (row) => String(row.status ?? "").toLowerCase() === "paid",
+              ).length
+            }
+            . Open:{" "}
+            {invoices.length -
+              invoices.filter(
+                (row) => String(row.status ?? "").toLowerCase() === "paid",
+              ).length}
+            . Overdue: {overdueInvoices.length}.
+          </p>
         </div>
         <div className="w-full overflow-hidden">
           <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
@@ -1557,26 +1636,17 @@ export default async function ReportsPage({
 
       <section
         id="expense-report"
-        data-print-title="Expense Report"
+        data-print-title={reportPrintTitle("Expense Report", selectedRange.label)}
         className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]"
       >
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-                Expense Report
-              </p>
-              <h2 className="mt-1 text-2xl font-black text-slate-950">
-                Recent Expenses
-              </h2>
-            </div>
-            <button
-              type="button"
-              data-print-target="expense-report"
-              className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-            >
-              Print Report
-            </button>
+          <div className="border-b border-slate-200 p-5">
+            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+              Expense Report
+            </p>
+            <h2 className="mt-1 text-2xl font-black text-slate-950">
+              Recent Expenses
+            </h2>
           </div>
           <div className="w-full overflow-hidden">
             <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
@@ -1601,7 +1671,7 @@ export default async function ReportsPage({
                     </td>
                   </tr>
                 ) : (
-                  expenses.slice(0, 12).map((expense) => {
+                  expenses.map((expense) => {
                     const assignment = expense.assignment_id
                       ? assignmentById.get(expense.assignment_id)
                       : null;
@@ -1633,16 +1703,8 @@ export default async function ReportsPage({
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${expense.receipt_file_path || expense.receipt_file_name ? "bg-green-50 text-green-700 ring-green-200" : "bg-slate-50 text-slate-600 ring-slate-200"}`}
                           >
-                            {expense.receipt_file_path ||
-                            expense.receipt_file_name
-                              ? "Attached"
-                              : "None"}
+                            {receiptLabel(expense)}
                           </span>
-                          {(expense.receipt_file_name || expense.receipt_file_path) && (
-                            <p className="mt-1 break-words text-[10px] font-semibold text-slate-500">
-                              {expense.receipt_file_name || expense.receipt_file_path}
-                            </p>
-                          )}
                         </td>
                       </tr>
                     );
@@ -1682,27 +1744,16 @@ export default async function ReportsPage({
 
       <section
         id="journal-report"
-        data-print-title="Journal Report"
+        data-print-title={reportPrintTitle("Journal Report", selectedRange.label)}
         className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(320px,.8fr)_minmax(0,1.2fr)]"
       >
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-                Journal Report
-              </p>
-              <h2 className="mt-1 text-2xl font-black text-slate-950">
-                Compliance Summary
-              </h2>
-            </div>
-            <button
-              type="button"
-              data-print-target="journal-report"
-              className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-            >
-              Print Report
-            </button>
-          </div>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Journal Report
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Compliance Summary
+          </h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-bold uppercase text-slate-500">
@@ -1771,7 +1822,7 @@ export default async function ReportsPage({
                     </td>
                   </tr>
                 ) : (
-                  journalEntries.slice(0, 10).map((entry) => {
+                  journalEntries.map((entry) => {
                     const assignment = entry.assignment_id
                       ? assignmentById.get(entry.assignment_id)
                       : null;
@@ -1810,29 +1861,20 @@ export default async function ReportsPage({
 
       <section
         id="client-report"
-        data-print-title="Client Profitability Report"
+        data-print-title={reportPrintTitle("Client Profitability Report", selectedRange.label)}
         className="rounded-2xl border border-slate-200 bg-white shadow-sm"
       >
-        <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-              Client Profitability
-            </p>
-            <h2 className="mt-1 text-2xl font-black text-slate-950">
-              Client Performance
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              This shows which clients are actually worth your time. Revenue
-              without profit is just busywork wearing a tie.
-            </p>
-          </div>
-          <button
-            type="button"
-            data-print-target="client-report"
-            className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-          >
-            Print Report
-          </button>
+        <div className="border-b border-slate-200 p-5">
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Client Profitability
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Client Performance
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            This shows which clients are actually worth your time. Revenue
+            without profit is just busywork wearing a tie.
+          </p>
         </div>
 
         <div className="block divide-y divide-slate-200 md:hidden">
@@ -1972,25 +2014,15 @@ export default async function ReportsPage({
         </div>
       </section>
 
-      <section id="performance-report" className="grid gap-6 xl:grid-cols-3">
+      <section id="performance-report"
+        data-print-title={reportPrintTitle("Performance Report", selectedRange.label)} className="grid gap-6 xl:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-                Performance
-              </p>
-              <h2 className="mt-1 text-2xl font-black text-slate-950">
-                Key Metrics
-              </h2>
-            </div>
-            <button
-              type="button"
-              data-print-target="performance-report"
-              className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
-            >
-              Print Report
-            </button>
-          </div>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Performance
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Key Metrics
+          </h2>
           <div className="mt-5 space-y-3 text-sm">
             <div className="flex justify-between rounded-xl bg-slate-50 p-3 font-bold text-slate-700 ring-1 ring-slate-200">
               <span>Completed</span>
@@ -2082,8 +2114,8 @@ export default async function ReportsPage({
                   node.remove();
                 });
 
-                clone.querySelectorAll('.print\\\\:hidden').forEach(function (node) {
-                  node.remove();
+                clone.querySelectorAll('details').forEach(function (node) {
+                  node.setAttribute('open', 'open');
                 });
 
                 return clone;
@@ -2108,42 +2140,46 @@ export default async function ReportsPage({
                 printWindow.document.write('<!doctype html><html><head><title>' + title + '</title>');
                 printWindow.document.write('<style>');
                 printWindow.document.write('@page{size:letter;margin:.45in;}');
-                printWindow.document.write('body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;background:white;margin:0;font-size:12px;}');
-                printWindow.document.write('.print-header{border-bottom:3px solid #0B1F4D;margin-bottom:22px;padding-bottom:14px;}');
-                printWindow.document.write('.print-brand{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:#1d4ed8;}');
-                printWindow.document.write('.print-title{font-size:26px;font-weight:900;margin:4px 0;color:#0f172a;}');
-                printWindow.document.write('.print-meta{font-size:11px;color:#475569;}');
+                printWindow.document.write('body{font-family:Arial,Helvetica,sans-serif;color:#111827;background:white;margin:0;font-size:12px;}');
+                printWindow.document.write('.print-header{display:flex;justify-content:space-between;gap:24px;border-bottom:4px solid #0B1F4D;margin-bottom:20px;padding-bottom:14px;}');
+                printWindow.document.write('.print-brand{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.14em;color:#1d4ed8;}');
+                printWindow.document.write('.print-title{font-size:24px;font-weight:900;margin:4px 0;color:#0f172a;}');
+                printWindow.document.write('.print-meta{font-size:10px;color:#475569;text-align:right;}');
                 printWindow.document.write('section,article,aside,div{box-shadow:none!important;}');
-                printWindow.document.write('section{border:0!important;}');
+                printWindow.document.write('section{border:0!important;margin:0!important;padding:0!important;}');
                 printWindow.document.write('h1,h2,h3{break-after:avoid;color:#0f172a;margin-top:0;}');
-                printWindow.document.write('p{line-height:1.45;}');
-                printWindow.document.write('table{width:100%!important;border-collapse:collapse!important;table-layout:auto!important;margin-top:10px;font-size:10.5px;}');
+                printWindow.document.write('h2{font-size:20px!important;} h3{font-size:15px!important;}');
+                printWindow.document.write('p{line-height:1.4;}');
+                printWindow.document.write('table{width:100%!important;border-collapse:collapse!important;table-layout:auto!important;margin-top:10px;font-size:9.5px;}');
                 printWindow.document.write('thead{display:table-header-group;background:#f1f5f9!important;}');
                 printWindow.document.write('tr{break-inside:avoid;}');
-                printWindow.document.write('th,td{border:1px solid #cbd5e1!important;padding:6px 7px!important;text-align:left;vertical-align:top;white-space:normal!important;}');
-                printWindow.document.write('th{text-transform:uppercase;font-size:9px;color:#334155;font-weight:800;background:#f8fafc!important;}');
-                printWindow.document.write('td{text-align:inherit;}');
+                printWindow.document.write('th,td{border:1px solid #cbd5e1!important;padding:5px 6px!important;text-align:left;vertical-align:top;white-space:normal!important;}');
+                printWindow.document.write('th{text-transform:uppercase;font-size:8.5px;color:#334155;font-weight:900;background:#f8fafc!important;}');
+                printWindow.document.write('details{break-inside:avoid;border:1px solid #cbd5e1!important;margin:10px 0!important;padding:8px!important;}');
+                printWindow.document.write('summary{display:block!important;cursor:default!important;}');
                 printWindow.document.write('.hidden{display:table-cell!important;}');
-                printWindow.document.write('.md\\\\:hidden,.sm\\\\:hidden{display:none!important;}');
-                printWindow.document.write('.md\\\\:table-cell,.sm\\\\:table-cell,.lg\\\\:table-cell{display:table-cell!important;}');
+                printWindow.document.write('.md\\:hidden,.sm\\:hidden{display:none!important;}');
+                printWindow.document.write('.md\\:table-cell,.sm\\:table-cell,.lg\\:table-cell{display:table-cell!important;}');
                 printWindow.document.write('.rounded-2xl,.rounded-xl,.rounded-full{border-radius:0!important;}');
-                printWindow.document.write('.bg-\\\\[\\\\#0B1F4D\\\\],.bg-blue-600{background:#0B1F4D!important;color:white!important;}');
+                printWindow.document.write('.bg-\\[\\#0B1F4D\\],.bg-blue-600{background:#0B1F4D!important;color:white!important;}');
                 printWindow.document.write('.text-green-700{color:#15803d!important}.text-red-700{color:#b91c1c!important}.text-amber-700{color:#b45309!important}.text-blue-700{color:#1d4ed8!important}');
-                printWindow.document.write('.grid{display:block!important}.space-y-6>*+*{margin-top:18px}.space-y-4>*+*{margin-top:12px}.space-y-3>*+*{margin-top:10px}');
+                printWindow.document.write('.grid{display:block!important}.space-y-6>*+*{margin-top:16px}.space-y-4>*+*{margin-top:10px}.space-y-3>*+*{margin-top:8px}');
                 printWindow.document.write('.ring-1,.border{border:1px solid #cbd5e1!important;}');
-                printWindow.document.write('.p-5,.p-4,.p-3{padding:10px!important;}');
-                printWindow.document.write('.mt-1{margin-top:4px}.mt-2{margin-top:8px}.mt-3{margin-top:10px}.mt-4{margin-top:14px}.mt-5{margin-top:16px}.mt-6{margin-top:18px}');
-                printWindow.document.write('.break-words{word-break:break-word;}');
+                printWindow.document.write('.p-5,.p-4,.p-3{padding:8px!important;}');
+                printWindow.document.write('.mt-1{margin-top:3px}.mt-2{margin-top:6px}.mt-3{margin-top:8px}.mt-4{margin-top:10px}.mt-5{margin-top:12px}.mt-6{margin-top:14px}');
+                printWindow.document.write('.truncate{overflow:visible!important;text-overflow:clip!important;white-space:normal!important;}');
+                printWindow.document.write('.print-note{margin-top:18px;border-top:1px solid #cbd5e1;padding-top:10px;font-size:10px;color:#475569;}');
                 printWindow.document.write('</style></head><body>');
-                printWindow.document.write('<div class="print-header"><div class="print-brand">Indiana Notary Solutions • INS Pro</div><div class="print-title">' + title + '</div><div class="print-meta">Generated: ' + generatedAt + '</div></div>');
+                printWindow.document.write('<div class="print-header"><div><div class="print-brand">Indiana Notary Solutions • INS Pro</div><div class="print-title">' + title + '</div><div>Professional report package with transaction drilldowns and attachment references.</div></div><div class="print-meta">Generated<br>' + generatedAt + '</div></div>');
                 printWindow.document.body.appendChild(clone);
+                printWindow.document.write('<div class="print-note">Receipt attachments are listed by saved file name/path. Open the assignment expense workspace to view or download the original receipt image/PDF.</div>');
                 printWindow.document.write('</body></html>');
                 printWindow.document.close();
 
                 setTimeout(function () {
                   printWindow.focus();
                   printWindow.print();
-                }, 250);
+                }, 300);
               }
 
               document.addEventListener('click', function (event) {
@@ -2156,6 +2192,7 @@ export default async function ReportsPage({
           `,
         }}
       />
+
     </main>
   );
 }
