@@ -1148,14 +1148,13 @@ export default async function ReportsPage({
               >
                 View
               </a>
-              <a
-                href={`javascript:window.__openInsProReport ? window.__openInsProReport('${card.printTarget}') : alert('Report engine is still loading. Please try again.');`}
-                role="button"
+              <button
+                type="button"
                 data-print-target={card.printTarget}
                 className="relative z-10 inline-flex w-full cursor-pointer justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 sm:w-auto"
               >
                 Print
-              </a>
+              </button>
             </div>
           </div>
         ))}
@@ -2533,17 +2532,13 @@ export default async function ReportsPage({
 
               function wireButtons() {
                 document.querySelectorAll('[data-print-target]').forEach(function (button) {
-                  var targetId = button.getAttribute('data-print-target') || '';
-                  var safeTargetId = targetId.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                   button.style.pointerEvents = 'auto';
                   button.style.cursor = 'pointer';
                   button.setAttribute('aria-label', 'Open printable report in a new tab');
-                  button.setAttribute(
-                    'onclick',
-                    "if (window.__openInsProReport) { window.__openInsProReport('" + safeTargetId + "'); } return false;"
-                  );
+
+                  if (button.getAttribute('data-print-wired') === 'true') return;
+                  button.setAttribute('data-print-wired', 'true');
                   button.addEventListener('click', handleReportClick);
-                  button.addEventListener('pointerdown', handleReportClick);
                 });
               }
 
