@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Script from "next/script";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../../src/lib/supabase-server";
 import { supabaseAdmin } from "../../../../src/lib/supabase-admin";
@@ -2323,7 +2324,9 @@ export default async function ReportsPage({
         </div>
       </section>
 
-      <script
+      <Script
+        id="reports-print-script"
+        strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: `
             (function () {
@@ -2392,15 +2395,7 @@ export default async function ReportsPage({
                 printWindow.document.write('</style></head><body>');
                 printWindow.document.write('<div class="print-header"><div><div class="print-brand">Indiana Notary Solutions • INS Pro</div><div class="print-title">' + title + '</div><div>Professional report package with transaction details and receipt previews/references.</div></div><div class="print-meta">Generated<br>' + generatedAt + '</div></div>');
                 printWindow.document.body.appendChild(clone);
-                printWindow.document.write('<div class="print-note">The information contained in this report is generated from data entered into the Indiana Notary Solutions platform by you or other authorized users. While Indiana Notary Solutions makes reasonable efforts to accurately calculate totals, summaries, mileage, expenses, invoices, journal activity, and other report data, we do not guarantee the accuracy, completeness, or suitability of any report.
-
-These reports are provided for informational and business management purposes only and should not be relied upon as accounting, tax, legal, or financial advice.
-
-It is your responsibility to review and verify all information before using these reports for tax filings, financial statements, audits, regulatory compliance, or any other official purpose.
-
-Indiana Notary Solutions, LLC shall not be liable for any errors, omissions, inaccurate data entry, calculation discrepancies, lost profits, tax liabilities, penalties, or damages arising from the use of these reports or reliance upon the information contained within them.
-
-Users are strongly encouraged to consult a qualified CPA, tax professional, or attorney regarding the appropriate use of these records.</div>');
+                printWindow.document.write('<div class="print-note"><strong>Report Disclaimer</strong><br><br>The information contained in this report is generated from data entered into the Indiana Notary Solutions platform by you or other authorized users. While Indiana Notary Solutions makes reasonable efforts to accurately calculate totals, summaries, mileage, expenses, invoices, journal activity, and other report data, we do not guarantee the accuracy, completeness, or suitability of any report.<br><br>These reports are provided for informational and business management purposes only and should not be relied upon as accounting, tax, legal, or financial advice.<br><br>It is your responsibility to review and verify all information before using these reports for tax filings, financial statements, audits, regulatory compliance, or any other official purpose.<br><br>Indiana Notary Solutions, LLC shall not be liable for any errors, omissions, inaccurate data entry, calculation discrepancies, lost profits, tax liabilities, penalties, or damages arising from the use of these reports or reliance upon the information contained within them.<br><br>Users are strongly encouraged to consult a qualified CPA, tax professional, or attorney regarding the appropriate use of these records.</div>');
                 printWindow.document.write('</body></html>');
                 printWindow.document.close();
 
