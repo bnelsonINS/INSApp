@@ -81,7 +81,9 @@ function buildSigningLocation(assignment: AssignmentRow | null | undefined) {
     .filter(Boolean)
     .join(" ");
 
-  return [assignment.signing_address, cityStateZip].filter(Boolean).join(", ") || "—";
+  return (
+    [assignment.signing_address, cityStateZip].filter(Boolean).join(", ") || "—"
+  );
 }
 
 function getAssignmentTitle(assignment: AssignmentRow | null | undefined) {
@@ -100,22 +102,26 @@ function getClientName(assignment: AssignmentRow | null | undefined) {
 }
 
 function normalizeAssignments(value: unknown): AssignmentRow | null {
-  if (Array.isArray(value)) return (value[0] as AssignmentRow | undefined) ?? null;
+  if (Array.isArray(value))
+    return (value[0] as AssignmentRow | undefined) ?? null;
   return (value as AssignmentRow | null) ?? null;
 }
 
 function categoryBadgeClass(category: string | null | undefined) {
   const normalized = String(category ?? "").toLowerCase();
 
-  if (normalized.includes("print")) return "bg-blue-50 text-blue-700 ring-blue-200";
+  if (normalized.includes("print"))
+    return "bg-blue-50 text-blue-700 ring-blue-200";
   if (normalized.includes("ship") || normalized.includes("postage")) {
     return "bg-purple-50 text-purple-700 ring-purple-200";
   }
   if (normalized.includes("parking") || normalized.includes("toll")) {
     return "bg-amber-50 text-amber-700 ring-amber-200";
   }
-  if (normalized.includes("office")) return "bg-green-50 text-green-700 ring-green-200";
-  if (normalized.includes("software")) return "bg-indigo-50 text-indigo-700 ring-indigo-200";
+  if (normalized.includes("office"))
+    return "bg-green-50 text-green-700 ring-green-200";
+  if (normalized.includes("software"))
+    return "bg-indigo-50 text-indigo-700 ring-indigo-200";
 
   return "bg-slate-50 text-slate-700 ring-slate-200";
 }
@@ -170,11 +176,16 @@ export default async function ExpensesPage() {
     .filter((row) => String(row.expense_date ?? "").startsWith(currentMonth))
     .reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
 
-  const receiptCount = expenseRows.filter((row) => row.receipt_file_path).length;
+  const receiptCount = expenseRows.filter(
+    (row) => row.receipt_file_path,
+  ).length;
 
   const categoryTotals = CATEGORY_ORDER.map((category) => {
     const total = expenseRows
-      .filter((row) => String(row.category ?? "").toLowerCase() === category.toLowerCase())
+      .filter(
+        (row) =>
+          String(row.category ?? "").toLowerCase() === category.toLowerCase(),
+      )
       .reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
 
     return { category, total };
@@ -192,7 +203,7 @@ export default async function ExpensesPage() {
   }
 
   return (
-    <main className="space-y-6 bg-slate-50 p-4 sm:p-6">
+    <main className="min-w-0 space-y-6 bg-slate-50 p-3 sm:p-4 lg:p-6">
       <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
         <div className="flex flex-col justify-between gap-5 p-6 md:flex-row md:items-center">
           <div>
@@ -210,52 +221,52 @@ export default async function ExpensesPage() {
 
           <Link
             href="/notary/dashboard"
-            className="rounded-xl bg-white px-5 py-3 text-center text-sm font-bold text-[#0B1F4D] shadow-sm transition hover:bg-slate-100"
+            className="w-full rounded-xl bg-white px-5 py-3 text-center text-sm font-bold text-[#0B1F4D] shadow-sm transition hover:bg-slate-100 sm:w-auto"
           >
             Back to Dashboard
           </Link>
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <p className="text-sm font-semibold uppercase text-slate-500">
             Expenses
           </p>
-          <p className="mt-2 text-4xl font-bold text-[#0B1F4D]">
+          <p className="mt-2 text-3xl font-bold text-[#0B1F4D] sm:text-4xl">
             {expenseRows.length}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <p className="text-sm font-semibold uppercase text-slate-500">
             Total Spent
           </p>
-          <p className="mt-2 text-4xl font-bold text-slate-950">
+          <p className="mt-2 text-3xl font-bold text-slate-950 sm:text-4xl">
             {formatMoney(totalExpenses)}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <p className="text-sm font-semibold uppercase text-slate-500">
             This Month
           </p>
-          <p className="mt-2 text-4xl font-bold text-slate-950">
+          <p className="mt-2 text-3xl font-bold text-slate-950 sm:text-4xl">
             {formatMoney(thisMonthExpenses)}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <p className="text-sm font-semibold uppercase text-slate-500">
             Receipts
           </p>
-          <p className="mt-2 text-4xl font-bold text-green-700">
+          <p className="mt-2 text-3xl font-bold text-green-700 sm:text-4xl">
             {receiptCount}
           </p>
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1fr_360px]">
+      <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col justify-between gap-3 border-b border-slate-200 p-5 md:flex-row md:items-center">
             <div>
@@ -283,112 +294,207 @@ export default async function ExpensesPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                  <tr>
-                    <th className="px-5 py-3 font-bold">Date</th>
-                    <th className="px-5 py-3 font-bold">Assignment</th>
-                    <th className="px-5 py-3 font-bold">Client</th>
-                    <th className="px-5 py-3 font-bold">Category</th>
-                    <th className="px-5 py-3 font-bold">Vendor / Notes</th>
-                    <th className="px-5 py-3 text-right font-bold">Amount</th>
-                    <th className="px-5 py-3 text-right font-bold">Receipt</th>
-                    <th className="px-5 py-3 text-right font-bold">Action</th>
-                  </tr>
-                </thead>
+            <>
+              <div className="divide-y divide-slate-200 lg:hidden">
+                {expenseRows.map((row) => {
+                  const assignment = row.assignment;
+                  const assignmentHref = assignment?.id
+                    ? `/notary/assignments/${assignment.id}#assignment-workspace`
+                    : null;
 
-                <tbody className="divide-y divide-slate-200">
-                  {expenseRows.map((row) => {
-                    const assignment = row.assignment;
-                    const assignmentHref = assignment?.id
-                      ? `/notary/assignments/${assignment.id}#assignment-workspace`
-                      : null;
-
-                    return (
-                      <tr key={row.id} className="align-top">
-                        <td className="px-5 py-4 font-semibold text-slate-800">
-                          {formatDate(row.expense_date)}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <p className="font-bold text-slate-950">
+                  return (
+                    <article key={row.id} className="space-y-4 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-slate-950">
                             {getAssignmentTitle(assignment)}
                           </p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            Control # {assignment?.control_number || "—"}
+                          <p className="mt-1 text-xs font-semibold text-slate-500">
+                            {formatDate(row.expense_date)} • Control #{" "}
+                            {assignment?.control_number || "—"}
                           </p>
-                          <p className="mt-1 max-w-xs break-words text-xs text-slate-500">
-                            {buildSigningLocation(assignment)}
-                          </p>
-                        </td>
+                        </div>
 
-                        <td className="px-5 py-4 font-semibold text-slate-700">
-                          {getClientName(assignment)}
-                        </td>
+                        <p className="shrink-0 text-base font-black text-slate-950">
+                          {formatMoney(row.amount)}
+                        </p>
+                      </div>
 
-                        <td className="px-5 py-4">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${categoryBadgeClass(
-                              row.category,
-                            )}`}
-                          >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex max-w-full items-center rounded-full px-3 py-1 text-xs font-bold leading-tight ring-1 ${categoryBadgeClass(
+                            row.category,
+                          )}`}
+                        >
+                          <span className="min-w-0 truncate">
                             {row.category || "Misc."}
                           </span>
-                        </td>
+                        </span>
 
-                        <td className="px-5 py-4">
-                          <p className="font-semibold text-slate-700">
-                            {row.vendor || row.description || "Expense"}
+                        {row.receipt_file_name || row.receipt_file_path ? (
+                          <span className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700 ring-1 ring-green-200">
+                            Receipt attached
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="grid gap-2 text-sm text-slate-600">
+                        <p>
+                          <span className="font-bold text-slate-700">
+                            Client:
+                          </span>{" "}
+                          {getClientName(assignment)}
+                        </p>
+                        <p className="break-words">
+                          <span className="font-bold text-slate-700">
+                            Location:
+                          </span>{" "}
+                          {buildSigningLocation(assignment)}
+                        </p>
+                        <p className="break-words">
+                          <span className="font-bold text-slate-700">
+                            Vendor:
+                          </span>{" "}
+                          {row.vendor || row.description || "Expense"}
+                        </p>
+                        {row.notes && (
+                          <p className="break-words text-xs text-slate-500">
+                            {row.notes}
                           </p>
-                          {row.notes && (
-                            <p className="mt-1 max-w-sm break-words text-xs text-slate-500">
-                              {row.notes}
+                        )}
+                      </div>
+
+                      <div className="flex justify-end">
+                        {assignmentHref ? (
+                          <Link
+                            href={assignmentHref}
+                            className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100"
+                          >
+                            Open Assignment
+                          </Link>
+                        ) : (
+                          <span className="text-xs font-semibold text-slate-400">
+                            No assignment link
+                          </span>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div className="hidden overflow-x-auto lg:block">
+                <table className="w-full min-w-[980px] text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="px-5 py-3 font-bold">Date</th>
+                      <th className="px-5 py-3 font-bold">Assignment</th>
+                      <th className="px-5 py-3 font-bold">Client</th>
+                      <th className="px-5 py-3 font-bold">Category</th>
+                      <th className="px-5 py-3 font-bold">Vendor / Notes</th>
+                      <th className="px-5 py-3 text-right font-bold">Amount</th>
+                      <th className="px-5 py-3 text-right font-bold">
+                        Receipt
+                      </th>
+                      <th className="px-5 py-3 text-right font-bold">Action</th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-200">
+                    {expenseRows.map((row) => {
+                      const assignment = row.assignment;
+                      const assignmentHref = assignment?.id
+                        ? `/notary/assignments/${assignment.id}#assignment-workspace`
+                        : null;
+
+                      return (
+                        <tr key={row.id} className="align-top">
+                          <td className="px-5 py-4 font-semibold text-slate-800">
+                            {formatDate(row.expense_date)}
+                          </td>
+
+                          <td className="px-5 py-4">
+                            <p className="font-bold text-slate-950">
+                              {getAssignmentTitle(assignment)}
                             </p>
-                          )}
-                        </td>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Control # {assignment?.control_number || "—"}
+                            </p>
+                            <p className="mt-1 max-w-xs break-words text-xs text-slate-500">
+                              {buildSigningLocation(assignment)}
+                            </p>
+                          </td>
 
-                        <td className="px-5 py-4 text-right font-bold text-slate-950">
-                          {formatMoney(row.amount)}
-                        </td>
+                          <td className="px-5 py-4 font-semibold text-slate-700">
+                            {getClientName(assignment)}
+                          </td>
 
-                        <td className="px-5 py-4 text-right">
-                          {row.receipt_file_name || row.receipt_file_path ? (
-                            <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700 ring-1 ring-green-200">
-                              Attached
-                            </span>
-                          ) : (
-                            <span className="text-xs font-semibold text-slate-400">
-                              —
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="px-5 py-4 text-right">
-                          {assignmentHref ? (
-                            <Link
-                              href={assignmentHref}
-                              className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100"
+                          <td className="px-5 py-4">
+                            <span
+                              className={`inline-flex max-w-[150px] items-center rounded-full px-3 py-1 text-xs font-bold leading-tight ring-1 ${categoryBadgeClass(
+                                row.category,
+                              )}`}
+                              title={row.category || "Misc."}
                             >
-                              Open
-                            </Link>
-                          ) : (
-                            <span className="text-xs font-semibold text-slate-400">
-                              —
+                              <span className="truncate">
+                                {row.category || "Misc."}
+                              </span>
                             </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          </td>
+
+                          <td className="px-5 py-4">
+                            <p className="font-semibold text-slate-700">
+                              {row.vendor || row.description || "Expense"}
+                            </p>
+                            {row.notes && (
+                              <p className="mt-1 max-w-sm break-words text-xs text-slate-500">
+                                {row.notes}
+                              </p>
+                            )}
+                          </td>
+
+                          <td className="px-5 py-4 text-right font-bold text-slate-950">
+                            {formatMoney(row.amount)}
+                          </td>
+
+                          <td className="px-5 py-4 text-right">
+                            {row.receipt_file_name || row.receipt_file_path ? (
+                              <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700 ring-1 ring-green-200">
+                                Attached
+                              </span>
+                            ) : (
+                              <span className="text-xs font-semibold text-slate-400">
+                                —
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="px-5 py-4 text-right">
+                            {assignmentHref ? (
+                              <Link
+                                href={assignmentHref}
+                                className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100"
+                              >
+                                Open
+                              </Link>
+                            ) : (
+                              <span className="text-xs font-semibold text-slate-400">
+                                —
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </section>
 
-        <aside className="space-y-6">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <aside className="min-w-0 space-y-6">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <h2 className="text-xl font-bold text-slate-950">
               Category Breakdown
             </h2>
@@ -403,15 +509,19 @@ export default async function ExpensesPage() {
             ) : (
               <div className="mt-5 space-y-3">
                 {categoryTotals.map((item) => {
-                  const percent = totalExpenses > 0 ? item.total / totalExpenses : 0;
+                  const percent =
+                    totalExpenses > 0 ? item.total / totalExpenses : 0;
 
                   return (
-                    <div key={item.category}>
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <p className="font-bold text-slate-700">
+                    <div key={item.category} className="min-w-0">
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-sm">
+                        <p
+                          className="min-w-0 truncate font-bold text-slate-700"
+                          title={item.category}
+                        >
                           {item.category}
                         </p>
-                        <p className="font-black text-slate-950">
+                        <p className="shrink-0 font-black text-slate-950">
                           {formatMoney(item.total)}
                         </p>
                       </div>
