@@ -1260,17 +1260,6 @@ export default async function ReportsPage({
                     ))}
                   </tbody>
                 </table>
-                <div className="mt-8 break-before-page">
-                  <h3 className="text-xl font-black text-slate-950">Receipt Previews</h3>
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2 print:grid-cols-2">
-                    {expenses.filter((expense) => expense.receipt_url && expense.receipt_kind === "image").map((expense) => (
-                      <div key={`print-receipt-${expense.id}`} className="break-inside-avoid rounded-2xl border border-slate-200 p-4">
-                        <p className="text-sm font-black text-slate-950">{receiptLabel(expense)}</p>
-                        <img src={expense.receipt_url || ""} alt="Receipt preview" className="mt-3 max-h-[420px] w-full object-contain" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
             )}
 
@@ -1349,6 +1338,85 @@ export default async function ReportsPage({
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+
+            {expenses.some(
+              (expense) =>
+                expense.receipt_url ||
+                expense.receipt_file_path ||
+                expense.receipt_file_name,
+            ) && (
+              <div className="mt-10 break-before-page">
+                <h2 className="text-2xl font-black text-slate-950">
+                  Receipt Attachments
+                </h2>
+                <p className="mt-2 text-sm font-semibold text-slate-600">
+                  Attached receipts are displayed below as supporting documentation.
+                </p>
+
+                <div className="mt-4 grid gap-5 sm:grid-cols-2 print:grid-cols-2">
+                  {expenses
+                    .filter(
+                      (expense) =>
+                        expense.receipt_url ||
+                        expense.receipt_file_path ||
+                        expense.receipt_file_name,
+                    )
+                    .map((expense) => {
+                      const assignment = expense.assignment_id
+                        ? assignmentById.get(expense.assignment_id)
+                        : null;
+
+                      return (
+                        <article
+                          key={`print-receipt-attachment-${expense.id}`}
+                          className="break-inside-avoid rounded-2xl border border-slate-200 bg-white p-4"
+                        >
+                          <div className="mb-3">
+                            <p className="text-sm font-black text-slate-950">
+                              {receiptLabel(expense)}
+                            </p>
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              {formatDate(expense.expense_date)} • {expense.category || "Misc."} • {money(expense.amount)}
+                            </p>
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              {assignmentTitle(assignment)}
+                            </p>
+                          </div>
+
+                          {expense.receipt_url && expense.receipt_kind === "image" ? (
+                            <img
+                              src={expense.receipt_url}
+                              alt={`Receipt for ${expense.category || "expense"}`}
+                              className="max-h-[520px] w-full rounded-xl border border-slate-200 object-contain p-2"
+                            />
+                          ) : expense.receipt_url && expense.receipt_kind === "pdf" ? (
+                            <object
+                              data={expense.receipt_url}
+                              type="application/pdf"
+                              className="h-[520px] w-full rounded-xl border border-slate-200"
+                            >
+                              <iframe
+                                src={expense.receipt_url}
+                                className="h-[520px] w-full rounded-xl border border-slate-200"
+                              />
+                            </object>
+                          ) : expense.receipt_url ? (
+                            <iframe
+                              src={expense.receipt_url}
+                              className="h-[520px] w-full rounded-xl border border-slate-200"
+                            />
+                          ) : (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
+                              Receipt file is attached in INS Pro storage, but a preview URL could not be generated for this report.
+                            </div>
+                          )}
+                        </article>
+                      );
+                    })}
                 </div>
               </div>
             )}
