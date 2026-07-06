@@ -2371,32 +2371,51 @@ export default async function ReportsPage({
 
                 if (!receiptLinks.length) return '';
 
+                var seen = {};
                 var cards = receiptLinks.map(function (link) {
-                  var image = link.querySelector('img');
                   var href = link.getAttribute('href') || '';
+                  if (!href || seen[href]) return '';
+                  seen[href] = true;
+
+                  var image = link.querySelector('img');
                   var label = (link.textContent || 'Receipt attachment').trim();
-                  var preview = image
-                    ? '<img class="receipt-image" src="' + escapeHtml(image.getAttribute('src') || '') + '" alt="Receipt preview" />'
-                    : '<div class="receipt-placeholder">PDF / File Receipt<br><span>' + escapeHtml(label) + '</span></div>';
+                  var lowerHref = href.toLowerCase();
+                  var isImage = image || /\.(png|jpg|jpeg|webp|gif)(\?|#|$)/.test(lowerHref);
+                  var isPdf = /\.pdf(\?|#|$)/.test(lowerHref) || label.toLowerCase().includes('.pdf');
 
-                  return '<div class="receipt-card"><div class="receipt-preview">' + preview + '</div><div class="receipt-detail"><div class="receipt-label">Receipt</div><div class="receipt-name">' + escapeHtml(label) + '</div><a href="' + escapeHtml(href) + '">Open attached receipt</a></div></div>';
-                }).join('');
+                  var preview = '';
+                  if (isImage) {
+                    var imageSrc = image ? (image.getAttribute('src') || href) : href;
+                    preview = '<img class="receipt-image" src="' + escapeHtml(imageSrc) + '" alt="Receipt preview" />';
+                  } else if (isPdf) {
+                    preview = '<object class="receipt-object" data="' + escapeHtml(href) + '#toolbar=0&navpanes=0&scrollbar=1" type="application/pdf"><iframe class="receipt-object" src="' + escapeHtml(href) + '#toolbar=0&navpanes=0&scrollbar=1"></iframe><div class="receipt-fallback">PDF receipt attached<br><span>' + escapeHtml(label) + '</span></div></object>';
+                  } else {
+                    preview = '<iframe class="receipt-object" src="' + escapeHtml(href) + '"></iframe>';
+                  }
 
-                return '<section class="receipt-pages"><div class="section-heading"><div><div class="eyebrow">Receipts</div><h2>Receipt Attachments</h2><p>Receipt previews and source links included with this report.</p></div></div><div class="receipt-grid">' + cards + '</div></section>';
+                  return '<div class="receipt-card"><div class="receipt-preview">' + preview + '</div><div class="receipt-detail"><div class="receipt-label">Receipt Attachment</div><div class="receipt-name">' + escapeHtml(label) + '</div><div class="receipt-note">This attachment is included as supporting documentation for the report transaction above.</div></div></div>';
+                }).filter(Boolean).join('');
+
+                if (!cards) return '';
+
+                return '<section class="receipt-pages"><div class="section-heading"><div><div class="eyebrow">Receipts</div><h2>Receipt Attachments</h2><p>Attached receipts are displayed below as source documentation.</p></div></div><div class="receipt-grid">' + cards + '</div></section>';
               }
 
               function reportStyles() {
                 return [
                   '@page{size:letter;margin:.45in .42in .65in .42in;}',
                   'html,body{margin:0;padding:0;background:#eef4f8;color:#101828;font-family:Inter,Arial,Helvetica,sans-serif;font-size:11px;}',
+                  '.print-toolbar{position:sticky;top:0;z-index:9999;background:#0B1F4D;color:white;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 10px rgba(15,23,42,.18);}',
+                  '.print-toolbar-title{font-size:14px;font-weight:900;}',
+                  '.print-toolbar button{border:0;border-radius:10px;background:white;color:#0B1F4D;padding:10px 16px;font-size:13px;font-weight:900;cursor:pointer;}',
                   'body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
                   '.print-shell{max-width:980px;margin:0 auto;padding:18px 18px 52px;background:#fff;}',
                   '.cover{min-height:520px;border:1px solid #d8e4ef;background:white;border-radius:18px;overflow:hidden;margin-bottom:18px;page-break-after:always;}',
-                  '.cover-top{background:#0B1F4D;color:white;padding:26px 30px;display:flex;align-items:flex-start;justify-content:space-between;gap:24px;}',
-                  '.brand{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.16em;color:#93c5fd;}',
-                  '.cover-title{font-size:32px;line-height:1.05;font-weight:900;margin:8px 0 8px;color:white;}',
-                  '.cover-subtitle{font-size:13px;line-height:1.5;color:#dbeafe;max-width:620px;}',
-                  '.meta-box{min-width:190px;border:1px solid rgba(255,255,255,.24);border-radius:14px;padding:12px;background:rgba(255,255,255,.08);font-size:10px;line-height:1.6;color:#eff6ff;}',
+                  '.cover-top{background:#0B1F4D!important;color:white!important;padding:26px 30px;display:flex;align-items:flex-start;justify-content:space-between;gap:24px;}',
+                  '.brand{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.16em;color:#93c5fd!important;}',
+                  '.cover-title{font-size:32px;line-height:1.05;font-weight:900;margin:8px 0 8px;color:white!important;}',
+                  '.cover-subtitle{font-size:13px;line-height:1.5;color:#dbeafe!important;max-width:620px;}',
+                  '.meta-box{min-width:190px;border:1px solid rgba(255,255,255,.24);border-radius:14px;padding:12px;background:rgba(255,255,255,.08)!important;font-size:10px;line-height:1.6;color:#eff6ff!important;}',
                   '.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:24px 30px;}',
                   '.summary-card{border:1px solid #d8e4ef;border-radius:14px;padding:14px;background:#f8fafc;}',
                   '.summary-card .label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;font-weight:900;color:#64748b;}',
@@ -2410,7 +2429,7 @@ export default async function ReportsPage({
                   '.report-body{padding:16px 18px;}',
                   'section,article,aside,div{box-shadow:none!important;}',
                   'section:not(.cover):not(.receipt-pages){background:white!important;border:1px solid #d8e4ef!important;border-radius:16px!important;margin:0 0 16px!important;overflow:hidden!important;page-break-inside:avoid;}',
-                  'section>div:first-child{background:#f8fafc!important;border-bottom:1px solid #d8e4ef!important;padding:15px 18px!important;}',
+                  'section:not(.cover)>div:first-child{background:#f8fafc!important;border-bottom:1px solid #d8e4ef!important;padding:15px 18px!important;}',
                   '.grid{display:block!important}.space-y-6>*+*{margin-top:18px!important}.space-y-4>*+*{margin-top:12px!important}.space-y-3>*+*{margin-top:9px!important}',
                   '.flex,.inline-flex{display:flex!important}.items-center{align-items:center!important}.items-start{align-items:flex-start!important}.justify-between{justify-content:space-between!important}.justify-center{justify-content:center!important}.gap-3{gap:12px!important}.gap-4{gap:16px!important}.shrink-0{flex-shrink:0!important}.min-w-0{min-width:0!important}',
                   '.rounded-2xl,.rounded-xl{border-radius:12px!important}.rounded-full{border-radius:999px!important}',
@@ -2430,16 +2449,18 @@ export default async function ReportsPage({
                   '.receipt-grid{padding:18px;display:grid;grid-template-columns:1fr;gap:18px;}',
                   '.receipt-card{display:grid;grid-template-columns:minmax(0,1.25fr) 260px;gap:24px;align-items:start;border-bottom:1px solid #d8e4ef;padding-bottom:18px;page-break-inside:avoid;}',
                   '.receipt-card:last-child{border-bottom:0;padding-bottom:0;}',
-                  '.receipt-preview{min-height:240px;display:flex;align-items:flex-start;justify-content:center;background:#fff;border:1px solid #e5edf6;border-radius:14px;padding:14px;}',
-                  '.receipt-image{max-width:100%!important;max-height:420px!important;border:0!important;padding:0!important;}',
-                  '.receipt-placeholder{width:100%;min-height:220px;border:2px dashed #bfdbfe;border-radius:14px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;color:#0B1F4D;background:#eff6ff;line-height:1.5;}',
-                  '.receipt-placeholder span{display:block;margin-top:8px;font-size:10px;color:#475569;font-weight:700;}',
+                  '.receipt-preview{min-height:520px;display:flex;align-items:flex-start;justify-content:center;background:#fff;border:1px solid #e5edf6;border-radius:14px;padding:14px;overflow:hidden;}',
+                  '.receipt-image{width:100%!important;max-width:100%!important;max-height:700px!important;object-fit:contain!important;border:0!important;padding:0!important;}',
+                  '.receipt-fallback{width:100%;min-height:220px;border:2px dashed #bfdbfe;border-radius:14px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;color:#0B1F4D;background:#eff6ff;line-height:1.5;}',
+                  '.receipt-fallback span{display:block;margin-top:8px;font-size:10px;color:#475569;font-weight:700;}',
                   '.receipt-detail{padding:8px 0;font-size:11px;line-height:1.55;color:#334155;}',
+                  '.receipt-object{width:100%;height:520px;border:0;background:white;border-radius:10px;}',
+                  '.receipt-note{font-size:10px;line-height:1.5;color:#475569;margin-top:8px;}',
                   '.receipt-label{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#94a3b8;font-weight:900;}',
                   '.receipt-name{font-size:15px;font-weight:900;color:#0f172a;margin:6px 0 8px;word-break:break-word;}',
                   '.print-disclaimer{margin-top:18px;background:#f8fafc;border:1px solid #d8e4ef;border-radius:14px;padding:14px;font-size:9.5px;line-height:1.45;color:#475569;page-break-inside:avoid;}',
                   '.print-footer{position:fixed;left:.42in;right:.42in;bottom:.18in;background:#0B1F4D;color:white;padding:7px 12px;border-radius:8px;display:flex;justify-content:space-between;font-size:9px;font-weight:800;}',
-                  '@media print{.print-shell{padding:0 0 34px;max-width:none}.cover{min-height:9.25in}.receipt-card{grid-template-columns:minmax(0,1.25fr) 250px}.print-footer{display:flex}}'
+                  '@media print{.print-toolbar{display:none!important}.print-shell{padding:0 0 34px;max-width:none}.cover{min-height:9.25in}.receipt-card{grid-template-columns:minmax(0,1.35fr) 240px}.receipt-preview{min-height:620px}.receipt-object{height:620px}.print-footer{display:flex}}'
                 ].join('');
               }
 
@@ -2470,16 +2491,13 @@ export default async function ReportsPage({
 
                 var generatedAt = new Date().toLocaleString();
                 var receipts = receiptPageHtml(clone);
-                var html = '<!doctype html><html><head><meta charset="utf-8"><title>' + escapeHtml(title) + '</title><style>' + reportStyles() + '</style></head><body><div class="print-shell">' + buildCover(title, generatedAt, clone) + clone.outerHTML + receipts + '<div class="print-disclaimer"><strong>Report Disclaimer</strong><br><br>The information contained in this report is generated from data entered into the Indiana Notary Solutions platform by you or other authorized users. While Indiana Notary Solutions makes reasonable efforts to accurately calculate totals, summaries, mileage, expenses, invoices, journal activity, and other report data, we do not guarantee the accuracy, completeness, or suitability of any report.<br><br>These reports are provided for informational and business management purposes only and should not be relied upon as accounting, tax, legal, or financial advice.<br><br>It is your responsibility to review and verify all information before using these reports for tax filings, financial statements, audits, regulatory compliance, or any other official purpose.<br><br>Indiana Notary Solutions, LLC shall not be liable for any errors, omissions, inaccurate data entry, calculation discrepancies, lost profits, tax liabilities, penalties, or damages arising from the use of these reports or reliance upon the information contained within them.<br><br>Users are strongly encouraged to consult a qualified CPA, tax professional, or attorney regarding the appropriate use of these records.</div></div><div class="print-footer"><span>Powered by Indiana Notary Solutions PRO</span><span>' + escapeHtml(generatedAt) + '</span></div></body></html>';
+                var html = '<!doctype html><html><head><meta charset="utf-8"><title>' + escapeHtml(title) + '</title><style>' + reportStyles() + '</style></head><body><div class="print-toolbar"><div class="print-toolbar-title">' + escapeHtml(title) + '</div><button type="button" onclick="window.print()">Print / Save PDF</button></div><div class="print-shell">' + buildCover(title, generatedAt, clone) + clone.outerHTML + receipts + '<div class="print-disclaimer"><strong>Report Disclaimer</strong><br><br>The information contained in this report is generated from data entered into the Indiana Notary Solutions platform by you or other authorized users. While Indiana Notary Solutions makes reasonable efforts to accurately calculate totals, summaries, mileage, expenses, invoices, journal activity, and other report data, we do not guarantee the accuracy, completeness, or suitability of any report.<br><br>These reports are provided for informational and business management purposes only and should not be relied upon as accounting, tax, legal, or financial advice.<br><br>It is your responsibility to review and verify all information before using these reports for tax filings, financial statements, audits, regulatory compliance, or any other official purpose.<br><br>Indiana Notary Solutions, LLC shall not be liable for any errors, omissions, inaccurate data entry, calculation discrepancies, lost profits, tax liabilities, penalties, or damages arising from the use of these reports or reliance upon the information contained within them.<br><br>Users are strongly encouraged to consult a qualified CPA, tax professional, or attorney regarding the appropriate use of these records.</div></div><div class="print-footer"><span>Powered by Indiana Notary Solutions PRO</span><span>' + escapeHtml(generatedAt) + '</span></div></body></html>';
 
                 printWindow.document.open();
                 printWindow.document.write(html);
                 printWindow.document.close();
 
-                setTimeout(function () {
-                  printWindow.focus();
-                  printWindow.print();
-                }, 600);
+                printWindow.focus();
               }
 
               document.addEventListener('click', function (event) {
