@@ -77,7 +77,7 @@ async function addMileageEntry(formData: FormData) {
     redirect("/notary/dashboard/mileage?error=missing");
   }
 
-  const { error } = await supabase.from("notary_mileage_entries").insert({
+  const { error } = await supabase.from("assignment_mileage").insert({
     notary_id: user.id,
     trip_date: tripDate,
     purpose,
@@ -109,7 +109,7 @@ async function deleteMileageEntry(formData: FormData) {
   }
 
   const { error } = await supabase
-    .from("notary_mileage_entries")
+    .from("assignment_mileage")
     .delete()
     .eq("id", id)
     .eq("notary_id", user.id);
@@ -134,7 +134,7 @@ export default async function MileagePage({
   const currentYear = new Date().getFullYear();
 
   const { data: entries, error } = await supabase
-    .from("notary_mileage_entries")
+    .from("assignment_mileage")
     .select(
       "id, trip_date, purpose, start_location, end_location, miles, mileage_rate, notes, created_at"
     )
