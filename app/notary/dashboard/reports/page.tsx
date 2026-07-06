@@ -919,6 +919,19 @@ export default async function ReportsPage({
     ? totalMiles / assignments.length
     : 0;
 
+  function printableReportHref(targetId: string) {
+    const query = new URLSearchParams();
+
+    query.set("range", selectedRange.range);
+    query.set("start", params.start ?? selectedRange.start);
+    query.set("end", params.end ?? selectedRange.end);
+    query.set("client", selectedClient);
+    query.set("status", selectedStatus);
+    query.set("print", targetId);
+
+    return `/notary/dashboard/reports?${query.toString()}`;
+  }
+
   const reportCards = [
     {
       title: "Profit & Loss",
@@ -1148,13 +1161,15 @@ export default async function ReportsPage({
               >
                 View
               </a>
-              <button
-                type="button"
+              <a
+                href={printableReportHref(card.printTarget)}
+                target="_blank"
+                rel="noreferrer"
                 data-print-target={card.printTarget}
                 className="relative z-10 inline-flex w-full cursor-pointer justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 sm:w-auto"
               >
                 Print
-              </button>
+              </a>
             </div>
           </div>
         ))}
@@ -2483,24 +2498,13 @@ export default async function ReportsPage({
                 return '<section class="cover"><div class="cover-top"><div><div class="brand">Indiana Notary Solutions • INS Pro</div><h1 class="cover-title">' + escapeHtml(title) + '</h1><div class="cover-subtitle">Professional report package with summary totals, transaction detail, source records, receipt previews, and review disclaimer.</div></div><div class="meta-box"><strong>Generated</strong><br>' + escapeHtml(generatedAt) + '<br><br><strong>Report Source</strong><br>INS Pro workspace data</div></div><div class="summary-grid">' + statCards + '</div><div class="cover-note"><strong>Review Required:</strong> Reports are estimates based on data saved in your INS Pro account. Verify totals, classifications, mileage, receipts, and tax treatment before filing taxes or using this report for official purposes.</div></section>';
               }
 
-              function openReport(targetId) {
+              function buildReportHtml(targetId) {
                 var source = document.getElementById(targetId);
                 if (!source) {
-                  alert('Report section not found.');
-                  return;
+                  return null;
                 }
 
                 var title = source.getAttribute('data-print-title') || 'INS Pro Report';
-                var reportWindow = window.open('about:blank', '_blank');
-                if (!reportWindow) {
-                  alert('Your browser blocked the report window. Allow pop-ups for this site and try again.');
-                  return;
-                }
-
-                reportWindow.document.open();
-                reportWindow.document.write('<!doctype html><html><head><title>' + escapeHtml(title) + '</title></head><body style="font-family:Arial;padding:24px;color:#0f172a"><h2>Building report...</h2><p>Please wait.</p></body></html>');
-                reportWindow.document.close();
-
                 var clone = cleanClone(source.cloneNode(true));
                 clone.classList.add('report-page');
 
@@ -2511,19 +2515,74 @@ export default async function ReportsPage({
                 var footer = '<div class="print-footer"><span>Powered by Indiana Notary Solutions PRO</span><span>' + escapeHtml(generatedAt) + '</span></div>';
                 var html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escapeHtml(title) + '</title><style>' + reportStyles() + '</style></head><body>' + toolbar + '<div class="print-shell">' + buildCover(title, generatedAt) + clone.outerHTML + receipts + disclaimer + '</div>' + footer + '</body></html>';
 
+                return {
+                  title: title,
+                  html: html
+                };
+              }
+
+              function renderReportInCurrentTab(targetId) {
+                var report = buildReportHtml(targetId);
+
+                if (!report) {
+                  document.body.innerHTML = '<div style="font-family:Arial;padding:24px;color:#0f172a"><h2>Report section not found.</h2><p>Go back and try opening the report again.</p></div>';
+                  return;
+                }
+
+                document.open();
+                document.write(report.html);
+                document.close();
+              }
+
+              function openReport(targetId) {
+                var report = buildReportHtml(targetId);
+
+                if (!report) {
+                  alert('Report section not found.');
+                  return;
+                }
+
+                var reportWindow = window.open('about:blank', '_blank');
+                if (!reportWindow) {
+                  alert('Your browser blocked the report window. Allow pop-ups for this site and try again.');
+                  return;
+                }
+
                 reportWindow.document.open();
-                reportWindow.document.write(html);
+                reportWindow.document.write(report.html);
                 reportWindow.document.close();
                 reportWindow.focus();
               }
 
               window.__openInsProReport = openReport;
 
+              function renderRequestedPrintReport() {
+                try {
+                  var params = new URLSearchParams(window.location.search);
+                  var targetId = params.get('print');
+
+                  if (!targetId) return;
+
+                  window.setTimeout(function () {
+                    renderReportInCurrentTab(targetId);
+                  }, 50);
+                } catch (error) {
+                  console.error('INS Pro print report failed:', error);
+                }
+              }
+
+              renderRequestedPrintReport();
+
               function handleReportClick(event) {
                 var target = event.target;
                 if (!target || !target.closest) return;
                 var button = target.closest('[data-print-target]');
                 if (!button) return;
+
+                if (String(button.tagName || '').toLowerCase() === 'a') {
+                  return true;
+                }
+
                 event.preventDefault();
                 event.stopPropagation();
                 openReport(button.getAttribute('data-print-target'));
