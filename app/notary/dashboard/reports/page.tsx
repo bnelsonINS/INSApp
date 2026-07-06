@@ -1,11 +1,8 @@
 import Link from "next/link";
 import Script from "next/script";
-import PrintSavePdfButton from "./PrintSavePdfButton";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../../src/lib/supabase-server";
 import { supabaseAdmin } from "../../../../src/lib/supabase-admin";
-
-//
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,7 +15,6 @@ type SearchParams = {
   end?: string;
   client?: string;
   status?: string;
-  print?: string;
 };
 
 type AssignmentRow = {
@@ -923,6 +919,19 @@ export default async function ReportsPage({
     ? totalMiles / assignments.length
     : 0;
 
+  function printableReportHref(targetId: string) {
+    const query = new URLSearchParams();
+
+    query.set("range", selectedRange.range);
+    query.set("start", params.start ?? selectedRange.start);
+    query.set("end", params.end ?? selectedRange.end);
+    query.set("client", selectedClient);
+    query.set("status", selectedStatus);
+    query.set("print", targetId);
+
+    return `/notary/dashboard/reports?${query.toString()}`;
+  }
+
   const reportCards = [
     {
       title: "Profit & Loss",
@@ -982,507 +991,6 @@ export default async function ReportsPage({
       tag: "Analytics",
     },
   ];
-
-
-  const allowedPrintTargets = new Set(reportCards.map((card) => card.printTarget));
-  const requestedPrintTarget = String(params.print ?? "");
-  const selectedPrintTarget = allowedPrintTargets.has(requestedPrintTarget)
-    ? requestedPrintTarget
-    : "";
-
-  function printReportHref(target: string) {
-    const query = new URLSearchParams();
-
-    query.set("range", selectedRange.range);
-    query.set("start", params.start ?? selectedRange.start);
-    query.set("end", params.end ?? selectedRange.end);
-    query.set("client", selectedClient);
-    query.set("status", selectedStatus);
-    query.set("print", target);
-
-    return `/notary/dashboard/reports?${query.toString()}`;
-  }
-
-  if (selectedPrintTarget) {
-    const selectedCard = reportCards.find(
-      (card) => card.printTarget === selectedPrintTarget,
-    );
-    const printableTitle = selectedCard?.title || "INS Pro Report";
-    const generatedAt = new Date().toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-
-    return (
-      <main className="min-h-screen bg-slate-100 p-4 text-slate-950 print:bg-white print:p-0">
-        <div className="mx-auto max-w-5xl bg-white shadow-xl print:max-w-none print:shadow-none">
-          <div className="sticky top-0 z-50 flex items-center justify-between gap-4 bg-[#0B1F4D] px-5 py-4 text-white print:hidden">
-            <div>
-              <p className="text-xs font-black uppercase tracking-wide text-blue-100">
-                INS Pro Printable Report
-              </p>
-              <h1 className="text-lg font-black">{printableTitle}</h1>
-            </div>
-            <div className="flex gap-2">
-              <Link
-                href="/notary/dashboard/reports"
-                className="rounded-xl border border-white/30 px-4 py-2 text-sm font-bold text-white hover:bg-white/10"
-              >
-                Back
-              </Link>
-              <PrintSavePdfButton />
-            </div>
-          </div>
-
-          <section className="break-after-page bg-[#0B1F4D] px-8 py-10 text-white print:min-h-[9.2in] print:px-10 print:py-12">
-            <p className="text-sm font-black uppercase tracking-[0.24em] text-blue-100">
-              Indiana Notary Solutions • INS Pro
-            </p>
-            <h2 className="mt-8 text-4xl font-black tracking-tight">
-              {printableTitle}
-            </h2>
-            <p className="mt-3 max-w-2xl text-base leading-7 text-blue-100">
-              Professional report package generated from saved INS Pro business
-              records, including summary totals and supporting transaction
-              detail for the selected report period.
-            </p>
-
-            <div className="mt-10 grid gap-4 sm:grid-cols-3 print:grid-cols-3">
-              <div className="rounded-2xl bg-white/10 p-5 ring-1 ring-white/20">
-                <p className="text-xs font-bold uppercase text-blue-100">
-                  Period
-                </p>
-                <p className="mt-2 text-xl font-black">{selectedRange.label}</p>
-              </div>
-              <div className="rounded-2xl bg-white/10 p-5 ring-1 ring-white/20">
-                <p className="text-xs font-bold uppercase text-blue-100">
-                  Generated
-                </p>
-                <p className="mt-2 text-xl font-black">{generatedAt}</p>
-              </div>
-              <div className="rounded-2xl bg-white/10 p-5 ring-1 ring-white/20">
-                <p className="text-xs font-bold uppercase text-blue-100">
-                  Source
-                </p>
-                <p className="mt-2 text-xl font-black">INS Pro</p>
-              </div>
-            </div>
-
-            <div className="mt-10 rounded-2xl bg-white p-5 text-slate-950">
-              <p className="text-sm font-black uppercase tracking-wide text-slate-500">
-                Executive Snapshot
-              </p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-3 print:grid-cols-3">
-                <div>
-                  <p className="text-xs font-bold uppercase text-slate-500">
-                    Assignments
-                  </p>
-                  <p className="mt-1 text-2xl font-black text-[#0B1F4D]">
-                    {assignments.length}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase text-slate-500">
-                    Invoiced
-                  </p>
-                  <p className="mt-1 text-2xl font-black text-[#0B1F4D]">
-                    {money(totalInvoiced)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase text-slate-500">
-                    Net Income
-                  </p>
-                  <p className="mt-1 text-2xl font-black text-[#0B1F4D]">
-                    {money(netIncome)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="px-8 py-8 print:px-10 print:py-6">
-            <div className="grid gap-4 sm:grid-cols-3 print:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase text-slate-500">
-                  Paid
-                </p>
-                <p className="mt-2 text-2xl font-black text-green-700">
-                  {money(totalPaid)}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase text-slate-500">
-                  Expenses
-                </p>
-                <p className="mt-2 text-2xl font-black text-red-700">
-                  {money(totalExpenses)}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase text-slate-500">
-                  Mileage Deduction
-                </p>
-                <p className="mt-2 text-2xl font-black text-[#0B1F4D]">
-                  {money(totalMileageDeduction)}
-                </p>
-              </div>
-            </div>
-
-            {selectedPrintTarget === "profit-loss" && (
-              <div className="mt-8 space-y-6">
-                <div>
-                  <h2 className="text-2xl font-black text-slate-950">
-                    Profit & Loss Summary
-                  </h2>
-                  <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-                    <table className="w-full text-left text-sm">
-                      <tbody className="divide-y divide-slate-200">
-                        <tr><td className="px-4 py-3 font-bold">Total Income</td><td className="px-4 py-3 text-right font-black">{money(totalInvoiced)}</td></tr>
-                        <tr><td className="px-4 py-3 font-bold">Payments Received</td><td className="px-4 py-3 text-right font-black text-green-700">{money(totalPaid)}</td></tr>
-                        <tr><td className="px-4 py-3 font-bold">Open Balance</td><td className="px-4 py-3 text-right font-black text-amber-700">{money(totalBalance)}</td></tr>
-                        <tr><td className="px-4 py-3 font-bold">Expenses</td><td className="px-4 py-3 text-right font-black text-red-700">{money(totalExpenses)}</td></tr>
-                        <tr><td className="px-4 py-3 font-bold">Mileage Deduction</td><td className="px-4 py-3 text-right font-black text-red-700">{money(totalMileageDeduction)}</td></tr>
-                        <tr className="bg-slate-50"><td className="px-4 py-3 text-lg font-black">Net Income</td><td className="px-4 py-3 text-right text-lg font-black">{money(netIncome)}</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-black text-slate-950">
-                    Expense Categories
-                  </h3>
-                  <table className="mt-3 w-full border-collapse text-sm">
-                    <thead><tr className="bg-slate-100"><th className="border p-2 text-left">Category</th><th className="border p-2 text-right">Amount</th></tr></thead>
-                    <tbody>
-                      {categoryRows.map((row) => (
-                        <tr key={`print-pl-cat-${row.category}`}>
-                          <td className="border p-2 font-semibold">{row.category}</td>
-                          <td className="border p-2 text-right font-black">{money(row.amount)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {selectedPrintTarget === "sales-report" && (
-              <div className="mt-8">
-                <h2 className="text-2xl font-black text-slate-950">Sales Report</h2>
-                <table className="mt-4 w-full border-collapse text-sm">
-                  <thead><tr className="bg-slate-100"><th className="border p-2 text-left">Client</th><th className="border p-2 text-right">Orders</th><th className="border p-2 text-right">Revenue</th><th className="border p-2 text-right">Paid</th><th className="border p-2 text-right">Balance</th></tr></thead>
-                  <tbody>
-                    {clientRows.map((row) => (
-                      <tr key={`print-sales-${row.name}`}>
-                        <td className="border p-2 font-semibold">{row.name}</td>
-                        <td className="border p-2 text-right">{row.orders}</td>
-                        <td className="border p-2 text-right font-black">{money(row.income)}</td>
-                        <td className="border p-2 text-right text-green-700 font-bold">{money(row.paid)}</td>
-                        <td className="border p-2 text-right text-amber-700 font-bold">{money(row.balance)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {selectedPrintTarget === "mileage-report" && (
-              <div className="mt-8">
-                <h2 className="text-2xl font-black text-slate-950">Mileage Report</h2>
-                <p className="mt-2 text-sm font-semibold text-slate-600">Mileage rate used: ${FEDERAL_MILEAGE_RATE.toFixed(3)} per mile.</p>
-                <table className="mt-4 w-full border-collapse text-sm">
-                  <thead><tr className="bg-slate-100"><th className="border p-2 text-left">Date</th><th className="border p-2 text-left">Assignment</th><th className="border p-2 text-right">Miles</th><th className="border p-2 text-right">Deduction</th></tr></thead>
-                  <tbody>
-                    {mileage.map((row) => {
-                      const assignment = row.assignment_id ? assignmentById.get(row.assignment_id) : null;
-                      return (
-                        <tr key={`print-mileage-${row.id}`}>
-                          <td className="border p-2">{formatDate(row.mileage_date)}</td>
-                          <td className="border p-2 font-semibold">{assignmentTitle(assignment)}</td>
-                          <td className="border p-2 text-right">{numberValue(row.miles).toFixed(2)}</td>
-                          <td className="border p-2 text-right font-black">{money(row.amount || numberValue(row.miles) * numberValue(row.rate || FEDERAL_MILEAGE_RATE))}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {selectedPrintTarget === "invoice-aging" && (
-              <div className="mt-8">
-                <h2 className="text-2xl font-black text-slate-950">Invoice Aging</h2>
-                <table className="mt-4 w-full border-collapse text-sm">
-                  <thead><tr className="bg-slate-100"><th className="border p-2 text-left">Invoice</th><th className="border p-2 text-left">Assignment</th><th className="border p-2 text-left">Due</th><th className="border p-2 text-right">Total</th><th className="border p-2 text-right">Paid</th><th className="border p-2 text-right">Balance</th><th className="border p-2 text-left">Status</th></tr></thead>
-                  <tbody>
-                    {invoices.map((invoice) => {
-                      const assignment = invoice.assignment_id ? assignmentById.get(invoice.assignment_id) : null;
-                      return (
-                        <tr key={`print-invoice-${invoice.id}`}>
-                          <td className="border p-2 font-semibold">{formatInvoiceNumber(invoice.invoice_number)}</td>
-                          <td className="border p-2">{assignmentTitle(assignment)}</td>
-                          <td className="border p-2">{formatDate(invoice.due_date)}</td>
-                          <td className="border p-2 text-right font-black">{money(invoice.subtotal)}</td>
-                          <td className="border p-2 text-right text-green-700 font-bold">{money(invoice.payments_total)}</td>
-                          <td className="border p-2 text-right text-amber-700 font-bold">{money(invoice.balance_due)}</td>
-                          <td className="border p-2">{displayStatus(invoice.status)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {selectedPrintTarget === "expense-report" && (
-              <div className="mt-8">
-                <h2 className="text-2xl font-black text-slate-950">Expense Report</h2>
-                <table className="mt-4 w-full border-collapse text-sm">
-                  <thead><tr className="bg-slate-100"><th className="border p-2 text-left">Date</th><th className="border p-2 text-left">Category</th><th className="border p-2 text-left">Vendor</th><th className="border p-2 text-left">Description</th><th className="border p-2 text-right">Amount</th><th className="border p-2 text-left">Receipt</th></tr></thead>
-                  <tbody>
-                    {expenses.map((expense) => (
-                      <tr key={`print-expense-${expense.id}`}>
-                        <td className="border p-2">{formatDate(expense.expense_date)}</td>
-                        <td className="border p-2 font-semibold">{expense.category || "Misc."}</td>
-                        <td className="border p-2">{expense.vendor || "—"}</td>
-                        <td className="border p-2">{expense.description || "—"}</td>
-                        <td className="border p-2 text-right font-black">{money(expense.amount)}</td>
-                        <td className="border p-2">{receiptLabel(expense)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {selectedPrintTarget === "journal-report" && (
-              <div className="mt-8">
-                <h2 className="text-2xl font-black text-slate-950">Journal Report</h2>
-                <table className="mt-4 w-full border-collapse text-sm">
-                  <thead><tr className="bg-slate-100"><th className="border p-2 text-left">Date</th><th className="border p-2 text-left">Assignment</th><th className="border p-2 text-left">Type</th><th className="border p-2 text-left">Status</th></tr></thead>
-                  <tbody>
-                    {journalEntries.map((entry) => {
-                      const assignment = entry.assignment_id ? assignmentById.get(entry.assignment_id) : null;
-                      return (
-                        <tr key={`print-journal-${entry.id}`}>
-                          <td className="border p-2">{formatDate(entry.journal_date)}</td>
-                          <td className="border p-2 font-semibold">{assignmentTitle(assignment)}</td>
-                          <td className="border p-2">{entry.journal_type || "—"}</td>
-                          <td className="border p-2">{displayStatus(entry.status)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {selectedPrintTarget === "client-report" && (
-              <div className="mt-8">
-                <h2 className="text-2xl font-black text-slate-950">Client Profitability</h2>
-                <table className="mt-4 w-full border-collapse text-sm">
-                  <thead><tr className="bg-slate-100"><th className="border p-2 text-left">Client</th><th className="border p-2 text-right">Orders</th><th className="border p-2 text-right">Revenue</th><th className="border p-2 text-right">Expenses</th><th className="border p-2 text-right">Mileage</th><th className="border p-2 text-right">Balance</th><th className="border p-2 text-right">Est. Profit</th></tr></thead>
-                  <tbody>
-                    {clientRows.map((row) => {
-                      const profit = row.income - row.expenses - row.miles * FEDERAL_MILEAGE_RATE;
-                      return (
-                        <tr key={`print-client-${row.name}`}>
-                          <td className="border p-2 font-semibold">{row.name}</td>
-                          <td className="border p-2 text-right">{row.orders}</td>
-                          <td className="border p-2 text-right font-black">{money(row.income)}</td>
-                          <td className="border p-2 text-right text-red-700 font-bold">{money(row.expenses)}</td>
-                          <td className="border p-2 text-right">{row.miles.toFixed(2)}</td>
-                          <td className="border p-2 text-right text-amber-700 font-bold">{money(row.balance)}</td>
-                          <td className="border p-2 text-right font-black">{money(profit)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {selectedPrintTarget === "performance-report" && (
-              <div className="mt-8 space-y-8">
-                <div>
-                  <h2 className="text-2xl font-black text-slate-950">Performance Report</h2>
-                  <table className="mt-4 w-full border-collapse text-sm">
-                    <tbody>
-                      <tr><td className="border p-2 font-bold">Completed</td><td className="border p-2 text-right">{completedAssignments.length}</td></tr>
-                      <tr><td className="border p-2 font-bold">Cancelled / Did Not Sign</td><td className="border p-2 text-right">{cancelledAssignments.length}</td></tr>
-                      <tr><td className="border p-2 font-bold">Average Fee</td><td className="border p-2 text-right">{money(averageFee)}</td></tr>
-                      <tr><td className="border p-2 font-bold">Avg Profit / Completed</td><td className="border p-2 text-right">{money(averageProfitPerSigning)}</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-slate-950">County Performance</h3>
-                  <table className="mt-3 w-full border-collapse text-sm">
-                    <thead><tr className="bg-slate-100"><th className="border p-2 text-left">County</th><th className="border p-2 text-right">Assignments</th><th className="border p-2 text-right">Income</th><th className="border p-2 text-right">Miles</th></tr></thead>
-                    <tbody>
-                      {countyRows.map((row) => (
-                        <tr key={`print-county-${row.county}`}>
-                          <td className="border p-2 font-semibold">{row.county}</td>
-                          <td className="border p-2 text-right">{row.count}</td>
-                          <td className="border p-2 text-right font-black">{money(row.income)}</td>
-                          <td className="border p-2 text-right">{row.miles.toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-
-            {expenses.some(
-              (expense) =>
-                expense.receipt_url ||
-                expense.receipt_file_path ||
-                expense.receipt_file_name,
-            ) && (
-              <div className="mt-10 break-before-page">
-                <h2 className="text-2xl font-black text-slate-950">
-                  Receipt Attachments
-                </h2>
-                <p className="mt-2 text-sm font-semibold text-slate-600">
-                  Attached receipts are displayed below as supporting documentation.
-                </p>
-
-                <div className="mt-4 grid gap-5 sm:grid-cols-2 print:grid-cols-2">
-                  {expenses
-                    .filter(
-                      (expense) =>
-                        expense.receipt_url ||
-                        expense.receipt_file_path ||
-                        expense.receipt_file_name,
-                    )
-                    .map((expense) => {
-                      const assignment = expense.assignment_id
-                        ? assignmentById.get(expense.assignment_id)
-                        : null;
-
-                      return (
-                        <article
-                          key={`print-receipt-attachment-${expense.id}`}
-                          className="break-inside-avoid rounded-2xl border border-slate-200 bg-white p-4"
-                        >
-                          <div className="mb-3">
-                            <p className="text-sm font-black text-slate-950">
-                              {receiptLabel(expense)}
-                            </p>
-                            <p className="mt-1 text-xs font-semibold text-slate-500">
-                              {formatDate(expense.expense_date)} • {expense.category || "Misc."} • {money(expense.amount)}
-                            </p>
-                            <p className="mt-1 text-xs font-semibold text-slate-500">
-                              {assignmentTitle(assignment)}
-                            </p>
-                          </div>
-
-                          {expense.receipt_url && expense.receipt_kind === "image" ? (
-                            <img
-                              src={expense.receipt_url}
-                              alt={`Receipt for ${expense.category || "expense"}`}
-                              className="max-h-[520px] w-full rounded-xl border border-slate-200 object-contain p-2"
-                            />
-                          ) : expense.receipt_url && expense.receipt_kind === "pdf" ? (
-                            <object
-                              data={expense.receipt_url}
-                              type="application/pdf"
-                              className="h-[520px] w-full rounded-xl border border-slate-200"
-                            >
-                              <iframe
-                                src={expense.receipt_url}
-                                className="h-[520px] w-full rounded-xl border border-slate-200"
-                              />
-                            </object>
-                          ) : expense.receipt_url ? (
-                            <iframe
-                              src={expense.receipt_url}
-                              className="h-[520px] w-full rounded-xl border border-slate-200"
-                            />
-                          ) : (
-                            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
-                              Receipt file is attached in INS Pro storage, but a preview URL could not be generated for this report.
-                            </div>
-                          )}
-                        </article>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
-
-            <div className="mt-10 rounded-2xl border border-slate-300 bg-slate-50 p-5 text-xs leading-6 text-slate-600 print:break-inside-avoid">
-              <p className="font-black uppercase tracking-wide text-slate-700">
-                Report Disclaimer
-              </p>
-              <p className="mt-2">
-                The information contained in this report is generated from data
-                entered into the Indiana Notary Solutions platform by you or
-                other authorized users. Indiana Notary Solutions does not
-                guarantee the accuracy, completeness, or suitability of any
-                report. These reports are provided for informational and
-                business management purposes only and should not be relied upon
-                as accounting, tax, legal, or financial advice. Users are
-                responsible for reviewing all information and consulting a
-                qualified CPA, tax professional, or attorney as appropriate.
-              </p>
-            </div>
-          </section>
-        </div>
-
-        <script
-          id="ins-pro-print-view-script"
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function () {
-                function runPrint(event) {
-                  if (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                  }
-                  window.focus();
-                  window.print();
-                  return false;
-                }
-
-                function wirePrintButton() {
-                  var button = document.getElementById('ins-print-now');
-                  if (!button) return;
-                  button.onclick = runPrint;
-                  button.addEventListener('click', runPrint, true);
-                }
-
-                if (document.readyState === 'loading') {
-                  document.addEventListener('DOMContentLoaded', wirePrintButton);
-                } else {
-                  wirePrintButton();
-                }
-
-                window.setTimeout(wirePrintButton, 100);
-                window.setTimeout(wirePrintButton, 500);
-                window.setTimeout(wirePrintButton, 1500);
-
-                document.addEventListener('click', function (event) {
-                  var target = event.target;
-                  if (!target || !target.closest) return;
-                  if (target.closest('#ins-print-now')) {
-                    runPrint(event);
-                  }
-                }, true);
-              })();
-            `,
-          }}
-        />
-      </main>
-    );
-  }
 
   return (
     <main className="min-w-0 space-y-6 overflow-x-hidden bg-slate-50 p-3 sm:p-6 print:bg-white print:p-0">
@@ -1653,14 +1161,15 @@ export default async function ReportsPage({
               >
                 View
               </a>
-              <Link
-                href={printReportHref(card.printTarget)}
+              <a
+                href={printableReportHref(card.printTarget)}
                 target="_blank"
                 rel="noreferrer"
+                data-print-target={card.printTarget}
                 className="relative z-10 inline-flex w-full cursor-pointer justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 sm:w-auto"
               >
                 Print
-              </Link>
+              </a>
             </div>
           </div>
         ))}
@@ -2989,24 +2498,13 @@ export default async function ReportsPage({
                 return '<section class="cover"><div class="cover-top"><div><div class="brand">Indiana Notary Solutions • INS Pro</div><h1 class="cover-title">' + escapeHtml(title) + '</h1><div class="cover-subtitle">Professional report package with summary totals, transaction detail, source records, receipt previews, and review disclaimer.</div></div><div class="meta-box"><strong>Generated</strong><br>' + escapeHtml(generatedAt) + '<br><br><strong>Report Source</strong><br>INS Pro workspace data</div></div><div class="summary-grid">' + statCards + '</div><div class="cover-note"><strong>Review Required:</strong> Reports are estimates based on data saved in your INS Pro account. Verify totals, classifications, mileage, receipts, and tax treatment before filing taxes or using this report for official purposes.</div></section>';
               }
 
-              function openReport(targetId) {
+              function buildReportHtml(targetId) {
                 var source = document.getElementById(targetId);
                 if (!source) {
-                  alert('Report section not found.');
-                  return;
+                  return null;
                 }
 
                 var title = source.getAttribute('data-print-title') || 'INS Pro Report';
-                var reportWindow = window.open('about:blank', '_blank');
-                if (!reportWindow) {
-                  alert('Your browser blocked the report window. Allow pop-ups for this site and try again.');
-                  return;
-                }
-
-                reportWindow.document.open();
-                reportWindow.document.write('<!doctype html><html><head><title>' + escapeHtml(title) + '</title></head><body style="font-family:Arial;padding:24px;color:#0f172a"><h2>Building report...</h2><p>Please wait.</p></body></html>');
-                reportWindow.document.close();
-
                 var clone = cleanClone(source.cloneNode(true));
                 clone.classList.add('report-page');
 
@@ -3017,19 +2515,74 @@ export default async function ReportsPage({
                 var footer = '<div class="print-footer"><span>Powered by Indiana Notary Solutions PRO</span><span>' + escapeHtml(generatedAt) + '</span></div>';
                 var html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escapeHtml(title) + '</title><style>' + reportStyles() + '</style></head><body>' + toolbar + '<div class="print-shell">' + buildCover(title, generatedAt) + clone.outerHTML + receipts + disclaimer + '</div>' + footer + '</body></html>';
 
+                return {
+                  title: title,
+                  html: html
+                };
+              }
+
+              function renderReportInCurrentTab(targetId) {
+                var report = buildReportHtml(targetId);
+
+                if (!report) {
+                  document.body.innerHTML = '<div style="font-family:Arial;padding:24px;color:#0f172a"><h2>Report section not found.</h2><p>Go back and try opening the report again.</p></div>';
+                  return;
+                }
+
+                document.open();
+                document.write(report.html);
+                document.close();
+              }
+
+              function openReport(targetId) {
+                var report = buildReportHtml(targetId);
+
+                if (!report) {
+                  alert('Report section not found.');
+                  return;
+                }
+
+                var reportWindow = window.open('about:blank', '_blank');
+                if (!reportWindow) {
+                  alert('Your browser blocked the report window. Allow pop-ups for this site and try again.');
+                  return;
+                }
+
                 reportWindow.document.open();
-                reportWindow.document.write(html);
+                reportWindow.document.write(report.html);
                 reportWindow.document.close();
                 reportWindow.focus();
               }
 
               window.__openInsProReport = openReport;
 
+              function renderRequestedPrintReport() {
+                try {
+                  var params = new URLSearchParams(window.location.search);
+                  var targetId = params.get('print');
+
+                  if (!targetId) return;
+
+                  window.setTimeout(function () {
+                    renderReportInCurrentTab(targetId);
+                  }, 50);
+                } catch (error) {
+                  console.error('INS Pro print report failed:', error);
+                }
+              }
+
+              renderRequestedPrintReport();
+
               function handleReportClick(event) {
                 var target = event.target;
                 if (!target || !target.closest) return;
                 var button = target.closest('[data-print-target]');
                 if (!button) return;
+
+                if (String(button.tagName || '').toLowerCase() === 'a') {
+                  return true;
+                }
+
                 event.preventDefault();
                 event.stopPropagation();
                 openReport(button.getAttribute('data-print-target'));
@@ -3066,4 +2619,3 @@ export default async function ReportsPage({
     </main>
   );
 }
-//
