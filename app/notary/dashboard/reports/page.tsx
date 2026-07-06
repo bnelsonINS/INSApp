@@ -1240,23 +1240,23 @@ export default async function ReportsPage({
           <h2 className="mt-1 text-2xl font-black text-slate-950">
             Income by Month
           </h2>
-          <div className="mt-6 overflow-x-auto pb-2">
-            <div className="grid min-w-[640px] grid-cols-12 items-end gap-2">
+          <div className="mt-6 w-full overflow-hidden pb-2">
+            <div className="grid w-full grid-cols-12 items-end gap-1 sm:gap-2">
               {months.map((month) => (
                 <div
                   key={month.key}
-                  className="flex min-h-36 flex-col justify-end gap-2 text-center sm:min-h-48"
+                  className="flex min-h-[170px] min-w-0 flex-col justify-end gap-1 text-center sm:min-h-48"
                 >
-                  <p className="text-[10px] font-bold text-slate-500">
+                  <p className="truncate text-[8px] font-semibold text-slate-500 sm:text-[10px] sm:font-bold">
                     {money(month.income).replace(".00", "")}
                   </p>
                   <div
-                    className="mx-auto w-full rounded-t-lg bg-blue-600"
+                    className="mx-auto w-full max-w-8 rounded-t-lg bg-blue-600"
                     style={{
                       height: `${Math.max(6, (month.income / maxMonthlyIncome) * 160)}px`,
                     }}
                   />
-                  <p className="text-xs font-bold text-slate-500">
+                  <p className="truncate text-[9px] font-bold text-slate-500 sm:text-xs">
                     {month.label}
                   </p>
                 </div>
