@@ -1876,25 +1876,74 @@ export default async function ReportsPage({
             )}
 
             {selectedPrintTarget === "mileage-report" && (
-              <div className="mt-8">
-                <h2 className="text-2xl font-black text-slate-950">Mileage Report</h2>
-                <p className="mt-2 text-sm font-semibold text-slate-600">Mileage rate used: ${FEDERAL_MILEAGE_RATE.toFixed(3)} per mile.</p>
-                <table className="mt-4 w-full border-collapse text-sm">
-                  <thead><tr className="bg-slate-100"><th className="border p-2 text-left">Date</th><th className="border p-2 text-left">Assignment</th><th className="border p-2 text-right">Miles</th><th className="border p-2 text-right">Deduction</th></tr></thead>
-                  <tbody>
-                    {mileage.map((row) => {
-                      const assignment = row.assignment_id ? assignmentById.get(row.assignment_id) : null;
-                      return (
-                        <tr key={`print-mileage-${row.id}`}>
-                          <td className="border p-2">{formatDate(row.mileage_date)}</td>
-                          <td className="border p-2 font-semibold">{assignmentTitle(assignment)}</td>
-                          <td className="border p-2 text-right">{numberValue(row.miles).toFixed(2)}</td>
-                          <td className="border p-2 text-right font-black">{money(row.amount || numberValue(row.miles) * numberValue(row.rate || FEDERAL_MILEAGE_RATE))}</td>
+              <div className="mt-8 space-y-6">
+                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                  <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                    <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                      Mileage Report
+                    </p>
+                    <h2 className="mt-1 text-2xl font-black text-slate-950">
+                      Mileage Report {selectedRange.label}
+                    </h2>
+                    <p className="mt-1 text-sm font-semibold text-slate-600">
+                      Business mileage entries using ${FEDERAL_MILEAGE_RATE.toFixed(3)} per mile.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4 border-b border-slate-200 p-5 sm:grid-cols-4 print:grid-cols-4">
+                    <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                      <p className="text-xs font-black uppercase text-slate-500">Trips</p>
+                      <p className="mt-1 text-2xl font-black text-[#0B1F4D]">{mileage.length}</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                      <p className="text-xs font-black uppercase text-slate-500">Miles</p>
+                      <p className="mt-1 text-2xl font-black text-[#0B1F4D]">{totalMiles.toFixed(2)}</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                      <p className="text-xs font-black uppercase text-slate-500">Deduction</p>
+                      <p className="mt-1 text-2xl font-black text-green-700">{money(totalMileageDeduction)}</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                      <p className="text-xs font-black uppercase text-slate-500">Avg Miles</p>
+                      <p className="mt-1 text-2xl font-black text-slate-950">{averageMilesPerSigning.toFixed(2)}</p>
+                    </div>
+                  </div>
+
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-[#0B1F4D] text-white">
+                        <th className="border border-blue-950 p-3 text-left font-black">Date</th>
+                        <th className="border border-blue-950 p-3 text-right font-black">Miles</th>
+                        <th className="border border-blue-950 p-3 text-right font-black">Amount</th>
+                        <th className="border border-blue-950 p-3 text-left font-black">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mileage.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="border p-6 text-center font-semibold text-slate-500">
+                            No mileage entries found for this report period.
+                          </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      ) : (
+                        mileage.map((row) => {
+                          const assignment = row.assignment_id ? assignmentById.get(row.assignment_id) : null;
+                          const deduction = numberValue(row.amount) || numberValue(row.miles) * numberValue(row.rate || FEDERAL_MILEAGE_RATE);
+                          const description = row.notes || `${assignmentTitle(assignment)} - Home to signing roundtrip`;
+
+                          return (
+                            <tr key={`print-mileage-${row.id}`} className="break-inside-avoid">
+                              <td className="border p-3 font-semibold text-slate-700">{formatDate(row.mileage_date)}</td>
+                              <td className="border p-3 text-right font-bold text-slate-950">{numberValue(row.miles).toFixed(2)} mi</td>
+                              <td className="border p-3 text-right font-black text-slate-950">{money(deduction)}</td>
+                              <td className="border p-3 font-semibold text-slate-700">{description}</td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </section>
               </div>
             )}
 
@@ -2120,50 +2169,6 @@ export default async function ReportsPage({
             </div>
           </section>
         </div>
-
-        <script
-          id="ins-pro-print-view-script"
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function () {
-                function runPrint(event) {
-                  if (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                  }
-                  window.focus();
-                  window.print();
-                  return false;
-                }
-
-                function wirePrintButton() {
-                  var button = document.getElementById('ins-print-now');
-                  if (!button) return;
-                  button.onclick = runPrint;
-                  button.addEventListener('click', runPrint, true);
-                }
-
-                if (document.readyState === 'loading') {
-                  document.addEventListener('DOMContentLoaded', wirePrintButton);
-                } else {
-                  wirePrintButton();
-                }
-
-                window.setTimeout(wirePrintButton, 100);
-                window.setTimeout(wirePrintButton, 500);
-                window.setTimeout(wirePrintButton, 1500);
-
-                document.addEventListener('click', function (event) {
-                  var target = event.target;
-                  if (!target || !target.closest) return;
-                  if (target.closest('#ins-print-now')) {
-                    runPrint(event);
-                  }
-                }, true);
-              })();
-            `,
-          }}
-        />
       </main>
     );
   }
@@ -2770,129 +2775,101 @@ export default async function ReportsPage({
           "Mileage Report",
           selectedRange.label,
         )}
-        className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(320px,.8fr)_minmax(0,1.2fr)]"
+        className="rounded-2xl border border-slate-200 bg-white shadow-sm"
       >
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="border-b border-slate-200 p-5">
           <p className="text-xs font-black uppercase tracking-wide text-blue-700">
             Mileage Report
           </p>
           <h2 className="mt-1 text-2xl font-black text-slate-950">
-            Mileage Summary
+            Mileage Report {selectedRange.label}
           </h2>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">
-                Business Miles
-              </p>
-              <p className="mt-2 text-3xl font-black text-[#0B1F4D]">
-                {totalMiles.toFixed(2)}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">
-                Deduction
-              </p>
-              <p className="mt-2 text-3xl font-black text-green-700">
-                {money(totalMileageDeduction)}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">
-                Trips Logged
-              </p>
-              <p className="mt-2 text-3xl font-black text-slate-950">
-                {mileage.length}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">
-                Avg Miles / Signing
-              </p>
-              <p className="mt-2 text-3xl font-black text-slate-950">
-                {averageMilesPerSigning.toFixed(2)}
-              </p>
-            </div>
-          </div>
-          <p className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs font-semibold text-blue-800">
-            Current mileage rate used in INS Pro: $
-            {FEDERAL_MILEAGE_RATE.toFixed(3)} per mile.
+          <p className="mt-1 text-sm text-slate-500">
+            IRS-style mileage log showing date, miles, deduction amount, and trip description.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 p-5">
-            <h2 className="text-xl font-black text-slate-950">
-              Mileage Entries
-            </h2>
+        <div className="grid gap-4 border-b border-slate-200 p-5 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-bold uppercase text-slate-500">Trips Logged</p>
+            <p className="mt-2 text-3xl font-black text-[#0B1F4D]">{mileage.length}</p>
           </div>
-          <div className="w-full overflow-hidden">
-            <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-bold uppercase text-slate-500">Business Miles</p>
+            <p className="mt-2 text-3xl font-black text-[#0B1F4D]">{totalMiles.toFixed(2)}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-bold uppercase text-slate-500">Deduction</p>
+            <p className="mt-2 text-3xl font-black text-green-700">{money(totalMileageDeduction)}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-bold uppercase text-slate-500">Avg Miles / Signing</p>
+            <p className="mt-2 text-3xl font-black text-slate-950">{averageMilesPerSigning.toFixed(2)}</p>
+          </div>
+        </div>
+
+        <div className="border-b border-blue-100 bg-blue-50 px-5 py-3 text-xs font-semibold text-blue-800">
+          Current mileage rate used in INS Pro: ${FEDERAL_MILEAGE_RATE.toFixed(3)} per mile.
+        </div>
+
+        <div className="w-full overflow-hidden">
+          <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
+            <thead className="bg-[#0B1F4D] text-xs uppercase text-white">
+              <tr>
+                <th className="w-[18%] px-3 py-3 font-black sm:px-5">Date</th>
+                <th className="w-[14%] px-3 py-3 text-right font-black sm:px-5">Miles</th>
+                <th className="w-[16%] px-3 py-3 text-right font-black sm:px-5">Amount</th>
+                <th className="px-3 py-3 font-black sm:px-5">Description</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {mileage.length === 0 ? (
                 <tr>
-                  <th className="px-2 py-3 sm:px-5 font-bold">Date</th>
-                  <th className="px-2 py-3 font-bold sm:px-5">Assignment</th>
-                  <th className="px-2 py-3 sm:px-5 text-right font-bold">
-                    Miles
-                  </th>
-                  <th className="hidden px-2 py-3 text-right font-bold sm:table-cell sm:px-5">
-                    Rate
-                  </th>
-                  <th className="px-2 py-3 sm:px-5 text-right font-bold">
-                    Deduction
-                  </th>
+                  <td
+                    colSpan={4}
+                    className="px-3 py-8 text-center font-semibold text-slate-500 sm:px-5"
+                  >
+                    No mileage found.
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {mileage.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-2 py-8 sm:px-5 text-center font-semibold text-slate-500"
-                    >
-                      No mileage found.
-                    </td>
-                  </tr>
-                ) : (
-                  mileage.map((row) => {
-                    const assignment = row.assignment_id
-                      ? assignmentById.get(row.assignment_id)
-                      : null;
-                    return (
-                      <tr key={row.id}>
-                        <td className="px-2 py-4 sm:px-5 font-semibold text-slate-700">
-                          {formatDate(row.mileage_date)}
-                        </td>
-                        <td className="px-2 py-4 sm:px-5">
-                          <p className="font-bold text-slate-950">
-                            {assignmentTitle(assignment)}
+              ) : (
+                mileage.map((row) => {
+                  const assignment = row.assignment_id
+                    ? assignmentById.get(row.assignment_id)
+                    : null;
+                  const deduction =
+                    numberValue(row.amount) ||
+                    numberValue(row.miles) *
+                      numberValue(row.rate || FEDERAL_MILEAGE_RATE);
+                  const description =
+                    row.notes ||
+                    `${assignmentTitle(assignment)} - Home to signing roundtrip`;
+
+                  return (
+                    <tr key={row.id}>
+                      <td className="px-3 py-4 font-semibold text-slate-700 sm:px-5">
+                        {formatDate(row.mileage_date)}
+                      </td>
+                      <td className="px-3 py-4 text-right font-bold text-slate-950 sm:px-5">
+                        {numberValue(row.miles).toFixed(2)} mi
+                      </td>
+                      <td className="px-3 py-4 text-right font-black text-slate-950 sm:px-5">
+                        {money(deduction)}
+                      </td>
+                      <td className="px-3 py-4 font-semibold text-slate-700 sm:px-5">
+                        {description}
+                        {assignment?.control_number && (
+                          <p className="mt-1 text-xs font-semibold text-slate-500">
+                            Order #: {assignment.control_number}
                           </p>
-                          <p className="text-xs text-slate-500">
-                            {assignment?.control_number || "—"}
-                          </p>
-                        </td>
-                        <td className="px-2 py-4 sm:px-5 text-right font-bold text-slate-950">
-                          {numberValue(row.miles).toFixed(2)}
-                        </td>
-                        <td className="hidden px-2 py-4 text-right font-semibold text-slate-700 sm:table-cell sm:px-5">
-                          $
-                          {numberValue(
-                            row.rate || FEDERAL_MILEAGE_RATE,
-                          ).toFixed(3)}
-                        </td>
-                        <td className="px-2 py-4 sm:px-5 text-right font-black text-green-700">
-                          {money(
-                            row.amount ||
-                              numberValue(row.miles) *
-                                numberValue(row.rate || FEDERAL_MILEAGE_RATE),
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
 
