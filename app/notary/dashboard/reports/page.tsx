@@ -2330,6 +2330,9 @@ export default async function ReportsPage({
         dangerouslySetInnerHTML={{
           __html: `
             (function () {
+              if (window.__insProReportsReady) return;
+              window.__insProReportsReady = true;
+
               function escapeHtml(value) {
                 return String(value || '')
                   .replace(/&/g, '&amp;')
@@ -2339,8 +2342,13 @@ export default async function ReportsPage({
                   .replace(/'/g, '&#039;');
               }
 
+              function textFrom(node, selector) {
+                var found = node && node.querySelector ? node.querySelector(selector) : null;
+                return found ? found.textContent.trim() : '';
+              }
+
               function cleanClone(clone) {
-                clone.querySelectorAll('button, a[href^="#"], [data-print-remove]').forEach(function (node) {
+                clone.querySelectorAll('button, [data-print-remove]').forEach(function (node) {
                   node.remove();
                 });
 
@@ -2348,10 +2356,8 @@ export default async function ReportsPage({
                   node.setAttribute('open', 'open');
                 });
 
-                clone.querySelectorAll('a').forEach(function (link) {
-                  if (link.href && link.textContent && !link.textContent.includes('http')) {
-                    link.setAttribute('data-print-url', link.href);
-                  }
+                clone.querySelectorAll('a[href^="#"]').forEach(function (node) {
+                  node.removeAttribute('href');
                 });
 
                 clone.querySelectorAll('img').forEach(function (img) {
@@ -2362,21 +2368,27 @@ export default async function ReportsPage({
                 return clone;
               }
 
-              function receiptPageHtml(clone) {
-                var receiptLinks = Array.from(clone.querySelectorAll('a[href]')).filter(function (link) {
+              function collectReceiptLinks(clone) {
+                var links = Array.from(clone.querySelectorAll('a[href]'));
+                var seen = {};
+
+                return links.filter(function (link) {
                   var text = (link.textContent || '').toLowerCase();
                   var href = (link.getAttribute('href') || '').toLowerCase();
-                  return text.includes('receipt') || href.includes('receipt') || href.includes('storage') || link.querySelector('img');
+                  var hasImage = !!link.querySelector('img');
+                  var isReceipt = hasImage || text.includes('receipt') || href.includes('receipt') || href.includes('storage') || href.includes('supabase');
+                  if (!isReceipt || !href || seen[href]) return false;
+                  seen[href] = true;
+                  return true;
                 });
+              }
 
+              function receiptPageHtml(clone) {
+                var receiptLinks = collectReceiptLinks(clone);
                 if (!receiptLinks.length) return '';
 
-                var seen = {};
-                var cards = receiptLinks.map(function (link) {
+                var cards = receiptLinks.map(function (link, index) {
                   var href = link.getAttribute('href') || '';
-                  if (!href || seen[href]) return '';
-                  seen[href] = true;
-
                   var image = link.querySelector('img');
                   var label = (link.textContent || 'Receipt attachment').trim();
                   var lowerHref = href.toLowerCase();
@@ -2388,27 +2400,26 @@ export default async function ReportsPage({
                     var imageSrc = image ? (image.getAttribute('src') || href) : href;
                     preview = '<img class="receipt-image" src="' + escapeHtml(imageSrc) + '" alt="Receipt preview" />';
                   } else if (isPdf) {
-                    preview = '<object class="receipt-object" data="' + escapeHtml(href) + '#toolbar=0&navpanes=0&scrollbar=1" type="application/pdf"><iframe class="receipt-object" src="' + escapeHtml(href) + '#toolbar=0&navpanes=0&scrollbar=1"></iframe><div class="receipt-fallback">PDF receipt attached<br><span>' + escapeHtml(label) + '</span></div></object>';
+                    preview = '<object class="receipt-object" data="' + escapeHtml(href) + '#toolbar=0&navpanes=0" type="application/pdf"><iframe class="receipt-object" src="' + escapeHtml(href) + '#toolbar=0&navpanes=0"></iframe><div class="receipt-fallback">PDF receipt attached<br><span>' + escapeHtml(label) + '</span></div></object>';
                   } else {
                     preview = '<iframe class="receipt-object" src="' + escapeHtml(href) + '"></iframe>';
                   }
 
-                  return '<div class="receipt-card"><div class="receipt-preview">' + preview + '</div><div class="receipt-detail"><div class="receipt-label">Receipt Attachment</div><div class="receipt-name">' + escapeHtml(label) + '</div><div class="receipt-note">This attachment is included as supporting documentation for the report transaction above.</div></div></div>';
-                }).filter(Boolean).join('');
+                  return '<article class="receipt-card"><div class="receipt-preview">' + preview + '</div><aside class="receipt-detail"><div class="receipt-label">Receipt ' + (index + 1) + '</div><h3>' + escapeHtml(label) + '</h3><p>This receipt is included as supporting documentation for the report transaction detail.</p><p class="receipt-url">Source file included from INS Pro storage.</p></aside></article>';
+                }).join('');
 
-                if (!cards) return '';
-
-                return '<section class="receipt-pages"><div class="section-heading"><div><div class="eyebrow">Receipts</div><h2>Receipt Attachments</h2><p>Attached receipts are displayed below as source documentation.</p></div></div><div class="receipt-grid">' + cards + '</div></section>';
+                return '<section class="receipt-pages"><header class="section-heading"><div><div class="eyebrow">Receipts</div><h2>Receipt Attachments</h2><p>Attached receipts are displayed below as source documentation.</p></div></header><div class="receipt-grid">' + cards + '</div></section>';
               }
 
               function reportStyles() {
                 return [
                   '@page{size:letter;margin:.45in .42in .65in .42in;}',
-                  'html,body{margin:0;padding:0;background:#eef4f8;color:#101828;font-family:Inter,Arial,Helvetica,sans-serif;font-size:11px;}',
-                  '.print-toolbar{position:sticky;top:0;z-index:9999;background:#0B1F4D;color:white;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 10px rgba(15,23,42,.18);}',
-                  '.print-toolbar-title{font-size:14px;font-weight:900;}',
-                  '.print-toolbar button{border:0;border-radius:10px;background:white;color:#0B1F4D;padding:10px 16px;font-size:13px;font-weight:900;cursor:pointer;}',
+                  '*{box-sizing:border-box;}',
+                  'html,body{margin:0;padding:0;background:#eef4f8;color:#101828;font-family:Arial,Helvetica,sans-serif;font-size:11px;}',
                   'body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+                  '.print-toolbar{position:sticky;top:0;z-index:9999;background:#0B1F4D;color:white;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 10px rgba(15,23,42,.18);}',
+                  '.print-toolbar-title{font-size:14px;font-weight:900;line-height:1.25;}',
+                  '.print-toolbar button{border:0;border-radius:10px;background:white;color:#0B1F4D;padding:10px 16px;font-size:13px;font-weight:900;cursor:pointer;}',
                   '.print-shell{max-width:980px;margin:0 auto;padding:18px 18px 52px;background:#fff;}',
                   '.cover{min-height:520px;border:1px solid #d8e4ef;background:white;border-radius:18px;overflow:hidden;margin-bottom:18px;page-break-after:always;}',
                   '.cover-top{background:#0B1F4D!important;color:white!important;padding:26px 30px;display:flex;align-items:flex-start;justify-content:space-between;gap:24px;}',
@@ -2426,7 +2437,6 @@ export default async function ReportsPage({
                   '.eyebrow,.text-xs{font-size:9px!important;text-transform:uppercase!important;letter-spacing:.12em!important;font-weight:900!important;color:#1d4ed8!important;}',
                   'h1,h2,h3{margin:0;color:#0f172a;break-after:avoid;} h2{font-size:22px!important;line-height:1.15!important;margin-top:3px!important;} h3{font-size:15px!important;}',
                   'p{margin:4px 0 0;line-height:1.45;color:#475569;}',
-                  '.report-body{padding:16px 18px;}',
                   'section,article,aside,div{box-shadow:none!important;}',
                   'section:not(.cover):not(.receipt-pages){background:white!important;border:1px solid #d8e4ef!important;border-radius:16px!important;margin:0 0 16px!important;overflow:hidden!important;page-break-inside:avoid;}',
                   'section:not(.cover)>div:first-child{background:#f8fafc!important;border-bottom:1px solid #d8e4ef!important;padding:15px 18px!important;}',
@@ -2447,27 +2457,26 @@ export default async function ReportsPage({
                   'img{max-width:260px!important;max-height:220px!important;object-fit:contain!important;border:1px solid #d8e4ef!important;border-radius:10px!important;background:white!important;padding:5px!important;}',
                   '.receipt-pages{page-break-before:always;background:white;border:1px solid #d8e4ef;border-radius:16px;overflow:hidden;margin-top:18px;}',
                   '.receipt-grid{padding:18px;display:grid;grid-template-columns:1fr;gap:18px;}',
-                  '.receipt-card{display:grid;grid-template-columns:minmax(0,1.25fr) 260px;gap:24px;align-items:start;border-bottom:1px solid #d8e4ef;padding-bottom:18px;page-break-inside:avoid;}',
+                  '.receipt-card{display:grid;grid-template-columns:minmax(0,1.35fr) 240px;gap:24px;align-items:start;border-bottom:1px solid #d8e4ef;padding-bottom:18px;page-break-inside:avoid;}',
                   '.receipt-card:last-child{border-bottom:0;padding-bottom:0;}',
                   '.receipt-preview{min-height:520px;display:flex;align-items:flex-start;justify-content:center;background:#fff;border:1px solid #e5edf6;border-radius:14px;padding:14px;overflow:hidden;}',
                   '.receipt-image{width:100%!important;max-width:100%!important;max-height:700px!important;object-fit:contain!important;border:0!important;padding:0!important;}',
+                  '.receipt-object{width:100%;height:520px;border:0;background:white;border-radius:10px;}',
                   '.receipt-fallback{width:100%;min-height:220px;border:2px dashed #bfdbfe;border-radius:14px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;color:#0B1F4D;background:#eff6ff;line-height:1.5;}',
                   '.receipt-fallback span{display:block;margin-top:8px;font-size:10px;color:#475569;font-weight:700;}',
                   '.receipt-detail{padding:8px 0;font-size:11px;line-height:1.55;color:#334155;}',
-                  '.receipt-object{width:100%;height:520px;border:0;background:white;border-radius:10px;}',
-                  '.receipt-note{font-size:10px;line-height:1.5;color:#475569;margin-top:8px;}',
+                  '.receipt-note,.receipt-url{font-size:10px;line-height:1.5;color:#475569;margin-top:8px;}',
                   '.receipt-label{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#94a3b8;font-weight:900;}',
-                  '.receipt-name{font-size:15px;font-weight:900;color:#0f172a;margin:6px 0 8px;word-break:break-word;}',
                   '.print-disclaimer{margin-top:18px;background:#f8fafc;border:1px solid #d8e4ef;border-radius:14px;padding:14px;font-size:9.5px;line-height:1.45;color:#475569;page-break-inside:avoid;}',
                   '.print-footer{position:fixed;left:.42in;right:.42in;bottom:.18in;background:#0B1F4D;color:white;padding:7px 12px;border-radius:8px;display:flex;justify-content:space-between;font-size:9px;font-weight:800;}',
-                  '@media print{.print-toolbar{display:none!important}.print-shell{padding:0 0 34px;max-width:none}.cover{min-height:9.25in}.receipt-card{grid-template-columns:minmax(0,1.35fr) 240px}.receipt-preview{min-height:620px}.receipt-object{height:620px}.print-footer{display:flex}}'
+                  '@media print{.print-toolbar{display:none!important}.print-shell{padding:0 0 34px;max-width:none}.cover{min-height:9.25in}.receipt-preview{min-height:620px}.receipt-object{height:620px}.print-footer{display:flex}}'
                 ].join('');
               }
 
-              function buildCover(title, generatedAt, clone) {
+              function buildCover(title, generatedAt) {
                 var statCards = Array.from(document.querySelectorAll('section.grid div.rounded-2xl')).slice(0, 6).map(function (card) {
-                  var label = card.querySelector('p:first-child') ? card.querySelector('p:first-child').textContent.trim() : '';
-                  var value = card.querySelector('p:nth-child(2)') ? card.querySelector('p:nth-child(2)').textContent.trim() : '';
+                  var label = textFrom(card, 'p:first-child');
+                  var value = textFrom(card, 'p:nth-child(2)');
                   if (!label || !value) return '';
                   return '<div class="summary-card"><div class="label">' + escapeHtml(label) + '</div><div class="value">' + escapeHtml(value) + '</div></div>';
                 }).join('');
@@ -2475,37 +2484,62 @@ export default async function ReportsPage({
                 return '<section class="cover"><div class="cover-top"><div><div class="brand">Indiana Notary Solutions • INS Pro</div><h1 class="cover-title">' + escapeHtml(title) + '</h1><div class="cover-subtitle">Professional report package with summary totals, transaction detail, source records, receipt previews, and review disclaimer.</div></div><div class="meta-box"><strong>Generated</strong><br>' + escapeHtml(generatedAt) + '<br><br><strong>Report Source</strong><br>INS Pro workspace data</div></div><div class="summary-grid">' + statCards + '</div><div class="cover-note"><strong>Review Required:</strong> Reports are estimates based on data saved in your INS Pro account. Verify totals, classifications, mileage, receipts, and tax treatment before filing taxes or using this report for official purposes.</div></section>';
               }
 
-              function printTarget(targetId) {
+              function openReport(targetId) {
                 var source = document.getElementById(targetId);
-                if (!source) return;
+                if (!source) {
+                  alert('Report section not found.');
+                  return;
+                }
 
                 var title = source.getAttribute('data-print-title') || 'INS Pro Report';
                 var clone = cleanClone(source.cloneNode(true));
                 clone.classList.add('report-page');
 
-                var printWindow = window.open('', '_blank', 'width=1100,height=850');
-                if (!printWindow) {
-                  window.print();
+                var reportWindow = window.open('about:blank', '_blank');
+                if (!reportWindow) {
+                  alert('Your browser blocked the report window. Allow pop-ups for this site and try again.');
                   return;
                 }
 
                 var generatedAt = new Date().toLocaleString();
                 var receipts = receiptPageHtml(clone);
-                var html = '<!doctype html><html><head><meta charset="utf-8"><title>' + escapeHtml(title) + '</title><style>' + reportStyles() + '</style></head><body><div class="print-toolbar"><div class="print-toolbar-title">' + escapeHtml(title) + '</div><button type="button" onclick="window.print()">Print / Save PDF</button></div><div class="print-shell">' + buildCover(title, generatedAt, clone) + clone.outerHTML + receipts + '<div class="print-disclaimer"><strong>Report Disclaimer</strong><br><br>The information contained in this report is generated from data entered into the Indiana Notary Solutions platform by you or other authorized users. While Indiana Notary Solutions makes reasonable efforts to accurately calculate totals, summaries, mileage, expenses, invoices, journal activity, and other report data, we do not guarantee the accuracy, completeness, or suitability of any report.<br><br>These reports are provided for informational and business management purposes only and should not be relied upon as accounting, tax, legal, or financial advice.<br><br>It is your responsibility to review and verify all information before using these reports for tax filings, financial statements, audits, regulatory compliance, or any other official purpose.<br><br>Indiana Notary Solutions, LLC shall not be liable for any errors, omissions, inaccurate data entry, calculation discrepancies, lost profits, tax liabilities, penalties, or damages arising from the use of these reports or reliance upon the information contained within them.<br><br>Users are strongly encouraged to consult a qualified CPA, tax professional, or attorney regarding the appropriate use of these records.</div></div><div class="print-footer"><span>Powered by Indiana Notary Solutions PRO</span><span>' + escapeHtml(generatedAt) + '</span></div></body></html>';
+                var disclaimer = '<div class="print-disclaimer"><strong>Report Disclaimer</strong><br><br>The information contained in this report is generated from data entered into the Indiana Notary Solutions platform by you or other authorized users. While Indiana Notary Solutions makes reasonable efforts to accurately calculate totals, summaries, mileage, expenses, invoices, journal activity, and other report data, we do not guarantee the accuracy, completeness, or suitability of any report.<br><br>These reports are provided for informational and business management purposes only and should not be relied upon as accounting, tax, legal, or financial advice.<br><br>It is your responsibility to review and verify all information before using these reports for tax filings, financial statements, audits, regulatory compliance, or any other official purpose.<br><br>Indiana Notary Solutions, LLC shall not be liable for any errors, omissions, inaccurate data entry, calculation discrepancies, lost profits, tax liabilities, penalties, or damages arising from the use of these reports or reliance upon the information contained within them.<br><br>Users are strongly encouraged to consult a qualified CPA, tax professional, or attorney regarding the appropriate use of these records.</div>';
+                var toolbar = '<div class="print-toolbar"><div class="print-toolbar-title">' + escapeHtml(title) + '</div><button type="button" onclick="window.print()">Print / Save PDF</button></div>';
+                var footer = '<div class="print-footer"><span>Powered by Indiana Notary Solutions PRO</span><span>' + escapeHtml(generatedAt) + '</span></div>';
+                var html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escapeHtml(title) + '</title><style>' + reportStyles() + '</style></head><body>' + toolbar + '<div class="print-shell">' + buildCover(title, generatedAt) + clone.outerHTML + receipts + disclaimer + '</div>' + footer + '</body></html>';
 
-                printWindow.document.open();
-                printWindow.document.write(html);
-                printWindow.document.close();
+                reportWindow.document.open();
+                reportWindow.document.write(html);
+                reportWindow.document.close();
+                reportWindow.focus();
+              }
 
-                printWindow.focus();
+              window.__openInsProReport = openReport;
+
+              function wireButtons() {
+                document.querySelectorAll('[data-print-target]').forEach(function (button) {
+                  button.onclick = function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openReport(button.getAttribute('data-print-target'));
+                    return false;
+                  };
+                });
+              }
+
+              if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', wireButtons);
+              } else {
+                wireButtons();
               }
 
               document.addEventListener('click', function (event) {
-                var button = event.target.closest('[data-print-target]');
+                var button = event.target.closest && event.target.closest('[data-print-target]');
                 if (!button) return;
                 event.preventDefault();
-                printTarget(button.getAttribute('data-print-target'));
-              });
+                event.stopPropagation();
+                openReport(button.getAttribute('data-print-target'));
+              }, true);
             })();
           `,
         }}
