@@ -786,30 +786,35 @@ export default async function ReportsPage({
       title: "Profit & Loss",
       description: "Income, expenses, mileage deduction, and net income.",
       href: "#profit-loss",
+      printTarget: "profit-loss",
       tag: "Use for taxes",
     },
     {
       title: "Sales Report",
       description: "Client revenue, signing totals, and monthly trends.",
       href: "#sales-report",
+      printTarget: "sales-report",
       tag: "Revenue",
     },
     {
       title: "Mileage Report",
       description: "Miles, mileage deduction, and average miles per signing.",
       href: "#mileage-report",
+      printTarget: "mileage-report",
       tag: "IRS deduction",
     },
     {
       title: "Invoice Aging",
       description: "Unpaid, overdue, paid, and balance due reporting.",
       href: "#invoice-aging",
+      printTarget: "invoice-aging",
       tag: "Collections",
     },
     {
       title: "Expenses Report",
       description: "Expense categories, receipts, vendors, and totals.",
       href: "#expense-report",
+      printTarget: "expense-report",
       tag: "Schedule C",
     },
     {
@@ -817,18 +822,21 @@ export default async function ReportsPage({
       description:
         "Journal entry status, notarial acts, and compliance totals.",
       href: "#journal-report",
+      printTarget: "journal-report",
       tag: "Compliance",
     },
     {
       title: "Client Profitability",
       description: "Revenue, expenses, miles, balance, and profit by client.",
       href: "#client-report",
+      printTarget: "client-report",
       tag: "Clients",
     },
     {
       title: "Performance Report",
       description: "Assignments, counties, signing types, and averages.",
       href: "#performance-report",
+      printTarget: "performance-report",
       tag: "Analytics",
     },
   ];
@@ -979,9 +987,8 @@ export default async function ReportsPage({
 
       <section className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 print:hidden">
         {reportCards.map((card) => (
-          <a
+          <div
             key={card.title}
-            href={card.href}
             className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-[#0B1F4D] hover:shadow-md"
           >
             <div className="flex items-start justify-between gap-4">
@@ -995,7 +1002,23 @@ export default async function ReportsPage({
             <p className="mt-3 text-sm leading-6 text-slate-500">
               {card.description}
             </p>
-          </a>
+
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <a
+                href={card.href}
+                className="inline-flex w-full justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 sm:w-auto"
+              >
+                View
+              </a>
+              <button
+                type="button"
+                data-print-target={card.printTarget}
+                className="inline-flex w-full justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 sm:w-auto"
+              >
+                Print
+              </button>
+            </div>
+          </div>
         ))}
       </section>
 
@@ -1052,16 +1075,26 @@ export default async function ReportsPage({
 
       <section
         id="profit-loss"
+        data-print-title="Profit & Loss Report"
         className="rounded-2xl border border-slate-200 bg-white shadow-sm print:break-inside-avoid"
       >
-        <div className="border-b border-slate-200 p-5">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-            Profit & Loss
-          </p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">
-            Profit & Loss Report
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">{selectedRange.label}</p>
+        <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+              Profit & Loss
+            </p>
+            <h2 className="mt-1 text-2xl font-black text-slate-950">
+              Profit & Loss Report
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">{selectedRange.label}</p>
+          </div>
+          <button
+            type="button"
+            data-print-target="profit-loss"
+            className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+          >
+            Print Report
+          </button>
         </div>
 
         <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_420px]">
@@ -1162,20 +1195,30 @@ export default async function ReportsPage({
 
       <section
         id="sales-report"
+        data-print-title="Sales Report"
         className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]"
       >
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 p-5">
-            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-              Sales Report
-            </p>
-            <h2 className="mt-1 text-2xl font-black text-slate-950">
-              Client Revenue
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Revenue, orders, payment status, and estimated client
-              profitability.
-            </p>
+          <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                Sales Report
+              </p>
+              <h2 className="mt-1 text-2xl font-black text-slate-950">
+                Client Revenue
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Revenue, orders, payment status, and estimated client
+                profitability.
+              </p>
+            </div>
+            <button
+              type="button"
+              data-print-target="sales-report"
+              className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+            >
+              Print Report
+            </button>
           </div>
 
           <div className="w-full overflow-hidden">
@@ -1268,15 +1311,27 @@ export default async function ReportsPage({
 
       <section
         id="mileage-report"
+        data-print-title="Mileage Report"
         className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(320px,.8fr)_minmax(0,1.2fr)]"
       >
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-            Mileage Report
-          </p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">
-            Mileage Summary
-          </h2>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                Mileage Report
+              </p>
+              <h2 className="mt-1 text-2xl font-black text-slate-950">
+                Mileage Summary
+              </h2>
+            </div>
+            <button
+              type="button"
+              data-print-target="mileage-report"
+              className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+            >
+              Print Report
+            </button>
+          </div>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-bold uppercase text-slate-500">
@@ -1390,29 +1445,39 @@ export default async function ReportsPage({
 
       <section
         id="invoice-aging"
+        data-print-title="Invoice Aging Report"
         className="rounded-2xl border border-slate-200 bg-white shadow-sm"
       >
-        <div className="border-b border-slate-200 p-5">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-            Invoice Aging
-          </p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">
-            Invoices & Payments
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Paid:{" "}
-            {
-              invoices.filter(
-                (row) => String(row.status ?? "").toLowerCase() === "paid",
-              ).length
-            }
-            . Open:{" "}
-            {invoices.length -
-              invoices.filter(
-                (row) => String(row.status ?? "").toLowerCase() === "paid",
-              ).length}
-            . Overdue: {overdueInvoices.length}.
-          </p>
+        <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+              Invoice Aging
+            </p>
+            <h2 className="mt-1 text-2xl font-black text-slate-950">
+              Invoices & Payments
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Paid:{" "}
+              {
+                invoices.filter(
+                  (row) => String(row.status ?? "").toLowerCase() === "paid",
+                ).length
+              }
+              . Open:{" "}
+              {invoices.length -
+                invoices.filter(
+                  (row) => String(row.status ?? "").toLowerCase() === "paid",
+                ).length}
+              . Overdue: {overdueInvoices.length}.
+            </p>
+          </div>
+          <button
+            type="button"
+            data-print-target="invoice-aging"
+            className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+          >
+            Print Report
+          </button>
         </div>
         <div className="w-full overflow-hidden">
           <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
@@ -1492,16 +1557,26 @@ export default async function ReportsPage({
 
       <section
         id="expense-report"
+        data-print-title="Expense Report"
         className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]"
       >
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 p-5">
-            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-              Expense Report
-            </p>
-            <h2 className="mt-1 text-2xl font-black text-slate-950">
-              Recent Expenses
-            </h2>
+          <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                Expense Report
+              </p>
+              <h2 className="mt-1 text-2xl font-black text-slate-950">
+                Recent Expenses
+              </h2>
+            </div>
+            <button
+              type="button"
+              data-print-target="expense-report"
+              className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+            >
+              Print Report
+            </button>
           </div>
           <div className="w-full overflow-hidden">
             <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
@@ -1563,6 +1638,11 @@ export default async function ReportsPage({
                               ? "Attached"
                               : "None"}
                           </span>
+                          {(expense.receipt_file_name || expense.receipt_file_path) && (
+                            <p className="mt-1 break-words text-[10px] font-semibold text-slate-500">
+                              {expense.receipt_file_name || expense.receipt_file_path}
+                            </p>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1602,15 +1682,27 @@ export default async function ReportsPage({
 
       <section
         id="journal-report"
+        data-print-title="Journal Report"
         className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(320px,.8fr)_minmax(0,1.2fr)]"
       >
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-            Journal Report
-          </p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">
-            Compliance Summary
-          </h2>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                Journal Report
+              </p>
+              <h2 className="mt-1 text-2xl font-black text-slate-950">
+                Compliance Summary
+              </h2>
+            </div>
+            <button
+              type="button"
+              data-print-target="journal-report"
+              className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+            >
+              Print Report
+            </button>
+          </div>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-bold uppercase text-slate-500">
@@ -1718,19 +1810,29 @@ export default async function ReportsPage({
 
       <section
         id="client-report"
+        data-print-title="Client Profitability Report"
         className="rounded-2xl border border-slate-200 bg-white shadow-sm"
       >
-        <div className="border-b border-slate-200 p-5">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-            Client Profitability
-          </p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">
-            Client Performance
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            This shows which clients are actually worth your time. Revenue
-            without profit is just busywork wearing a tie.
-          </p>
+        <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+              Client Profitability
+            </p>
+            <h2 className="mt-1 text-2xl font-black text-slate-950">
+              Client Performance
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              This shows which clients are actually worth your time. Revenue
+              without profit is just busywork wearing a tie.
+            </p>
+          </div>
+          <button
+            type="button"
+            data-print-target="client-report"
+            className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+          >
+            Print Report
+          </button>
         </div>
 
         <div className="block divide-y divide-slate-200 md:hidden">
@@ -1872,12 +1974,23 @@ export default async function ReportsPage({
 
       <section id="performance-report" className="grid gap-6 xl:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-            Performance
-          </p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">
-            Key Metrics
-          </h2>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                Performance
+              </p>
+              <h2 className="mt-1 text-2xl font-black text-slate-950">
+                Key Metrics
+              </h2>
+            </div>
+            <button
+              type="button"
+              data-print-target="performance-report"
+              className="print:hidden inline-flex justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950"
+            >
+              Print Report
+            </button>
+          </div>
           <div className="mt-5 space-y-3 text-sm">
             <div className="flex justify-between rounded-xl bg-slate-50 p-3 font-bold text-slate-700 ring-1 ring-slate-200">
               <span>Completed</span>
@@ -1959,6 +2072,90 @@ export default async function ReportsPage({
           </div>
         </div>
       </section>
+
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            (function () {
+              function cleanClone(clone) {
+                clone.querySelectorAll('button, a[href^="#"], [data-print-remove]').forEach(function (node) {
+                  node.remove();
+                });
+
+                clone.querySelectorAll('.print\\\\:hidden').forEach(function (node) {
+                  node.remove();
+                });
+
+                return clone;
+              }
+
+              function printTarget(targetId) {
+                var source = document.getElementById(targetId);
+                if (!source) return;
+
+                var title = source.getAttribute('data-print-title') || 'INS Pro Report';
+                var clone = cleanClone(source.cloneNode(true));
+                var printWindow = window.open('', '_blank', 'width=1100,height=850');
+
+                if (!printWindow) {
+                  window.print();
+                  return;
+                }
+
+                var generatedAt = new Date().toLocaleString();
+
+                printWindow.document.open();
+                printWindow.document.write('<!doctype html><html><head><title>' + title + '</title>');
+                printWindow.document.write('<style>');
+                printWindow.document.write('@page{size:letter;margin:.45in;}');
+                printWindow.document.write('body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;background:white;margin:0;font-size:12px;}');
+                printWindow.document.write('.print-header{border-bottom:3px solid #0B1F4D;margin-bottom:22px;padding-bottom:14px;}');
+                printWindow.document.write('.print-brand{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:#1d4ed8;}');
+                printWindow.document.write('.print-title{font-size:26px;font-weight:900;margin:4px 0;color:#0f172a;}');
+                printWindow.document.write('.print-meta{font-size:11px;color:#475569;}');
+                printWindow.document.write('section,article,aside,div{box-shadow:none!important;}');
+                printWindow.document.write('section{border:0!important;}');
+                printWindow.document.write('h1,h2,h3{break-after:avoid;color:#0f172a;margin-top:0;}');
+                printWindow.document.write('p{line-height:1.45;}');
+                printWindow.document.write('table{width:100%!important;border-collapse:collapse!important;table-layout:auto!important;margin-top:10px;font-size:10.5px;}');
+                printWindow.document.write('thead{display:table-header-group;background:#f1f5f9!important;}');
+                printWindow.document.write('tr{break-inside:avoid;}');
+                printWindow.document.write('th,td{border:1px solid #cbd5e1!important;padding:6px 7px!important;text-align:left;vertical-align:top;white-space:normal!important;}');
+                printWindow.document.write('th{text-transform:uppercase;font-size:9px;color:#334155;font-weight:800;background:#f8fafc!important;}');
+                printWindow.document.write('td{text-align:inherit;}');
+                printWindow.document.write('.hidden{display:table-cell!important;}');
+                printWindow.document.write('.md\\\\:hidden,.sm\\\\:hidden{display:none!important;}');
+                printWindow.document.write('.md\\\\:table-cell,.sm\\\\:table-cell,.lg\\\\:table-cell{display:table-cell!important;}');
+                printWindow.document.write('.rounded-2xl,.rounded-xl,.rounded-full{border-radius:0!important;}');
+                printWindow.document.write('.bg-\\\\[\\\\#0B1F4D\\\\],.bg-blue-600{background:#0B1F4D!important;color:white!important;}');
+                printWindow.document.write('.text-green-700{color:#15803d!important}.text-red-700{color:#b91c1c!important}.text-amber-700{color:#b45309!important}.text-blue-700{color:#1d4ed8!important}');
+                printWindow.document.write('.grid{display:block!important}.space-y-6>*+*{margin-top:18px}.space-y-4>*+*{margin-top:12px}.space-y-3>*+*{margin-top:10px}');
+                printWindow.document.write('.ring-1,.border{border:1px solid #cbd5e1!important;}');
+                printWindow.document.write('.p-5,.p-4,.p-3{padding:10px!important;}');
+                printWindow.document.write('.mt-1{margin-top:4px}.mt-2{margin-top:8px}.mt-3{margin-top:10px}.mt-4{margin-top:14px}.mt-5{margin-top:16px}.mt-6{margin-top:18px}');
+                printWindow.document.write('.break-words{word-break:break-word;}');
+                printWindow.document.write('</style></head><body>');
+                printWindow.document.write('<div class="print-header"><div class="print-brand">Indiana Notary Solutions • INS Pro</div><div class="print-title">' + title + '</div><div class="print-meta">Generated: ' + generatedAt + '</div></div>');
+                printWindow.document.body.appendChild(clone);
+                printWindow.document.write('</body></html>');
+                printWindow.document.close();
+
+                setTimeout(function () {
+                  printWindow.focus();
+                  printWindow.print();
+                }, 250);
+              }
+
+              document.addEventListener('click', function (event) {
+                var button = event.target.closest('[data-print-target]');
+                if (!button) return;
+                event.preventDefault();
+                printTarget(button.getAttribute('data-print-target'));
+              });
+            })();
+          `,
+        }}
+      />
     </main>
   );
 }
