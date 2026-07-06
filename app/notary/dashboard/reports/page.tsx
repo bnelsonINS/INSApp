@@ -1440,14 +1440,46 @@ export default async function ReportsPage({
           </section>
         </div>
 
-        <Script
+        <script
           id="ins-pro-print-view-script"
-          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
-              document.getElementById('ins-print-now')?.addEventListener('click', function () {
-                window.print();
-              });
+              (function () {
+                function runPrint(event) {
+                  if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }
+                  window.focus();
+                  window.print();
+                  return false;
+                }
+
+                function wirePrintButton() {
+                  var button = document.getElementById('ins-print-now');
+                  if (!button) return;
+                  button.onclick = runPrint;
+                  button.addEventListener('click', runPrint, true);
+                }
+
+                if (document.readyState === 'loading') {
+                  document.addEventListener('DOMContentLoaded', wirePrintButton);
+                } else {
+                  wirePrintButton();
+                }
+
+                window.setTimeout(wirePrintButton, 100);
+                window.setTimeout(wirePrintButton, 500);
+                window.setTimeout(wirePrintButton, 1500);
+
+                document.addEventListener('click', function (event) {
+                  var target = event.target;
+                  if (!target || !target.closest) return;
+                  if (target.closest('#ins-print-now')) {
+                    runPrint(event);
+                  }
+                }, true);
+              })();
             `,
           }}
         />
