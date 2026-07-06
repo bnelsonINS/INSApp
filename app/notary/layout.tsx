@@ -152,19 +152,31 @@ export default async function NotaryLayout({
   ];
 
   const businessNavItems = [
-    { label: "Mileage", href: "/notary/pro?feature=mileage", icon: "mileage" },
-    { label: "Journal", href: "/notary/pro?feature=journal", icon: "journal" },
+    {
+      label: "Mileage",
+      href: "/notary/dashboard/mileage",
+      icon: "mileage",
+    },
+    {
+      label: "Journal",
+      href: "/notary/dashboard/journal",
+      icon: "journal",
+    },
     {
       label: "Invoices",
-      href: "/notary/pro?feature=invoices",
+      href: "/notary/dashboard/invoices",
       icon: "invoices",
     },
     {
       label: "Expenses",
-      href: "/notary/pro?feature=expenses",
+      href: "/notary/dashboard/expenses",
       icon: "expenses",
     },
-    { label: "Reports", href: "/notary/pro?feature=reports", icon: "reports" },
+    {
+      label: "Reports",
+      href: "/notary/dashboard/reports",
+      icon: "reports",
+    },
   ];
 
   const settingsNavItems = [
