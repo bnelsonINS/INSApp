@@ -1732,17 +1732,92 @@ export default async function ReportsPage({
             without profit is just busywork wearing a tie.
           </p>
         </div>
-        <div className="w-full overflow-hidden">
-          <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
+
+        <div className="block divide-y divide-slate-200 md:hidden">
+          {clientRows.length === 0 ? (
+            <div className="p-6 text-center text-sm font-semibold text-slate-500">
+              No client performance data found.
+            </div>
+          ) : (
+            clientRows.map((row) => {
+              const clientMileageDeduction = row.miles * FEDERAL_MILEAGE_RATE;
+              const profit = row.income - row.expenses - clientMileageDeduction;
+
+              return (
+                <article key={`mobile-profit-${row.name}`} className="p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-black text-slate-950">
+                        {row.name}
+                      </p>
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {row.orders} orders
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 text-right">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Est. Profit
+                      </p>
+                      <p
+                        className={`mt-1 text-lg font-black ${profit >= 0 ? "text-green-700" : "text-red-700"}`}
+                      >
+                        {money(profit)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                      <dt className="text-xs font-bold uppercase text-slate-500">
+                        Revenue
+                      </dt>
+                      <dd className="mt-1 font-black text-slate-950">
+                        {money(row.income)}
+                      </dd>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                      <dt className="text-xs font-bold uppercase text-slate-500">
+                        Expenses
+                      </dt>
+                      <dd className="mt-1 font-black text-red-700">
+                        {money(row.expenses)}
+                      </dd>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                      <dt className="text-xs font-bold uppercase text-slate-500">
+                        Mileage
+                      </dt>
+                      <dd className="mt-1 font-black text-slate-950">
+                        {row.miles.toFixed(2)}
+                      </dd>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                      <dt className="text-xs font-bold uppercase text-slate-500">
+                        Balance
+                      </dt>
+                      <dd className="mt-1 font-black text-amber-700">
+                        {money(row.balance)}
+                      </dd>
+                    </div>
+                  </dl>
+                </article>
+              );
+            })
+          )}
+        </div>
+
+        <div className="hidden w-full overflow-hidden md:block">
+          <table className="w-full min-w-0 table-fixed text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="hidden px-2 py-3 font-bold md:table-cell md:px-5">Client</th>
-                <th className="px-2 py-3 sm:px-5 text-right font-bold">Orders</th>
-                <th className="px-2 py-3 sm:px-5 text-right font-bold">Revenue</th>
-                <th className="px-2 py-3 sm:px-5 text-right font-bold">Expenses</th>
-                <th className="px-2 py-3 sm:px-5 text-right font-bold">Mileage</th>
-                <th className="hidden px-2 py-3 text-right font-bold sm:table-cell sm:px-5">Balance</th>
-                <th className="px-2 py-3 sm:px-5 text-right font-bold">Est. Profit</th>
+                <th className="w-[24%] px-4 py-3 font-bold">Client</th>
+                <th className="w-[10%] px-4 py-3 text-right font-bold">Orders</th>
+                <th className="w-[14%] px-4 py-3 text-right font-bold">Revenue</th>
+                <th className="w-[14%] px-4 py-3 text-right font-bold">Expenses</th>
+                <th className="w-[12%] px-4 py-3 text-right font-bold">Mileage</th>
+                <th className="w-[12%] px-4 py-3 text-right font-bold">Balance</th>
+                <th className="w-[14%] px-4 py-3 text-right font-bold">Est. Profit</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -1750,7 +1825,7 @@ export default async function ReportsPage({
                 <tr>
                   <td
                     colSpan={7}
-                    className="px-2 py-8 sm:px-5 text-center font-semibold text-slate-500"
+                    className="px-5 py-8 text-center font-semibold text-slate-500"
                   >
                     No client performance data found.
                   </td>
@@ -1763,26 +1838,26 @@ export default async function ReportsPage({
                     row.income - row.expenses - clientMileageDeduction;
                   return (
                     <tr key={`profit-${row.name}`}>
-                      <td className="px-2 py-4 sm:px-5 font-bold text-slate-950">
-                        {row.name}
+                      <td className="px-4 py-4 font-bold text-slate-950">
+                        <span className="block truncate">{row.name}</span>
                       </td>
-                      <td className="px-2 py-4 sm:px-5 text-right font-semibold text-slate-700">
+                      <td className="px-4 py-4 text-right font-semibold text-slate-700">
                         {row.orders}
                       </td>
-                      <td className="px-2 py-4 sm:px-5 text-right font-black text-slate-950">
+                      <td className="px-4 py-4 text-right font-black text-slate-950">
                         {money(row.income)}
                       </td>
-                      <td className="px-2 py-4 sm:px-5 text-right font-bold text-red-700">
+                      <td className="px-4 py-4 text-right font-bold text-red-700">
                         {money(row.expenses)}
                       </td>
-                      <td className="px-2 py-4 sm:px-5 text-right font-semibold text-slate-700">
+                      <td className="px-4 py-4 text-right font-semibold text-slate-700">
                         {row.miles.toFixed(2)}
                       </td>
-                      <td className="px-2 py-4 sm:px-5 text-right font-bold text-amber-700">
+                      <td className="px-4 py-4 text-right font-bold text-amber-700">
                         {money(row.balance)}
                       </td>
                       <td
-                        className={`px-5 py-4 text-right font-black ${profit >= 0 ? "text-green-700" : "text-red-700"}`}
+                        className={`px-4 py-4 text-right font-black ${profit >= 0 ? "text-green-700" : "text-red-700"}`}
                       >
                         {money(profit)}
                       </td>
