@@ -922,6 +922,247 @@ export default async function ReportsPage({
     ? totalMiles / assignments.length
     : 0;
 
+  const invoicesByAssignmentId = new Map<string, InvoiceRow[]>();
+  for (const invoice of invoices) {
+    if (!invoice.assignment_id) continue;
+    const existing = invoicesByAssignmentId.get(invoice.assignment_id) ?? [];
+    existing.push(invoice);
+    invoicesByAssignmentId.set(invoice.assignment_id, existing);
+  }
+
+  const expensesByAssignmentId = new Map<string, ExpenseReportRow[]>();
+  for (const expense of expenses) {
+    if (!expense.assignment_id) continue;
+    const existing = expensesByAssignmentId.get(expense.assignment_id) ?? [];
+    existing.push(expense);
+    expensesByAssignmentId.set(expense.assignment_id, existing);
+  }
+
+  const mileageByAssignmentId = new Map<string, MileageRow[]>();
+  for (const mileageEntry of mileage) {
+    if (!mileageEntry.assignment_id) continue;
+    const existing = mileageByAssignmentId.get(mileageEntry.assignment_id) ?? [];
+    existing.push(mileageEntry);
+    mileageByAssignmentId.set(mileageEntry.assignment_id, existing);
+  }
+
+  const notarialActsByAssignmentId = new Map<string, NotarialActRow[]>();
+  for (const act of notarialActs) {
+    if (!act.assignment_id) continue;
+    const existing = notarialActsByAssignmentId.get(act.assignment_id) ?? [];
+    existing.push(act);
+    notarialActsByAssignmentId.set(act.assignment_id, existing);
+  }
+
+  const invoiceById = new Map<string, InvoiceRow>(
+    invoices.map((invoice) => [invoice.id, invoice]),
+  );
+
+  function assignmentInvoices(assignmentId: string) {
+    return invoicesByAssignmentId.get(assignmentId) ?? [];
+  }
+
+  function assignmentExpensesTotal(assignmentId: string) {
+    return (expensesByAssignmentId.get(assignmentId) ?? []).reduce(
+      (sum, row) => sum + numberValue(row.amount),
+      0,
+    );
+  }
+
+  function assignmentMilesTotal(assignmentId: string) {
+    return (mileageByAssignmentId.get(assignmentId) ?? []).reduce(
+      (sum, row) => sum + numberValue(row.miles),
+      0,
+    );
+  }
+
+  function assignmentMileageDeductionTotal(assignmentId: string) {
+    return (mileageByAssignmentId.get(assignmentId) ?? []).reduce((sum, row) => {
+      const storedAmount = numberValue(row.amount);
+      if (storedAmount > 0) return sum + storedAmount;
+      return (
+        sum +
+        numberValue(row.miles) * numberValue(row.rate || FEDERAL_MILEAGE_RATE)
+      );
+    }, 0);
+  }
+
+  function assignmentNotarialFeesTotal(assignmentId: string) {
+    return (notarialActsByAssignmentId.get(assignmentId) ?? []).reduce(
+      (sum, row) => sum + numberValue(row.amount),
+      0,
+    );
+  }
+
+  function assignmentSalesTotal(assignment: AssignmentRow) {
+    const relatedInvoices = assignmentInvoices(assignment.id);
+    const invoiceTotal = relatedInvoices.reduce(
+      (sum, invoice) => sum + numberValue(invoice.subtotal),
+      0,
+    );
+
+    if (invoiceTotal > 0) return invoiceTotal;
+    return numberValue(assignment.notary_fee);
+  }
+
+  function assignmentBalanceTotal(assignmentId: string) {
+    return assignmentInvoices(assignmentId).reduce(
+      (sum, invoice) => sum + numberValue(invoice.balance_due),
+      0,
+    );
+  }
+
+  function primaryInvoice(assignmentId: string) {
+    return assignmentInvoices(assignmentId)[0] ?? null;
+  }
+
+  function daysOverdue(invoice: InvoiceRow | null) {
+    if (!invoice?.due_date || numberValue(invoice.balance_due) <= 0) return null;
+    if (invoice.due_date >= today) return null;
+
+    const due = new Date(`${String(invoice.due_date).slice(0, 10)}T00:00:00`);
+    const current = new Date(`${today}T00:00:00`);
+    const days = Math.ceil(
+      (current.getTime() - due.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    return Number.isFinite(days) && days > 0 ? days : null;
+  }
+
+  const paidDayCounts = payments
+    .map((payment) => {
+      if (!payment.invoice_id || !payment.payment_date) return null;
+      const invoice = invoiceById.get(payment.invoice_id);
+      if (!invoice?.invoice_date) return null;
+
+      const paidAt = new Date(
+        `${String(payment.payment_date).slice(0, 10)}T00:00:00`,
+      );
+      const invoicedAt = new Date(
+        `${String(invoice.invoice_date).slice(0, 10)}T00:00:00`,
+      );
+      const days = Math.round(
+        (paidAt.getTime() - invoicedAt.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      return Number.isFinite(days) && days >= 0 ? days : null;
+    })
+    .filter((value): value is number => value !== null);
+
+  const averageDaysToPay = paidDayCounts.length
+    ? paidDayCounts.reduce((sum, value) => sum + value, 0) /
+      paidDayCounts.length
+    : 0;
+
+  const upcomingAssignments = assignments.filter((assignment) => {
+    const status = String(assignment.status ?? "").toLowerCase();
+    const signingDate = String(assignment.signing_date ?? "").slice(0, 10);
+
+    return (
+      signingDate > today &&
+      !["closed", "signing complete", "cancelled", "canceled", "did not sign"].includes(
+        status,
+      )
+    );
+  });
+
+  const uncollectableInvoices = invoices.filter((invoice) =>
+    ["uncollectable", "uncollectible", "write off", "write_off"].includes(
+      String(invoice.status ?? "").toLowerCase(),
+    ),
+  );
+
+  const salesCompletedTotal = completedAssignments.reduce(
+    (sum, assignment) => sum + assignmentSalesTotal(assignment),
+    0,
+  );
+  const salesUpcomingTotal = upcomingAssignments.reduce(
+    (sum, assignment) => sum + assignmentSalesTotal(assignment),
+    0,
+  );
+  const unpaidNotOverdueInvoices = invoices.filter((invoice) => {
+    const balance = numberValue(invoice.balance_due);
+    const status = String(invoice.status ?? "").toLowerCase();
+
+    return (
+      balance > 0 &&
+      status !== "paid" &&
+      (!invoice.due_date || invoice.due_date >= today)
+    );
+  });
+  const unpaidNotOverdueTotal = unpaidNotOverdueInvoices.reduce(
+    (sum, invoice) => sum + numberValue(invoice.balance_due),
+    0,
+  );
+  const unpaidOverdueTotal = overdueInvoices.reduce(
+    (sum, invoice) => sum + numberValue(invoice.balance_due),
+    0,
+  );
+  const uncollectableTotal = uncollectableInvoices.reduce(
+    (sum, invoice) => sum + numberValue(invoice.balance_due || invoice.subtotal),
+    0,
+  );
+  const totalExpensesWithMileage = totalExpenses + totalMileageDeduction;
+  const averageProfitWithoutMileage = completedAssignments.length
+    ? (totalInvoiced - totalExpenses) / completedAssignments.length
+    : 0;
+
+  const salesClientDetailRows = Array.from(
+    new Set(assignments.map((assignment) => assignment.client_id || "unknown")),
+  )
+    .map((clientId) => {
+      const customerAssignments = assignments
+        .filter((assignment) => (assignment.client_id || "unknown") === clientId)
+        .sort((a, b) =>
+          String(b.signing_date ?? "").localeCompare(
+            String(a.signing_date ?? ""),
+          ),
+        );
+      const firstAssignment = customerAssignments[0];
+      const name =
+        clientId === "unknown"
+          ? "No Client Listed"
+          : clientName(clientById.get(clientId));
+
+      return {
+        clientId,
+        name,
+        assignments: customerAssignments,
+        totalSales: customerAssignments.reduce(
+          (sum, assignment) => sum + assignmentSalesTotal(assignment),
+          0,
+        ),
+        totalBalance: customerAssignments.reduce(
+          (sum, assignment) => sum + assignmentBalanceTotal(assignment.id),
+          0,
+        ),
+        totalExpenses: customerAssignments.reduce(
+          (sum, assignment) => sum + assignmentExpensesTotal(assignment.id),
+          0,
+        ),
+        totalMiles: customerAssignments.reduce(
+          (sum, assignment) => sum + assignmentMilesTotal(assignment.id),
+          0,
+        ),
+        totalMileageDeduction: customerAssignments.reduce(
+          (sum, assignment) =>
+            sum + assignmentMileageDeductionTotal(assignment.id),
+          0,
+        ),
+        totalNotarialFees: customerAssignments.reduce(
+          (sum, assignment) => sum + assignmentNotarialFeesTotal(assignment.id),
+          0,
+        ),
+        firstAssignment,
+      };
+    })
+    .sort((a, b) => b.totalSales - a.totalSales || a.name.localeCompare(b.name));
+
+  const salesSummaryRows = clientRows.map((row) => ({
+    ...row,
+    percentOfTotal: pct(row.income, totalInvoiced),
+  }));
+
   const reportCards = [
     {
       title: "Profit & Loss",
@@ -1171,22 +1412,466 @@ export default async function ReportsPage({
             )}
 
             {selectedPrintTarget === "sales-report" && (
-              <div className="mt-8">
-                <h2 className="text-2xl font-black text-slate-950">Sales Report</h2>
-                <table className="mt-4 w-full border-collapse text-sm">
-                  <thead><tr className="bg-slate-100"><th className="border p-2 text-left">Client</th><th className="border p-2 text-right">Orders</th><th className="border p-2 text-right">Revenue</th><th className="border p-2 text-right">Paid</th><th className="border p-2 text-right">Balance</th></tr></thead>
-                  <tbody>
-                    {clientRows.map((row) => (
-                      <tr key={`print-sales-${row.name}`}>
-                        <td className="border p-2 font-semibold">{row.name}</td>
-                        <td className="border p-2 text-right">{row.orders}</td>
-                        <td className="border p-2 text-right font-black">{money(row.income)}</td>
-                        <td className="border p-2 text-right text-green-700 font-bold">{money(row.paid)}</td>
-                        <td className="border p-2 text-right text-amber-700 font-bold">{money(row.balance)}</td>
-                      </tr>
+              <div className="mt-8 space-y-8">
+                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                  <div className="border-b border-slate-200 bg-slate-50 p-5">
+                    <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                      Sales Report
+                    </p>
+                    <h2 className="mt-1 text-2xl font-black text-slate-950">
+                      Customer Sales Summary
+                    </h2>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                      {selectedRange.label} •{" "}
+                      {selectedClient === "all"
+                        ? "All Customers"
+                        : clientName(clientById.get(selectedClient))}
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4 p-5 sm:grid-cols-3 print:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="flex justify-between gap-4 text-sm">
+                        <span className="font-bold text-slate-600">
+                          Completed
+                        </span>
+                        <span className="font-black text-slate-950">
+                          {completedAssignments.length}
+                        </span>
+                        <span className="font-black text-[#0B1F4D]">
+                          {money(salesCompletedTotal)}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex justify-between gap-4 text-sm">
+                        <span className="font-bold text-slate-600">
+                          Upcoming
+                        </span>
+                        <span className="font-black text-slate-950">
+                          {upcomingAssignments.length}
+                        </span>
+                        <span className="font-black text-[#0B1F4D]">
+                          {money(salesUpcomingTotal)}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex justify-between gap-4 text-sm">
+                        <span className="font-bold text-slate-600">
+                          Cancelled
+                        </span>
+                        <span className="font-black text-slate-950">
+                          {cancelledAssignments.length}
+                        </span>
+                        <span className="font-black text-slate-400">N/A</span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="flex justify-between gap-4 text-sm">
+                        <span className="font-bold text-slate-600">
+                          Unpaid - Not Overdue
+                        </span>
+                        <span className="font-black text-slate-950">
+                          {unpaidNotOverdueInvoices.length}
+                        </span>
+                        <span className="font-black text-amber-700">
+                          {money(unpaidNotOverdueTotal)}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex justify-between gap-4 text-sm">
+                        <span className="font-bold text-slate-600">
+                          Unpaid - Overdue
+                        </span>
+                        <span className="font-black text-red-700">
+                          {overdueInvoices.length}
+                        </span>
+                        <span className="font-black text-red-700">
+                          {money(unpaidOverdueTotal)}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex justify-between gap-4 text-sm">
+                        <span className="font-bold text-slate-600">
+                          Uncollectable
+                        </span>
+                        <span className="font-black text-slate-950">
+                          {uncollectableInvoices.length}
+                        </span>
+                        <span className="font-black text-slate-950">
+                          {money(uncollectableTotal)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="flex justify-between gap-4 text-sm">
+                        <span className="font-bold text-slate-600">
+                          Mileage Expenses
+                        </span>
+                        <span className="font-black text-[#0B1F4D]">
+                          {money(totalMileageDeduction)}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex justify-between gap-4 text-sm">
+                        <span className="font-bold text-slate-600">
+                          Non-Mileage Expenses
+                        </span>
+                        <span className="font-black text-[#0B1F4D]">
+                          {money(totalExpenses)}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex justify-between gap-4 text-sm">
+                        <span className="font-bold text-slate-600">
+                          Total Expenses
+                        </span>
+                        <span className="font-black text-[#0B1F4D]">
+                          {money(totalExpensesWithMileage)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 border-t border-slate-200 bg-slate-50 p-5 sm:grid-cols-3 print:grid-cols-3">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+                        Total Sales
+                      </p>
+                      <p className="mt-1 text-2xl font-black text-[#0B1F4D]">
+                        {money(totalInvoiced)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+                        Avg Profit / Signing
+                      </p>
+                      <p className="mt-1 text-2xl font-black text-green-700">
+                        {money(averageProfitPerSigning)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+                        Avg Days to Pay
+                      </p>
+                      <p className="mt-1 text-2xl font-black text-slate-950">
+                        {averageDaysToPay.toFixed(1)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+                        Total Profit
+                      </p>
+                      <p className="mt-1 text-2xl font-black text-green-700">
+                        {money(netIncome)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+                        Total Profit w/o Mileage
+                      </p>
+                      <p className="mt-1 text-2xl font-black text-green-700">
+                        {money(totalInvoiced - totalExpenses)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+                        Avg w/o Mileage
+                      </p>
+                      <p className="mt-1 text-2xl font-black text-slate-950">
+                        {money(averageProfitWithoutMileage)}
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                  <div className="border-b border-slate-200 bg-slate-50 p-5">
+                    <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                      Customer Breakdown
+                    </p>
+                    <h3 className="mt-1 text-xl font-black text-slate-950">
+                      Total Sales by Customer
+                    </h3>
+                  </div>
+
+                  <div className="p-5">
+                    <div className="mb-4 flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-black text-slate-600">
+                      <span className="rounded-full bg-[#0B1F4D] px-3 py-1 text-white">
+                        Total Sales
+                      </span>
+                      <span>Total Profit</span>
+                      <span>Total Profit w/o Mileage</span>
+                      <span>Avg Profit per Signing</span>
+                      <span>Avg Profit per Signing w/o Mileage</span>
+                    </div>
+
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b-2 border-slate-300 text-slate-500">
+                          <th className="p-2 text-left font-black">
+                            Customer
+                          </th>
+                          <th className="p-2 text-right font-black">
+                            Total Sales
+                          </th>
+                          <th className="p-2 text-right font-black">
+                            % of Total
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {salesSummaryRows.map((row) => (
+                          <tr
+                            key={`print-sales-summary-${row.name}`}
+                            className="border-b border-slate-200"
+                          >
+                            <td className="p-2 font-bold text-slate-950">
+                              {row.name}
+                            </td>
+                            <td className="p-2 text-right font-black text-slate-950">
+                              {money(row.income)}
+                            </td>
+                            <td className="p-2 text-right font-bold text-slate-700">
+                              {row.percentOfTotal.toFixed(1)}%
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="bg-slate-50">
+                          <td className="p-2 text-right font-black">Total:</td>
+                          <td className="p-2 text-right font-black">
+                            {money(totalInvoiced)}
+                          </td>
+                          <td className="p-2 text-right font-black">100.0%</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                  <div className="border-b border-slate-200 bg-slate-50 p-5">
+                    <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                      Monthly Trend
+                    </p>
+                    <h3 className="mt-1 text-xl font-black text-slate-950">
+                      Signings per Month
+                    </h3>
+                  </div>
+
+                  <div className="p-5">
+                    <div className="mb-4 inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-2 text-xs font-black text-slate-600">
+                      <span className="rounded-full bg-[#0B1F4D] px-3 py-1 text-white">
+                        Signings per Month
+                      </span>
+                      <span className="px-3 py-1">Signing $$$ per Month</span>
+                    </div>
+
+                    <div className="grid min-h-56 grid-cols-12 items-end gap-2">
+                      {months.map((month) => (
+                        <div
+                          key={`print-sales-month-${month.key}`}
+                          className="flex min-h-48 flex-col justify-end gap-2 text-center"
+                        >
+                          <p className="text-xs font-black text-slate-600">
+                            {month.signings || ""}
+                          </p>
+                          <div
+                            className="mx-auto w-full max-w-8 rounded-t-xl bg-[#0B1F4D]"
+                            style={{
+                              height: `${Math.max(
+                                8,
+                                (month.signings /
+                                  Math.max(
+                                    ...months.map((item) => item.signings),
+                                    1,
+                                  )) *
+                                  150,
+                              )}px`,
+                            }}
+                          />
+                          <p className="text-[10px] font-bold text-slate-500">
+                            {month.label}-{month.key.slice(2, 4)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+
+                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                  <div className="border-b border-slate-200 bg-slate-50 p-5">
+                    <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+                      Detail
+                    </p>
+                    <h3 className="mt-1 text-xl font-black text-slate-950">
+                      Customer Signing Detail
+                    </h3>
+                  </div>
+
+                  <div className="space-y-8 p-5">
+                    {salesClientDetailRows.map((customer) => (
+                      <div
+                        key={`print-sales-detail-${customer.clientId}`}
+                        className="break-inside-avoid"
+                      >
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                          <h4 className="text-base font-black text-slate-950">
+                            {customer.name}
+                          </h4>
+                          <span className="text-xs font-black uppercase tracking-wide text-blue-700">
+                            Detail
+                          </span>
+                        </div>
+
+                        <div className="overflow-hidden rounded-2xl border border-slate-200">
+                          <table className="w-full border-collapse text-[11px]">
+                            <thead>
+                              <tr className="bg-slate-50 text-slate-500">
+                                <th className="border p-2 text-left font-black">
+                                  Date
+                                </th>
+                                <th className="border p-2 text-left font-black">
+                                  Signer
+                                </th>
+                                <th className="border p-2 text-right font-black">
+                                  Fee
+                                </th>
+                                <th className="border p-2 text-right font-black">
+                                  Balance
+                                </th>
+                                <th className="border p-2 text-right font-black">
+                                  Days OD
+                                </th>
+                                <th className="border p-2 text-left font-black">
+                                  Invoice #
+                                </th>
+                                <th className="border p-2 text-right font-black">
+                                  Expenses
+                                </th>
+                                <th className="border p-2 text-right font-black">
+                                  Miles
+                                </th>
+                                <th className="border p-2 text-right font-black">
+                                  Mi Ded
+                                </th>
+                                <th className="border p-2 text-right font-black">
+                                  Not Fees
+                                </th>
+                                <th className="border p-2 text-left font-black">
+                                  O/E #
+                                </th>
+                                <th className="border p-2 text-left font-black">
+                                  Signing Platform
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {customer.assignments.map((assignment) => {
+                                const invoice = primaryInvoice(assignment.id);
+                                const balance = assignmentBalanceTotal(
+                                  assignment.id,
+                                );
+                                const overdueDays = daysOverdue(invoice);
+
+                                return (
+                                  <tr key={`print-sales-assignment-${assignment.id}`}>
+                                    <td className="border p-2 font-semibold text-slate-700">
+                                      {formatDate(assignment.signing_date)}
+                                    </td>
+                                    <td className="border p-2 font-bold text-slate-950">
+                                      {assignmentTitle(assignment)}
+                                      {String(assignment.status ?? "")
+                                        .toLowerCase()
+                                        .includes("cancel") && (
+                                        <span className="ml-1 font-black text-red-700">
+                                          Cancelled
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="border p-2 text-right font-black">
+                                      {money(assignmentSalesTotal(assignment))}
+                                    </td>
+                                    <td
+                                      className={`border p-2 text-right font-black ${balance > 0 ? "text-red-700" : "text-slate-700"}`}
+                                    >
+                                      {balance > 0 ? money(balance) : "$0.00"}
+                                    </td>
+                                    <td
+                                      className={`border p-2 text-right font-black ${overdueDays ? "text-red-700" : "text-slate-400"}`}
+                                    >
+                                      {overdueDays ?? "—"}
+                                    </td>
+                                    <td className="border p-2 font-semibold">
+                                      {invoice
+                                        ? formatInvoiceNumber(
+                                            invoice.invoice_number,
+                                          )
+                                        : "—"}
+                                    </td>
+                                    <td className="border p-2 text-right font-semibold">
+                                      {money(assignmentExpensesTotal(assignment.id))}
+                                    </td>
+                                    <td className="border p-2 text-right font-semibold">
+                                      {assignmentMilesTotal(assignment.id).toFixed(2)}
+                                    </td>
+                                    <td className="border p-2 text-right font-semibold">
+                                      {money(
+                                        assignmentMileageDeductionTotal(
+                                          assignment.id,
+                                        ),
+                                      )}
+                                    </td>
+                                    <td className="border p-2 text-right font-semibold">
+                                      {money(
+                                        assignmentNotarialFeesTotal(
+                                          assignment.id,
+                                        ),
+                                      )}
+                                    </td>
+                                    <td className="border p-2 font-semibold">
+                                      {assignment.control_number || "—"}
+                                    </td>
+                                    <td className="border p-2 font-semibold">
+                                      {assignmentType(assignment)}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                              <tr className="bg-slate-50">
+                                <td className="border p-2 text-right font-black" colSpan={2}>
+                                  Totals:
+                                </td>
+                                <td className="border p-2 text-right font-black">
+                                  {money(customer.totalSales)}
+                                </td>
+                                <td
+                                  className={`border p-2 text-right font-black ${customer.totalBalance > 0 ? "text-red-700" : "text-slate-700"}`}
+                                >
+                                  {money(customer.totalBalance)}
+                                </td>
+                                <td className="border p-2 text-right text-slate-400">
+                                  —
+                                </td>
+                                <td className="border p-2">—</td>
+                                <td className="border p-2 text-right font-black">
+                                  {money(customer.totalExpenses)}
+                                </td>
+                                <td className="border p-2 text-right font-black">
+                                  {customer.totalMiles.toFixed(2)}
+                                </td>
+                                <td className="border p-2 text-right font-black">
+                                  {money(customer.totalMileageDeduction)}
+                                </td>
+                                <td className="border p-2 text-right font-black">
+                                  {money(customer.totalNotarialFees)}
+                                </td>
+                                <td className="border p-2" colSpan={2}>
+                                  —
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </section>
               </div>
             )}
 
