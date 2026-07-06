@@ -1147,13 +1147,14 @@ export default async function ReportsPage({
               >
                 View
               </a>
-              <button
-                type="button"
+              <a
+                href={`javascript:window.__openInsProReport ? window.__openInsProReport('${card.printTarget}') : alert('Report engine is still loading. Please try again.');`}
+                role="button"
                 data-print-target={card.printTarget}
                 className="relative z-10 inline-flex w-full cursor-pointer justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 sm:w-auto"
               >
                 Print
-              </button>
+              </a>
             </div>
           </div>
         ))}
@@ -2530,9 +2531,17 @@ export default async function ReportsPage({
 
               function wireButtons() {
                 document.querySelectorAll('[data-print-target]').forEach(function (button) {
+                  var targetId = button.getAttribute('data-print-target') || '';
+                  var safeTargetId = targetId.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                   button.style.pointerEvents = 'auto';
                   button.style.cursor = 'pointer';
-                  button.onclick = handleReportClick;
+                  button.setAttribute('aria-label', 'Open printable report in a new tab');
+                  button.setAttribute(
+                    'onclick',
+                    "if (window.__openInsProReport) { window.__openInsProReport('" + safeTargetId + "'); } return false;"
+                  );
+                  button.addEventListener('click', handleReportClick);
+                  button.addEventListener('pointerdown', handleReportClick);
                 });
               }
 
