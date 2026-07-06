@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../../src/lib/supabase-server";
+import { supabaseAdmin } from "../../../../src/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -119,55 +120,54 @@ export default async function InvoicesPage() {
     redirect("/login");
   }
 
-  const currentYear = new Date().getFullYear();
-
-  const { data: invoices, error } = await supabase
+  const { data: rawInvoices, error } = await supabaseAdmin
     .from("assignment_invoices")
     .select(
-      `
-        id,
-        assignment_id,
-        notary_id,
-        invoice_number,
-        invoice_date,
-        due_date,
-        status,
-        subtotal,
-        mileage_total,
-        expenses_total,
-        payments_total,
-        balance_due,
-        notes,
-        created_at,
-        assignments (
-          id,
-          borrower_name,
-          control_number,
-          signing_date,
-          signing_address,
-          signing_city,
-          signing_state,
-          signing_zip,
-          title_company_name,
-          title_company,
-          company_name,
-          client_name
-        )
-      `,
+      "id, assignment_id, notary_id, invoice_number, invoice_date, due_date, status, subtotal, mileage_total, expenses_total, payments_total, balance_due, notes, created_at",
     )
     .eq("notary_id", user.id)
-.order("invoice_date", { ascending: false })
+    .order("invoice_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  const assignmentIds = Array.from(
+    new Set(
+      (rawInvoices ?? [])
+        .map((invoice) => String(invoice.assignment_id ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
+
+  const { data: assignmentRows, error: assignmentsError } = assignmentIds.length
+    ? await supabaseAdmin
+        .from("assignments")
+        .select(
+          "id, borrower_name, control_number, signing_date, signing_address, signing_city, signing_state, signing_zip, title_company_name, title_company, company_name, client_name",
+        )
+        .in("id", assignmentIds)
+    : { data: [], error: null };
 
   if (error) {
     console.error("Invoices lookup error:", error);
   }
 
-  const rows = ((invoices ?? []) as any[]).map((invoice) => ({
-  ...invoice,
-  assignments: Array.isArray(invoice.assignments)
-    ? invoice.assignments[0] ?? null
-    : invoice.assignments ?? null,
-})) as InvoiceRow[];
+  if (assignmentsError) {
+    console.error("Invoice assignment lookup error:", assignmentsError);
+  }
+
+  const assignmentById = new Map(
+    ((assignmentRows ?? []) as NonNullable<InvoiceRow["assignments"]>[]).map(
+      (assignment) => [assignment.id, assignment],
+    ),
+  );
+
+  const rows = ((rawInvoices ?? []) as Omit<InvoiceRow, "assignments">[]).map(
+    (invoice) => ({
+      ...invoice,
+      assignments: invoice.assignment_id
+        ? assignmentById.get(invoice.assignment_id) ?? null
+        : null,
+    }),
+  ) as InvoiceRow[];
 
   const totalInvoiced = rows.reduce((sum, row) => sum + Number(row.subtotal ?? 0), 0);
   const totalPaid = rows.reduce((sum, row) => sum + Number(row.payments_total ?? 0), 0);
@@ -245,7 +245,7 @@ export default async function InvoicesPage() {
           <div>
             <h2 className="text-xl font-bold text-slate-950">Invoice History</h2>
             <p className="text-sm text-slate-500">
-              Showing {currentYear} assignment invoices. Paid: {paidCount}. Open: {unpaidCount}.
+              Showing all assignment invoices. Paid: {paidCount}. Open: {unpaidCount}.
             </p>
           </div>
 
