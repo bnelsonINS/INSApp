@@ -1178,17 +1178,17 @@ export default async function ReportsPage({
             </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[850px] text-left text-sm">
+          <div className="w-full overflow-hidden">
+            <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="px-5 py-3 font-bold">Client</th>
-                  <th className="px-5 py-3 text-right font-bold">Orders</th>
-                  <th className="px-5 py-3 text-right font-bold">Revenue</th>
-                  <th className="px-5 py-3 text-right font-bold">Paid</th>
-                  <th className="px-5 py-3 text-right font-bold">Balance</th>
-                  <th className="px-5 py-3 text-right font-bold">Miles</th>
-                  <th className="px-5 py-3 font-bold">Share</th>
+                  <th className="hidden px-2 py-3 font-bold md:table-cell md:px-5">Client</th>
+                  <th className="px-2 py-3 sm:px-5 text-right font-bold">Orders</th>
+                  <th className="px-2 py-3 sm:px-5 text-right font-bold">Revenue</th>
+                  <th className="hidden px-2 py-3 text-right font-bold md:table-cell md:px-5">Paid</th>
+                  <th className="hidden px-2 py-3 text-right font-bold sm:table-cell sm:px-5">Balance</th>
+                  <th className="px-2 py-3 sm:px-5 text-right font-bold">Miles</th>
+                  <th className="px-2 py-3 sm:px-5 font-bold">Share</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -1196,7 +1196,7 @@ export default async function ReportsPage({
                   <tr>
                     <td
                       colSpan={7}
-                      className="px-5 py-8 text-center text-sm font-semibold text-slate-500"
+                      className="px-2 py-8 sm:px-5 text-center text-sm font-semibold text-slate-500"
                     >
                       No client revenue found for this filter.
                     </td>
@@ -1204,25 +1204,25 @@ export default async function ReportsPage({
                 ) : (
                   clientRows.map((row) => (
                     <tr key={row.name}>
-                      <td className="px-5 py-4 font-bold text-slate-950">
+                      <td className="px-2 py-4 sm:px-5 font-bold text-slate-950">
                         {row.name}
                       </td>
-                      <td className="px-5 py-4 text-right font-semibold text-slate-700">
+                      <td className="px-2 py-4 sm:px-5 text-right font-semibold text-slate-700">
                         {row.orders}
                       </td>
-                      <td className="px-5 py-4 text-right font-black text-slate-950">
+                      <td className="px-2 py-4 sm:px-5 text-right font-black text-slate-950">
                         {money(row.income)}
                       </td>
-                      <td className="px-5 py-4 text-right font-bold text-green-700">
+                      <td className="px-2 py-4 sm:px-5 text-right font-bold text-green-700">
                         {money(row.paid)}
                       </td>
-                      <td className="px-5 py-4 text-right font-bold text-amber-700">
+                      <td className="px-2 py-4 sm:px-5 text-right font-bold text-amber-700">
                         {money(row.balance)}
                       </td>
-                      <td className="px-5 py-4 text-right font-semibold text-slate-700">
+                      <td className="px-2 py-4 sm:px-5 text-right font-semibold text-slate-700">
                         {row.miles.toFixed(2)}
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-2 py-4 sm:px-5">
                         <Bar value={row.income} max={maxClientIncome} />
                       </td>
                     </tr>
@@ -1323,15 +1323,15 @@ export default async function ReportsPage({
               Mileage Entries
             </h2>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+          <div className="w-full overflow-hidden">
+            <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="px-5 py-3 font-bold">Date</th>
-                  <th className="px-5 py-3 font-bold">Assignment</th>
-                  <th className="px-5 py-3 text-right font-bold">Miles</th>
-                  <th className="px-5 py-3 text-right font-bold">Rate</th>
-                  <th className="px-5 py-3 text-right font-bold">Deduction</th>
+                  <th className="px-2 py-3 sm:px-5 font-bold">Date</th>
+                  <th className="px-2 py-3 font-bold sm:px-5">Assignment</th>
+                  <th className="px-2 py-3 sm:px-5 text-right font-bold">Miles</th>
+                  <th className="hidden px-2 py-3 text-right font-bold sm:table-cell sm:px-5">Rate</th>
+                  <th className="px-2 py-3 sm:px-5 text-right font-bold">Deduction</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -1339,7 +1339,7 @@ export default async function ReportsPage({
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-5 py-8 text-center font-semibold text-slate-500"
+                      className="px-2 py-8 sm:px-5 text-center font-semibold text-slate-500"
                     >
                       No mileage found.
                     </td>
@@ -1351,10 +1351,10 @@ export default async function ReportsPage({
                       : null;
                     return (
                       <tr key={row.id}>
-                        <td className="px-5 py-4 font-semibold text-slate-700">
+                        <td className="px-2 py-4 sm:px-5 font-semibold text-slate-700">
                           {formatDate(row.mileage_date)}
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-2 py-4 sm:px-5">
                           <p className="font-bold text-slate-950">
                             {assignmentTitle(assignment)}
                           </p>
@@ -1362,16 +1362,16 @@ export default async function ReportsPage({
                             {assignment?.control_number || "—"}
                           </p>
                         </td>
-                        <td className="px-5 py-4 text-right font-bold text-slate-950">
+                        <td className="px-2 py-4 sm:px-5 text-right font-bold text-slate-950">
                           {numberValue(row.miles).toFixed(2)}
                         </td>
-                        <td className="px-5 py-4 text-right font-semibold text-slate-700">
+                        <td className="hidden px-2 py-4 text-right font-semibold text-slate-700 sm:table-cell sm:px-5">
                           $
                           {numberValue(
                             row.rate || FEDERAL_MILEAGE_RATE,
                           ).toFixed(3)}
                         </td>
-                        <td className="px-5 py-4 text-right font-black text-green-700">
+                        <td className="px-2 py-4 sm:px-5 text-right font-black text-green-700">
                           {money(
                             row.amount ||
                               numberValue(row.miles) *
@@ -1414,18 +1414,18 @@ export default async function ReportsPage({
             . Overdue: {overdueInvoices.length}.
           </p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[950px] text-left text-sm">
+        <div className="w-full overflow-hidden">
+          <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-5 py-3 font-bold">Invoice</th>
-                <th className="px-5 py-3 font-bold">Assignment</th>
-                <th className="px-5 py-3 font-bold">Client</th>
-                <th className="px-5 py-3 font-bold">Due</th>
-                <th className="px-5 py-3 text-right font-bold">Total</th>
-                <th className="px-5 py-3 text-right font-bold">Paid</th>
-                <th className="px-5 py-3 text-right font-bold">Balance</th>
-                <th className="px-5 py-3 font-bold">Status</th>
+                <th className="px-2 py-3 sm:px-5 font-bold">Invoice</th>
+                <th className="px-2 py-3 font-bold sm:px-5">Assignment</th>
+                <th className="hidden px-2 py-3 font-bold md:table-cell md:px-5">Client</th>
+                <th className="hidden px-2 py-3 font-bold sm:table-cell sm:px-5">Due</th>
+                <th className="px-2 py-3 sm:px-5 text-right font-bold">Total</th>
+                <th className="hidden px-2 py-3 text-right font-bold md:table-cell md:px-5">Paid</th>
+                <th className="hidden px-2 py-3 text-right font-bold sm:table-cell sm:px-5">Balance</th>
+                <th className="hidden px-2 py-3 font-bold lg:table-cell lg:px-5">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -1433,7 +1433,7 @@ export default async function ReportsPage({
                 <tr>
                   <td
                     colSpan={8}
-                    className="px-5 py-8 text-center font-semibold text-slate-500"
+                    className="px-2 py-8 sm:px-5 text-center font-semibold text-slate-500"
                   >
                     No invoices found.
                   </td>
@@ -1448,10 +1448,10 @@ export default async function ReportsPage({
                     : null;
                   return (
                     <tr key={invoice.id}>
-                      <td className="px-5 py-4 font-bold text-slate-950">
+                      <td className="px-2 py-4 sm:px-5 font-bold text-slate-950">
                         {formatInvoiceNumber(invoice.invoice_number)}
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-2 py-4 sm:px-5">
                         <p className="font-bold text-slate-950">
                           {assignmentTitle(assignment)}
                         </p>
@@ -1459,22 +1459,22 @@ export default async function ReportsPage({
                           {assignment?.control_number || "—"}
                         </p>
                       </td>
-                      <td className="px-5 py-4 font-semibold text-slate-700">
+                      <td className="hidden px-2 py-4 font-semibold text-slate-700 md:table-cell md:px-5">
                         {clientName(client)}
                       </td>
-                      <td className="px-5 py-4 font-semibold text-slate-700">
+                      <td className="hidden px-2 py-4 font-semibold text-slate-700 sm:table-cell sm:px-5">
                         {formatDate(invoice.due_date)}
                       </td>
-                      <td className="px-5 py-4 text-right font-black text-slate-950">
+                      <td className="px-2 py-4 sm:px-5 text-right font-black text-slate-950">
                         {money(invoice.subtotal)}
                       </td>
-                      <td className="px-5 py-4 text-right font-bold text-green-700">
+                      <td className="hidden px-2 py-4 text-right font-bold text-green-700 md:table-cell md:px-5">
                         {money(invoice.payments_total)}
                       </td>
-                      <td className="px-5 py-4 text-right font-bold text-amber-700">
+                      <td className="hidden px-2 py-4 text-right font-bold text-amber-700 sm:table-cell sm:px-5">
                         {money(invoice.balance_due)}
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="hidden px-2 py-4 lg:table-cell lg:px-5">
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusPill(invoice.status)}`}
                         >
@@ -1503,16 +1503,16 @@ export default async function ReportsPage({
               Recent Expenses
             </h2>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[850px] text-left text-sm">
+          <div className="w-full overflow-hidden">
+            <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="px-5 py-3 font-bold">Date</th>
-                  <th className="px-5 py-3 font-bold">Category</th>
-                  <th className="px-5 py-3 font-bold">Vendor / Notes</th>
-                  <th className="px-5 py-3 font-bold">Assignment</th>
-                  <th className="px-5 py-3 text-right font-bold">Amount</th>
-                  <th className="px-5 py-3 font-bold">Receipt</th>
+                  <th className="px-2 py-3 sm:px-5 font-bold">Date</th>
+                  <th className="px-2 py-3 sm:px-5 font-bold">Category</th>
+                  <th className="px-2 py-3 font-bold sm:px-5">Vendor</th>
+                  <th className="px-2 py-3 font-bold sm:px-5">Assignment</th>
+                  <th className="px-2 py-3 sm:px-5 text-right font-bold">Amount</th>
+                  <th className="hidden px-2 py-3 font-bold sm:table-cell sm:px-5">Receipt</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -1520,7 +1520,7 @@ export default async function ReportsPage({
                   <tr>
                     <td
                       colSpan={6}
-                      className="px-5 py-8 text-center font-semibold text-slate-500"
+                      className="px-2 py-8 sm:px-5 text-center font-semibold text-slate-500"
                     >
                       No expenses found.
                     </td>
@@ -1532,13 +1532,13 @@ export default async function ReportsPage({
                       : null;
                     return (
                       <tr key={expense.id}>
-                        <td className="px-5 py-4 font-semibold text-slate-700">
+                        <td className="px-2 py-4 sm:px-5 font-semibold text-slate-700">
                           {formatDate(expense.expense_date)}
                         </td>
-                        <td className="px-5 py-4 font-bold text-slate-950">
+                        <td className="px-2 py-4 sm:px-5 font-bold text-slate-950">
                           {expense.category || "Misc."}
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-2 py-4 sm:px-5">
                           <p className="font-semibold text-slate-700">
                             {expense.vendor || expense.description || "Expense"}
                           </p>
@@ -1548,13 +1548,13 @@ export default async function ReportsPage({
                             </p>
                           )}
                         </td>
-                        <td className="px-5 py-4 font-semibold text-slate-700">
+                        <td className="px-2 py-4 sm:px-5 font-semibold text-slate-700">
                           {assignmentTitle(assignment)}
                         </td>
-                        <td className="px-5 py-4 text-right font-black text-slate-950">
+                        <td className="px-2 py-4 sm:px-5 text-right font-black text-slate-950">
                           {money(expense.amount)}
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="hidden px-2 py-4 sm:table-cell sm:px-5">
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${expense.receipt_file_path || expense.receipt_file_name ? "bg-green-50 text-green-700 ring-green-200" : "bg-slate-50 text-slate-600 ring-slate-200"}`}
                           >
@@ -1658,14 +1658,14 @@ export default async function ReportsPage({
               Journal Entries
             </h2>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+          <div className="w-full overflow-hidden">
+            <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="px-5 py-3 font-bold">Date</th>
-                  <th className="px-5 py-3 font-bold">Assignment</th>
-                  <th className="px-5 py-3 font-bold">Type</th>
-                  <th className="px-5 py-3 font-bold">Status</th>
+                  <th className="px-2 py-3 sm:px-5 font-bold">Date</th>
+                  <th className="px-2 py-3 font-bold sm:px-5">Assignment</th>
+                  <th className="px-2 py-3 sm:px-5 font-bold">Type</th>
+                  <th className="hidden px-2 py-3 font-bold lg:table-cell lg:px-5">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -1673,7 +1673,7 @@ export default async function ReportsPage({
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-5 py-8 text-center font-semibold text-slate-500"
+                      className="px-2 py-8 sm:px-5 text-center font-semibold text-slate-500"
                     >
                       No journal entries found.
                     </td>
@@ -1685,10 +1685,10 @@ export default async function ReportsPage({
                       : null;
                     return (
                       <tr key={entry.id}>
-                        <td className="px-5 py-4 font-semibold text-slate-700">
+                        <td className="px-2 py-4 sm:px-5 font-semibold text-slate-700">
                           {formatDate(entry.journal_date)}
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-2 py-4 sm:px-5">
                           <p className="font-bold text-slate-950">
                             {assignmentTitle(assignment)}
                           </p>
@@ -1696,10 +1696,10 @@ export default async function ReportsPage({
                             {assignment?.control_number || "—"}
                           </p>
                         </td>
-                        <td className="px-5 py-4 font-semibold text-slate-700">
+                        <td className="px-2 py-4 sm:px-5 font-semibold text-slate-700">
                           {entry.journal_type || "—"}
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-2 py-4 sm:px-5">
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${String(entry.status ?? "").toLowerCase() === "completed" ? "bg-green-50 text-green-700 ring-green-200" : "bg-amber-50 text-amber-700 ring-amber-200"}`}
                           >
@@ -1732,17 +1732,17 @@ export default async function ReportsPage({
             without profit is just busywork wearing a tie.
           </p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[950px] text-left text-sm">
+        <div className="w-full overflow-hidden">
+          <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-5 py-3 font-bold">Client</th>
-                <th className="px-5 py-3 text-right font-bold">Orders</th>
-                <th className="px-5 py-3 text-right font-bold">Revenue</th>
-                <th className="px-5 py-3 text-right font-bold">Expenses</th>
-                <th className="px-5 py-3 text-right font-bold">Mileage</th>
-                <th className="px-5 py-3 text-right font-bold">Balance</th>
-                <th className="px-5 py-3 text-right font-bold">Est. Profit</th>
+                <th className="hidden px-2 py-3 font-bold md:table-cell md:px-5">Client</th>
+                <th className="px-2 py-3 sm:px-5 text-right font-bold">Orders</th>
+                <th className="px-2 py-3 sm:px-5 text-right font-bold">Revenue</th>
+                <th className="px-2 py-3 sm:px-5 text-right font-bold">Expenses</th>
+                <th className="px-2 py-3 sm:px-5 text-right font-bold">Mileage</th>
+                <th className="hidden px-2 py-3 text-right font-bold sm:table-cell sm:px-5">Balance</th>
+                <th className="px-2 py-3 sm:px-5 text-right font-bold">Est. Profit</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -1750,7 +1750,7 @@ export default async function ReportsPage({
                 <tr>
                   <td
                     colSpan={7}
-                    className="px-5 py-8 text-center font-semibold text-slate-500"
+                    className="px-2 py-8 sm:px-5 text-center font-semibold text-slate-500"
                   >
                     No client performance data found.
                   </td>
@@ -1763,22 +1763,22 @@ export default async function ReportsPage({
                     row.income - row.expenses - clientMileageDeduction;
                   return (
                     <tr key={`profit-${row.name}`}>
-                      <td className="px-5 py-4 font-bold text-slate-950">
+                      <td className="px-2 py-4 sm:px-5 font-bold text-slate-950">
                         {row.name}
                       </td>
-                      <td className="px-5 py-4 text-right font-semibold text-slate-700">
+                      <td className="px-2 py-4 sm:px-5 text-right font-semibold text-slate-700">
                         {row.orders}
                       </td>
-                      <td className="px-5 py-4 text-right font-black text-slate-950">
+                      <td className="px-2 py-4 sm:px-5 text-right font-black text-slate-950">
                         {money(row.income)}
                       </td>
-                      <td className="px-5 py-4 text-right font-bold text-red-700">
+                      <td className="px-2 py-4 sm:px-5 text-right font-bold text-red-700">
                         {money(row.expenses)}
                       </td>
-                      <td className="px-5 py-4 text-right font-semibold text-slate-700">
+                      <td className="px-2 py-4 sm:px-5 text-right font-semibold text-slate-700">
                         {row.miles.toFixed(2)}
                       </td>
-                      <td className="px-5 py-4 text-right font-bold text-amber-700">
+                      <td className="px-2 py-4 sm:px-5 text-right font-bold text-amber-700">
                         {money(row.balance)}
                       </td>
                       <td
