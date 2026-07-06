@@ -1148,13 +1148,14 @@ export default async function ReportsPage({
               >
                 View
               </a>
-              <button
-                type="button"
+              <a
+                href={`#${card.printTarget}`}
                 data-print-target={card.printTarget}
-                className="inline-flex w-full justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 sm:w-auto"
+                role="button"
+                className="relative z-10 inline-flex w-full cursor-pointer justify-center rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950 sm:w-auto"
               >
                 Print
-              </button>
+              </a>
             </div>
           </div>
         ))}
@@ -2330,7 +2331,6 @@ export default async function ReportsPage({
         dangerouslySetInnerHTML={{
           __html: `
             (function () {
-              if (window.__insProReportsReady) return;
               window.__insProReportsReady = true;
 
               function escapeHtml(value) {
@@ -2492,14 +2492,18 @@ export default async function ReportsPage({
                 }
 
                 var title = source.getAttribute('data-print-title') || 'INS Pro Report';
-                var clone = cleanClone(source.cloneNode(true));
-                clone.classList.add('report-page');
-
                 var reportWindow = window.open('about:blank', '_blank');
                 if (!reportWindow) {
                   alert('Your browser blocked the report window. Allow pop-ups for this site and try again.');
                   return;
                 }
+
+                reportWindow.document.open();
+                reportWindow.document.write('<!doctype html><html><head><title>' + escapeHtml(title) + '</title></head><body style="font-family:Arial;padding:24px;color:#0f172a"><h2>Building report...</h2><p>Please wait.</p></body></html>');
+                reportWindow.document.close();
+
+                var clone = cleanClone(source.cloneNode(true));
+                clone.classList.add('report-page');
 
                 var generatedAt = new Date().toLocaleString();
                 var receipts = receiptPageHtml(clone);
@@ -2516,14 +2520,22 @@ export default async function ReportsPage({
 
               window.__openInsProReport = openReport;
 
+              function handleReportClick(event) {
+                var target = event.target;
+                if (!target || !target.closest) return;
+                var button = target.closest('[data-print-target]');
+                if (!button) return;
+                event.preventDefault();
+                event.stopPropagation();
+                openReport(button.getAttribute('data-print-target'));
+                return false;
+              }
+
               function wireButtons() {
                 document.querySelectorAll('[data-print-target]').forEach(function (button) {
-                  button.onclick = function (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    openReport(button.getAttribute('data-print-target'));
-                    return false;
-                  };
+                  button.style.pointerEvents = 'auto';
+                  button.style.cursor = 'pointer';
+                  button.onclick = handleReportClick;
                 });
               }
 
@@ -2533,13 +2545,12 @@ export default async function ReportsPage({
                 wireButtons();
               }
 
-              document.addEventListener('click', function (event) {
-                var button = event.target.closest && event.target.closest('[data-print-target]');
-                if (!button) return;
-                event.preventDefault();
-                event.stopPropagation();
-                openReport(button.getAttribute('data-print-target'));
-              }, true);
+              window.setTimeout(wireButtons, 250);
+              window.setTimeout(wireButtons, 1000);
+              window.setTimeout(wireButtons, 2500);
+
+              document.addEventListener('pointerdown', handleReportClick, true);
+              document.addEventListener('click', handleReportClick, true);
             })();
           `,
         }}
