@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../../src/lib/supabase-server";
 import { supabaseAdmin } from "../../../../src/lib/supabase-admin";
 
+//
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
