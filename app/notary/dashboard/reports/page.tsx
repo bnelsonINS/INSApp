@@ -37,6 +37,14 @@ type AssignmentRow = {
   loan_type?: string | null;
   product_type?: string | null;
   client_id: string | null;
+  client_name?: string | null;
+  client_full_name?: string | null;
+  client_email?: string | null;
+  client_company_name?: string | null;
+  client_business_name?: string | null;
+  company_name?: string | null;
+  business_name?: string | null;
+  client?: ProfileRow | null;
   created_at: string | null;
 };
 
@@ -563,6 +571,40 @@ export default async function ReportsPage({
     assignments.map((assignment) => [assignment.id, assignment]),
   );
 
+  function resolvedClientNameForAssignment(
+    assignment: AssignmentRow | null | undefined,
+  ) {
+    if (!assignment) return "No Client Listed";
+
+    const profileName = assignment.client_id
+      ? clientName(clientById.get(assignment.client_id))
+      : "";
+
+    if (profileName && profileName !== "—") return profileName;
+
+    const directClientName =
+      assignment.client_company_name ||
+      assignment.client_business_name ||
+      assignment.client_name ||
+      assignment.client_full_name ||
+      assignment.client?.company_name ||
+      assignment.client?.business_name ||
+      assignment.client?.company ||
+      assignment.client?.organization_name ||
+      assignment.client?.full_name ||
+      assignment.client_email ||
+      assignment.client?.email ||
+      assignment.company_name ||
+      assignment.business_name ||
+      "";
+
+    if (directClientName) return directClientName;
+
+    if (assignment.client_id) return "Client Not Found";
+
+    return `No Client Listed - ${assignmentTitle(assignment)}`;
+  }
+
   const invoicesQuery = supabaseAdmin
     .from("assignment_invoices")
     .select("*")
@@ -777,17 +819,9 @@ export default async function ReportsPage({
   >();
 
   for (const assignment of assignments) {
-    const profileName = assignment.client_id
-      ? clientName(clientById.get(assignment.client_id))
-      : "";
     const key = assignment.client_id || assignment.id;
     const existing = clientTotals.get(key) ?? {
-      name:
-        profileName && profileName !== "—"
-          ? profileName
-          : assignment.client_id
-            ? assignmentTitle(assignment)
-            : `No Client Listed - ${assignmentTitle(assignment)}`,
+      name: resolvedClientNameForAssignment(assignment),
       orders: 0,
       income: 0,
       paid: 0,
@@ -804,19 +838,9 @@ export default async function ReportsPage({
     const assignment = invoice.assignment_id
       ? assignmentById.get(invoice.assignment_id)
       : null;
-    const profileName = assignment?.client_id
-      ? clientName(clientById.get(assignment.client_id))
-      : "";
     const key = assignment?.client_id || assignment?.id || invoice.assignment_id || "unknown";
     const existing = clientTotals.get(key) ?? {
-      name:
-        profileName && profileName !== "—"
-          ? profileName
-          : assignment
-            ? assignment.client_id
-              ? assignmentTitle(assignment)
-              : `No Client Listed - ${assignmentTitle(assignment)}`
-            : "No Client Listed",
+      name: resolvedClientNameForAssignment(assignment),
       orders: 0,
       income: 0,
       paid: 0,
@@ -1133,18 +1157,7 @@ export default async function ReportsPage({
           ),
         );
       const firstAssignment = customerAssignments[0];
-      const profileName =
-        firstAssignment?.client_id
-          ? clientName(clientById.get(firstAssignment.client_id))
-          : "";
-      const name =
-        profileName && profileName !== "—"
-          ? profileName
-          : firstAssignment
-            ? firstAssignment.client_id
-              ? assignmentTitle(firstAssignment)
-              : `No Client Listed - ${assignmentTitle(firstAssignment)}`
-            : "No Client Listed";
+      const name = resolvedClientNameForAssignment(firstAssignment);
 
       return {
         clientId,
