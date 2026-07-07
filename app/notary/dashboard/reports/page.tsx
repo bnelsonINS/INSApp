@@ -2280,13 +2280,22 @@ export default async function ReportsPage({
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/notary/dashboard"
-              className="rounded-xl bg-white px-5 py-3 text-center text-sm font-bold text-[#0B1F4D] shadow-sm transition hover:bg-slate-100"
-            >
-              Back to Dashboard
-            </Link>
-          </div>
+  <Link
+    href="/notary/dashboard/reports/custom"
+    target="_blank"
+    rel="noreferrer"
+    className="rounded-xl bg-white px-5 py-3 text-center text-sm font-black text-[#0B1F4D] shadow-sm transition hover:bg-slate-100"
+  >
+    Custom Reports
+  </Link>
+
+  <Link
+    href="/notary/dashboard"
+    className="rounded-xl border border-white/30 px-5 py-3 text-center text-sm font-bold text-white transition hover:bg-white/10"
+  >
+    Back to Dashboard
+  </Link>
+</div>
         </div>
       </section>
 
