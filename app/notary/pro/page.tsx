@@ -651,14 +651,14 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
   <div className="flex flex-col gap-3 sm:flex-row">
     <Link
       href="/notary/pro/jobs/new"
-      className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-center text-sm font-black text-white transition hover:bg-blue-950"
+      className="rounded-xl bg-[#0B1F4D] px-5 py-2.5 text-center text-sm font-black text-white transition hover:bg-blue-950"
     >
       + New Signing
     </Link>
 
     <Link
       href="/notary/pro/customers/new"
-      className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-black text-slate-700 transition hover:bg-slate-50"
+      className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-center text-sm font-black text-slate-700 transition hover:bg-slate-50"
     >
       + New Customer
     </Link>
@@ -873,7 +873,7 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
               />
             </div>
 
-            <div className="mt-6 grid h-72 grid-cols-12 items-end gap-2 border-b border-slate-200 px-2">
+            <div className="mt-3 grid h-72 grid-cols-12 items-end gap-2 border-b border-slate-200 px-2">
               {monthlyCounts.map((count, index) => {
                 const barHeight =
                   count > 0 ? Math.max((count / maxMonthCount) * 220, 28) : 0;
@@ -961,7 +961,7 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
 
             <Link
               href={`/notary/pro?filter=upcoming&timeframe=${activeTimeFrame}`}
-              className="mt-4 block rounded-xl px-4 py-3 text-center text-sm font-black text-blue-700 transition hover:bg-blue-50"
+              className="mt-4 block rounded-xl px-4 py-2.5 text-center text-sm font-black text-blue-700 transition hover:bg-blue-50"
             >
               View All Alerts
             </Link>
@@ -982,7 +982,7 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
 
               <Link
                 href={`/notary/pro?filter=upcoming&timeframe=${activeTimeFrame}`}
-                className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-center text-sm font-black text-white transition hover:bg-blue-950"
+                className="rounded-xl bg-[#0B1F4D] px-5 py-2.5 text-center text-sm font-black text-white transition hover:bg-blue-950"
               >
                 View All
               </Link>
@@ -997,13 +997,13 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
                 <table className="w-full min-w-[850px] text-left text-sm">
                   <thead className="bg-slate-50 text-xs font-black uppercase tracking-wide text-slate-400">
                     <tr>
-                      <th className="px-5 py-3">Borrower</th>
-                      <th className="px-5 py-3">Control #</th>
-                      <th className="px-5 py-3">Type</th>
-                      <th className="px-5 py-3">Date & Time</th>
-                      <th className="px-5 py-3">Location</th>
-                      <th className="px-5 py-3 text-right">Fee</th>
-                      <th className="px-5 py-3" />
+                      <th className="px-5 py-2.5">Borrower</th>
+                      <th className="px-5 py-2.5">Control #</th>
+                      <th className="px-5 py-2.5">Type</th>
+                      <th className="px-5 py-2.5">Date & Time</th>
+                      <th className="px-5 py-2.5">Location</th>
+                      <th className="px-5 py-2.5 text-right">Fee</th>
+                      <th className="px-5 py-2.5" />
                     </tr>
                   </thead>
 
