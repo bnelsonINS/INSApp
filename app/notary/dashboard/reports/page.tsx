@@ -777,11 +777,17 @@ export default async function ReportsPage({
   >();
 
   for (const assignment of assignments) {
-    const key = assignment.client_id || "unknown";
+    const profileName = assignment.client_id
+      ? clientName(clientById.get(assignment.client_id))
+      : "";
+    const key = assignment.client_id || assignment.id;
     const existing = clientTotals.get(key) ?? {
-      name: assignment.client_id
-        ? clientName(clientById.get(assignment.client_id))
-        : "No Client Listed",
+      name:
+        profileName && profileName !== "—"
+          ? profileName
+          : assignment.client_id
+            ? assignmentTitle(assignment)
+            : `No Client Listed - ${assignmentTitle(assignment)}`,
       orders: 0,
       income: 0,
       paid: 0,
@@ -798,11 +804,19 @@ export default async function ReportsPage({
     const assignment = invoice.assignment_id
       ? assignmentById.get(invoice.assignment_id)
       : null;
-    const key = assignment?.client_id || "unknown";
+    const profileName = assignment?.client_id
+      ? clientName(clientById.get(assignment.client_id))
+      : "";
+    const key = assignment?.client_id || assignment?.id || invoice.assignment_id || "unknown";
     const existing = clientTotals.get(key) ?? {
-      name: assignment?.client_id
-        ? clientName(clientById.get(assignment.client_id))
-        : "No Client Listed",
+      name:
+        profileName && profileName !== "—"
+          ? profileName
+          : assignment
+            ? assignment.client_id
+              ? assignmentTitle(assignment)
+              : `No Client Listed - ${assignmentTitle(assignment)}`
+            : "No Client Listed",
       orders: 0,
       income: 0,
       paid: 0,
@@ -821,7 +835,7 @@ export default async function ReportsPage({
     const assignment = expense.assignment_id
       ? assignmentById.get(expense.assignment_id)
       : null;
-    const key = assignment?.client_id || "unknown";
+    const key = assignment?.client_id || assignment?.id || expense.assignment_id || "unknown";
     const existing = clientTotals.get(key);
     if (existing) existing.expenses += numberValue(expense.amount);
   }
@@ -830,7 +844,7 @@ export default async function ReportsPage({
     const assignment = row.assignment_id
       ? assignmentById.get(row.assignment_id)
       : null;
-    const key = assignment?.client_id || "unknown";
+    const key = assignment?.client_id || assignment?.id || row.assignment_id || "unknown";
     const existing = clientTotals.get(key);
     if (existing) existing.miles += numberValue(row.miles);
   }
@@ -1108,21 +1122,29 @@ export default async function ReportsPage({
     : 0;
 
   const salesClientDetailRows = Array.from(
-    new Set(assignments.map((assignment) => assignment.client_id || "unknown")),
+    new Set(assignments.map((assignment) => assignment.client_id || assignment.id)),
   )
     .map((clientId) => {
       const customerAssignments = assignments
-        .filter((assignment) => (assignment.client_id || "unknown") === clientId)
+        .filter((assignment) => (assignment.client_id || assignment.id) === clientId)
         .sort((a, b) =>
           String(b.signing_date ?? "").localeCompare(
             String(a.signing_date ?? ""),
           ),
         );
       const firstAssignment = customerAssignments[0];
+      const profileName =
+        firstAssignment?.client_id
+          ? clientName(clientById.get(firstAssignment.client_id))
+          : "";
       const name =
-        clientId === "unknown"
-          ? "No Client Listed"
-          : clientName(clientById.get(clientId));
+        profileName && profileName !== "—"
+          ? profileName
+          : firstAssignment
+            ? firstAssignment.client_id
+              ? assignmentTitle(firstAssignment)
+              : `No Client Listed - ${assignmentTitle(firstAssignment)}`
+            : "No Client Listed";
 
       return {
         clientId,
@@ -2699,7 +2721,10 @@ export default async function ReportsPage({
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
                   <th className="hidden px-2 py-3 font-bold md:table-cell md:px-5">
-                    Client
+                    Client / Assignment
+                  </th>
+                  <th className="hidden px-2 py-3 font-bold lg:table-cell lg:px-5">
+                    Attached Assignment
                   </th>
                   <th className="px-2 py-3 sm:px-5 text-right font-bold">
                     Orders
@@ -2723,17 +2748,40 @@ export default async function ReportsPage({
                 {clientRows.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       className="px-2 py-8 sm:px-5 text-center text-sm font-semibold text-slate-500"
                     >
                       No client revenue found for this filter.
                     </td>
                   </tr>
                 ) : (
-                  clientRows.map((row) => (
+                  clientRows.map((row) => {
+                    const matchingDetail = salesClientDetailRows.find(
+                      (detail) => detail.name === row.name,
+                    );
+                    const primaryAssignment = matchingDetail?.firstAssignment ?? null;
+
+                    return (
                     <tr key={row.name}>
                       <td className="px-2 py-4 sm:px-5 font-bold text-slate-950">
                         {row.name}
+                      </td>
+                      <td className="hidden px-2 py-4 font-semibold text-slate-700 lg:table-cell lg:px-5">
+                        {primaryAssignment ? (
+                          <Link
+                            href={`/notary/assignments/${primaryAssignment.id}`}
+                            className="font-black text-blue-700 hover:underline"
+                          >
+                            {assignmentTitle(primaryAssignment)}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                        {primaryAssignment?.control_number && (
+                          <p className="mt-1 text-xs font-semibold text-slate-500">
+                            Order #: {primaryAssignment.control_number}
+                          </p>
+                        )}
                       </td>
                       <td className="px-2 py-4 sm:px-5 text-right font-semibold text-slate-700">
                         {row.orders}
@@ -2754,7 +2802,8 @@ export default async function ReportsPage({
                         <Bar value={row.income} max={maxClientIncome} />
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
