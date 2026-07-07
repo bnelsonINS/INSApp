@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../src/lib/supabase-server";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -260,6 +261,13 @@ export default async function NotaryDashboardPage() {
 
   if (!user) redirect("/login");
 
+  const { count: pendingImportCount } = await supabase
+  .from("pro_import_drafts")
+  .select("id", { count: "exact", head: true })
+  .eq("notary_id", user.id)
+  .eq("status", "pending_review");
+  
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("email, full_name, role, is_active, approval_status")
@@ -388,6 +396,33 @@ export default async function NotaryDashboardPage() {
 
   return (
     <main className="space-y-6 bg-slate-50 p-4 sm:p-6">
+      {(pendingImportCount ?? 0) > 0 && (
+  <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
+    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <div>
+        <p className="text-sm font-black uppercase tracking-wide text-blue-700">
+          Imported Jobs Ready for Review
+        </p>
+
+        <h2 className="mt-1 text-xl font-black text-slate-950">
+          You have {pendingImportCount} imported{" "}
+          {pendingImportCount === 1 ? "job" : "jobs"} waiting for review.
+        </h2>
+
+        <p className="mt-2 text-sm text-slate-600">
+          Review the imported information before creating the job.
+        </p>
+      </div>
+
+      <Link
+        href="/notary/pro/imports"
+        className="inline-flex rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-black text-white hover:bg-blue-950"
+      >
+        Review Imports
+      </Link>
+    </div>
+  </section>
+)}
       <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
         <div className="flex flex-col justify-between gap-5 p-6 md:flex-row md:items-center">
           <div>
