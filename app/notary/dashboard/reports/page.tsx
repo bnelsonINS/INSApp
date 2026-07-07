@@ -37,6 +37,21 @@ type AssignmentRow = {
   loan_type?: string | null;
   product_type?: string | null;
   client_id: string | null;
+  title_company_name?: string | null;
+  title_company?: string | null;
+  client_company?: string | null;
+  title_contact_name?: string | null;
+  title_company_contact?: string | null;
+  client_contact_name?: string | null;
+  contact_name?: string | null;
+  escrow_officer?: string | null;
+  title_company_email?: string | null;
+  title_contact_email?: string | null;
+  contact_email?: string | null;
+  title_company_phone?: string | null;
+  title_contact_phone?: string | null;
+  client_phone?: string | null;
+  contact_phone?: string | null;
   client_name?: string | null;
   client_full_name?: string | null;
   client_email?: string | null;
@@ -583,10 +598,15 @@ export default async function ReportsPage({
     if (profileName && profileName !== "—") return profileName;
 
     const directClientName =
+      assignment.title_company_name ||
+      assignment.title_company ||
+      assignment.company_name ||
+      assignment.client_company ||
       assignment.client_company_name ||
       assignment.client_business_name ||
       assignment.client_name ||
       assignment.client_full_name ||
+      assignment.business_name ||
       assignment.client?.company_name ||
       assignment.client?.business_name ||
       assignment.client?.company ||
@@ -594,8 +614,6 @@ export default async function ReportsPage({
       assignment.client?.full_name ||
       assignment.client_email ||
       assignment.client?.email ||
-      assignment.company_name ||
-      assignment.business_name ||
       "";
 
     if (directClientName) return directClientName;
@@ -603,6 +621,17 @@ export default async function ReportsPage({
     if (assignment.client_id) return "Client Not Found";
 
     return `No Client Listed - ${assignmentTitle(assignment)}`;
+  }
+
+  function clientLabelForClientId(clientId: string) {
+    const directProfileName = clientName(clientById.get(clientId));
+    if (directProfileName && directProfileName !== "—") return directProfileName;
+
+    const matchingAssignment = assignments.find(
+      (assignment) => assignment.client_id === clientId,
+    );
+
+    return resolvedClientNameForAssignment(matchingAssignment);
   }
 
   const invoicesQuery = supabaseAdmin
@@ -1446,7 +1475,7 @@ export default async function ReportsPage({
                       {selectedRange.label} •{" "}
                       {selectedClient === "all"
                         ? "All Customers"
-                        : clientName(clientById.get(selectedClient))}
+                        : clientLabelForClientId(selectedClient)}
                     </p>
                   </div>
 
@@ -2324,7 +2353,7 @@ export default async function ReportsPage({
                 <option value="all">All Clients</option>
                 {clientIds.map((clientId) => (
                   <option key={clientId} value={clientId}>
-                    {clientName(clientById.get(clientId))}
+                    {clientLabelForClientId(clientId)}
                   </option>
                 ))}
               </select>
@@ -3070,7 +3099,7 @@ export default async function ReportsPage({
                         </p>
                       </td>
                       <td className="hidden px-2 py-4 font-semibold text-slate-700 md:table-cell md:px-5">
-                        {clientName(client)}
+                        {resolvedClientNameForAssignment(assignment)}
                       </td>
                       <td className="hidden px-2 py-4 font-semibold text-slate-700 sm:table-cell sm:px-5">
                         {formatDate(invoice.due_date)}
