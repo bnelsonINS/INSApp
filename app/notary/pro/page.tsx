@@ -445,6 +445,16 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
     }
   });
 
+  const hasProfileAttention = missingProfileItems.length > 0;
+  const hasCredentialAttention =
+    missingCredentialItems.length > 0 || credentialAlerts.length > 0;
+
+  const attentionDescription = hasProfileAttention && hasCredentialAttention
+    ? "Complete missing profile details and review required credentials before taking assignments."
+    : hasProfileAttention
+      ? "Complete missing profile details before taking assignments."
+      : "Upload missing credentials or review expiring credentials before taking assignments.";
+
   const { data: assignments } = await supabase
     .from("assignments")
     .select("*")
@@ -674,8 +684,7 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
                 </h2>
 
                 <p className="mt-1 max-w-4xl text-sm text-slate-600">
-                  Complete missing profile details, upload required credentials,
-                  or review expiring credentials before taking assignments.
+                  {attentionDescription}
                 </p>
 
                 <div className="mt-3 grid gap-3 md:grid-cols-3">
@@ -730,7 +739,7 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
               </div>
 
               <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
-                {missingProfileItems.length > 0 && (
+                {hasProfileAttention && (
                   <Link
                     href="/notary/profile"
                     className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-center text-sm font-black text-slate-700 transition hover:bg-slate-50"
@@ -739,7 +748,7 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
                   </Link>
                 )}
 
-                {(missingCredentialItems.length > 0 || credentialAlerts.length > 0) && (
+                {hasCredentialAttention && (
                   <Link
                     href="/notary/credentials"
                     className="rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-center text-sm font-black text-white transition hover:bg-blue-950"
