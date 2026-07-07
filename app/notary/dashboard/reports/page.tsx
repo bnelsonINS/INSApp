@@ -1901,13 +1901,14 @@ export default async function ReportsPage({
                         <th className="border border-blue-950 p-3 text-left font-black">Date</th>
                         <th className="border border-blue-950 p-3 text-right font-black">Miles</th>
                         <th className="border border-blue-950 p-3 text-right font-black">Amount</th>
+                        <th className="border border-blue-950 p-3 text-left font-black">Assignment</th>
                         <th className="border border-blue-950 p-3 text-left font-black">Description</th>
                       </tr>
                     </thead>
                     <tbody>
                       {mileage.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="border p-6 text-center font-semibold text-slate-500">
+                          <td colSpan={5} className="border p-6 text-center font-semibold text-slate-500">
                             No mileage entries found for this report period.
                           </td>
                         </tr>
@@ -1922,6 +1923,23 @@ export default async function ReportsPage({
                               <td className="border p-3 font-semibold text-slate-700">{formatDate(row.mileage_date)}</td>
                               <td className="border p-3 text-right font-bold text-slate-950">{numberValue(row.miles).toFixed(2)} mi</td>
                               <td className="border p-3 text-right font-black text-slate-950">{money(deduction)}</td>
+                              <td className="border p-3 font-semibold text-slate-700">
+                                {assignment ? (
+                                  <Link
+                                    href={`/notary/assignments/${assignment.id}`}
+                                    className="font-black text-blue-700 hover:underline"
+                                  >
+                                    {assignmentTitle(assignment)}
+                                  </Link>
+                                ) : (
+                                  assignmentTitle(assignment)
+                                )}
+                                {assignment?.control_number && (
+                                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                                    Order #: {assignment.control_number}
+                                  </p>
+                                )}
+                              </td>
                               <td className="border p-3 font-semibold text-slate-700">{description}</td>
                             </tr>
                           );
@@ -2520,7 +2538,16 @@ export default async function ReportsPage({
                                         </td>
                                         <td className="px-3 py-2">
                                           <p className="font-bold text-slate-900">
-                                            {assignmentTitle(assignment)}
+                                            {assignment ? (
+                                              <Link
+                                                href={`/notary/assignments/${assignment.id}`}
+                                                className="font-black text-blue-700 hover:underline"
+                                              >
+                                                {assignmentTitle(assignment)}
+                                              </Link>
+                                            ) : (
+                                              assignmentTitle(assignment)
+                                            )}
                                           </p>
                                           <p className="text-slate-500">
                                             {assignment?.control_number || "—"}
@@ -2817,6 +2844,7 @@ export default async function ReportsPage({
                 <th className="w-[18%] px-3 py-3 font-black sm:px-5">Date</th>
                 <th className="w-[14%] px-3 py-3 text-right font-black sm:px-5">Miles</th>
                 <th className="w-[16%] px-3 py-3 text-right font-black sm:px-5">Amount</th>
+                <th className="w-[24%] px-3 py-3 font-black sm:px-5">Assignment</th>
                 <th className="px-3 py-3 font-black sm:px-5">Description</th>
               </tr>
             </thead>
@@ -2824,7 +2852,7 @@ export default async function ReportsPage({
               {mileage.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="px-3 py-8 text-center font-semibold text-slate-500 sm:px-5"
                   >
                     No mileage found.
@@ -2855,12 +2883,24 @@ export default async function ReportsPage({
                         {money(deduction)}
                       </td>
                       <td className="px-3 py-4 font-semibold text-slate-700 sm:px-5">
-                        {description}
+                        {assignment ? (
+                          <Link
+                            href={`/notary/assignments/${assignment.id}`}
+                            className="font-black text-blue-700 hover:underline"
+                          >
+                            {assignmentTitle(assignment)}
+                          </Link>
+                        ) : (
+                          assignmentTitle(assignment)
+                        )}
                         {assignment?.control_number && (
                           <p className="mt-1 text-xs font-semibold text-slate-500">
                             Order #: {assignment.control_number}
                           </p>
                         )}
+                      </td>
+                      <td className="px-3 py-4 font-semibold text-slate-700 sm:px-5">
+                        {description}
                       </td>
                     </tr>
                   );
