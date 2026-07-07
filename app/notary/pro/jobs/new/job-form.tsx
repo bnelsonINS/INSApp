@@ -111,12 +111,12 @@ function SelectField({
 function CustomerField({ customers }: { customers: ProCustomer[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<ProCustomer | null>(
-    null
+    null,
   );
   const [search, setSearch] = useState("");
 
   const filteredCustomers = customers.filter((customer) =>
-    customer.company.toLowerCase().includes(search.toLowerCase())
+    customer.company.toLowerCase().includes(search.toLowerCase()),
   );
 
   function closeModal() {
@@ -131,9 +131,7 @@ function CustomerField({ customers }: { customers: ProCustomer[] }) {
 
   return (
     <div className="block">
-      <span className="text-sm font-bold text-slate-700">
-        Client / Company
-      </span>
+      <span className="text-sm font-bold text-slate-700">Client / Company</span>
 
       <input
         type="hidden"
@@ -151,7 +149,9 @@ function CustomerField({ customers }: { customers: ProCustomer[] }) {
         onClick={() => setIsOpen(true)}
         className="mt-2 flex w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-950 hover:bg-slate-50 focus:border-[#0B1F4D] focus:outline-none focus:ring-2 focus:ring-blue-100"
       >
-        <span className={selectedCustomer ? "text-slate-950" : "text-slate-400"}>
+        <span
+          className={selectedCustomer ? "text-slate-950" : "text-slate-400"}
+        >
           {selectedCustomer?.company ?? "Select Client / Company"}
         </span>
 
@@ -228,10 +228,10 @@ function CustomerField({ customers }: { customers: ProCustomer[] }) {
                           <p className="mt-1 text-xs font-bold text-slate-400">
                             Default fee: $
                             {Number(customer.default_signing_fee ?? 0).toFixed(
-                              2
+                              2,
                             )}{" "}
-                            · Terms:{" "}
-                            {customer.default_payment_terms_days ?? 0} days
+                            · Terms: {customer.default_payment_terms_days ?? 0}{" "}
+                            days
                           </p>
                         </div>
 
@@ -280,7 +280,7 @@ function ChoiceField({
   const options = choices
     .filter((choice) => choice.category === category)
     .filter((choice) =>
-      choice.value.toLowerCase().includes(search.toLowerCase())
+      choice.value.toLowerCase().includes(search.toLowerCase()),
     );
 
   function closeModal() {
@@ -487,8 +487,8 @@ export default function JobForm({ choices, customers }: Props) {
       className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
     >
       <div className="border-b border-slate-200 bg-white px-4 pt-4 sm:px-5 sm:pt-5">
-  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-    {tabs.map((tab) => (
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          {tabs.map((tab) => (
             <button
               key={tab}
               type="button"
@@ -506,264 +506,256 @@ export default function JobForm({ choices, customers }: Props) {
       </div>
 
       <div className="p-5 sm:p-6">
-        {activeTab === "Signing Details" && (
-          <section className="space-y-5">
-            <h2 className="text-xl font-black text-slate-950">
-              Signing Details
-            </h2>
+        <section
+          className={`space-y-5 ${activeTab === "Signing Details" ? "" : "hidden"}`}
+        >
+          <h2 className="text-xl font-black text-slate-950">Signing Details</h2>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field
-                label="Borrower Name"
-                name="borrower_name"
-                required
-                placeholder="John Smith"
-              />
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field
+              label="Borrower Name"
+              name="borrower_name"
+              required
+              placeholder="John Smith"
+            />
 
-              <CustomerField customers={customers} />
+            <CustomerField customers={customers} />
 
-              <ChoiceField
-                label="Signing Type"
-                name="signing_type"
-                category="signing_type"
-                choices={choices}
-                placeholder="Refinance"
-              />
+            <ChoiceField
+              label="Signing Type"
+              name="signing_type"
+              category="signing_type"
+              choices={choices}
+              placeholder="Refinance"
+            />
 
-              <SelectField
-                label="Status"
-                name="status"
-                defaultValue="scheduled"
-                options={["scheduled", "confirmed", "completed", "cancelled"]}
-              />
+            <SelectField
+              label="Status"
+              name="status"
+              defaultValue="scheduled"
+              options={["scheduled", "confirmed", "completed", "cancelled"]}
+            />
 
-              <Field label="Signing Date" name="signing_date" type="date" />
-              <Field label="Signing Time" name="signing_time" type="time" />
-
-              <label className="block">
-                <span className="text-sm font-bold text-slate-700">
-                  Signing Duration
-                </span>
-                <select
-                  name="signing_duration_minutes"
-                  defaultValue="60"
-                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950"
-                >
-                  {durationOptions().map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-bold text-slate-700">
-                  Signing Reminder
-                </span>
-                <select
-                  name="signing_reminder_minutes"
-                  defaultValue=""
-                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950"
-                >
-                  {reminderOptions().map((option) => (
-                    <option key={option.value || "none"} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="mb-3 text-sm font-black text-slate-900">
-                Appointment Options
-              </p>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                {[
-                  ["add_to_google_calendar", "Add to Google Calendar"],
-                  [
-                    "add_to_phone_calendar_email",
-                    "Add to phone/calendar via email",
-                  ],
-                  ["send_email_reminder", "Send email reminder"],
-                  ["send_text_reminder", "Send text reminder"],
-                ].map(([checkboxName, checkboxLabel]) => (
-                  <label
-                    key={checkboxName}
-                    className="flex items-center gap-3 text-sm font-bold text-slate-700"
-                  >
-                    <input
-                      name={checkboxName}
-                      type="checkbox"
-                      className="h-4 w-4"
-                    />
-                    {checkboxLabel}
-                  </label>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {activeTab === "Signers" && (
-          <section className="space-y-5">
-            <h2 className="text-xl font-black text-slate-950">Signers</h2>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Signer First" name="signer_first_name" />
-              <Field label="Signer Last" name="signer_last_name" />
-              <Field label="Company" name="signer_company" />
-              <Field label="Phone #" name="signer_phone" />
-              <Field label="Email" name="signer_email" type="email" />
-            </div>
-
-            <div className="flex flex-wrap gap-3 text-sm font-black text-blue-700">
-              <button type="button">+ Add 2nd Signer</button>
-              <button type="button">+ Add 3rd Signer</button>
-              <button type="button">+ Add 4th Signer</button>
-            </div>
-          </section>
-        )}
-
-        {activeTab === "Location" && (
-          <section className="space-y-5">
-            <h2 className="text-xl font-black text-slate-950">Location</h2>
-
-            <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2">
-              <label className="flex items-center gap-3 text-sm font-bold text-slate-700">
-                <input name="ron_signing" type="checkbox" className="h-4 w-4" />
-                Remote online notarization
-              </label>
-
-              <label className="flex items-center gap-3 text-sm font-bold text-slate-700">
-                <input
-                  name="ipen_signing"
-                  type="checkbox"
-                  className="h-4 w-4"
-                />
-                IPEN signing
-              </label>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-4">
-              <div className="md:col-span-4">
-                <Field
-                  label="Signing Address"
-                  name="signing_address"
-                  placeholder="123 Main St"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <Field label="City" name="signing_city" />
-              </div>
-
-              <Field label="State" name="signing_state" defaultValue="IN" />
-              <Field label="ZIP" name="signing_zip" />
-            </div>
-
-            <div className="border-t border-slate-200 pt-5">
-              <h3 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-400">
-                Property Address
-              </h3>
-
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="md:col-span-4">
-                  <Field label="Property Address" name="property_address" />
-                </div>
-
-                <div className="md:col-span-2">
-                  <Field label="City" name="property_city" />
-                </div>
-
-                <Field label="State" name="property_state" defaultValue="IN" />
-                <Field label="ZIP" name="property_zip" />
-              </div>
-            </div>
-          </section>
-        )}
-
-        {activeTab === "Details" && (
-          <section className="space-y-5">
-            <h2 className="text-xl font-black text-slate-950">Details</h2>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <ChoiceField
-                label="Platform"
-                name="platform"
-                category="platform"
-                choices={choices}
-              />
-
-              <ChoiceField
-                label="Loan Type"
-                name="loan_type"
-                category="loan_type"
-                choices={choices}
-              />
-
-              <Field label="Order/Escrow #" name="order_escrow_number" />
-              <Field label="Tracking #" name="tracking_number" />
-
-              <ChoiceField
-                label="Signing Platform"
-                name="signing_platform"
-                category="signing_platform"
-                choices={choices}
-              />
-            </div>
+            <Field label="Signing Date" name="signing_date" type="date" />
+            <Field label="Signing Time" name="signing_time" type="time" />
 
             <label className="block">
               <span className="text-sm font-bold text-slate-700">
-                Special Instructions
+                Signing Duration
               </span>
-              <textarea
-                name="notes"
-                rows={6}
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950 placeholder:text-slate-400"
-              />
+              <select
+                name="signing_duration_minutes"
+                defaultValue="60"
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950"
+              >
+                {durationOptions().map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </label>
-          </section>
-        )}
 
-        {activeTab === "Payment" && (
-          <section className="space-y-5">
-            <h2 className="text-xl font-black text-slate-950">
-              Payment & Invoice
-            </h2>
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">
+                Signing Reminder
+              </span>
+              <select
+                name="signing_reminder_minutes"
+                defaultValue=""
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950"
+              >
+                {reminderOptions().map((option) => (
+                  <option key={option.value || "none"} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <Field label="Invoice #" name="invoice_number" />
-              <Field
-                label="Payment Terms Days"
-                name="payment_terms_days"
-                type="number"
-                defaultValue="0"
-              />
-              <Field label="Signing Fee" name="fee" type="number" />
-            </div>
-
-            <div className="rounded-2xl bg-blue-50 p-4 text-sm font-semibold text-blue-900">
-              Multiple amounts, invoice generation, and payment tracking are
-              next-phase features.
-            </div>
-          </section>
-        )}
-
-        {activeTab === "Review" && (
-          <section className="space-y-4">
-            <h2 className="text-xl font-black text-slate-950">
-              Review & Save
-            </h2>
-
-            <p className="text-sm text-slate-500">
-              Review each tab, then save the signing. This will create a manual
-              INS Pro job and keep it separate from INS assignments.
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <p className="mb-3 text-sm font-black text-slate-900">
+              Appointment Options
             </p>
-          </section>
-        )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                ["add_to_google_calendar", "Add to Google Calendar"],
+                [
+                  "add_to_phone_calendar_email",
+                  "Add to phone/calendar via email",
+                ],
+                ["send_email_reminder", "Send email reminder"],
+                ["send_text_reminder", "Send text reminder"],
+              ].map(([checkboxName, checkboxLabel]) => (
+                <label
+                  key={checkboxName}
+                  className="flex items-center gap-3 text-sm font-bold text-slate-700"
+                >
+                  <input
+                    name={checkboxName}
+                    type="checkbox"
+                    className="h-4 w-4"
+                  />
+                  {checkboxLabel}
+                </label>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          className={`space-y-5 ${activeTab === "Signers" ? "" : "hidden"}`}
+        >
+          <h2 className="text-xl font-black text-slate-950">Signers</h2>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Signer First" name="signer_first_name" />
+            <Field label="Signer Last" name="signer_last_name" />
+            <Field label="Company" name="signer_company" />
+            <Field label="Phone #" name="signer_phone" />
+            <Field label="Email" name="signer_email" type="email" />
+          </div>
+
+          <div className="flex flex-wrap gap-3 text-sm font-black text-blue-700">
+            <button type="button">+ Add 2nd Signer</button>
+            <button type="button">+ Add 3rd Signer</button>
+            <button type="button">+ Add 4th Signer</button>
+          </div>
+        </section>
+
+        <section
+          className={`space-y-5 ${activeTab === "Location" ? "" : "hidden"}`}
+        >
+          <h2 className="text-xl font-black text-slate-950">Location</h2>
+
+          <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2">
+            <label className="flex items-center gap-3 text-sm font-bold text-slate-700">
+              <input name="ron_signing" type="checkbox" className="h-4 w-4" />
+              Remote online notarization
+            </label>
+
+            <label className="flex items-center gap-3 text-sm font-bold text-slate-700">
+              <input name="ipen_signing" type="checkbox" className="h-4 w-4" />
+              IPEN signing
+            </label>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="md:col-span-4">
+              <Field
+                label="Signing Address"
+                name="signing_address"
+                placeholder="123 Main St"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <Field label="City" name="signing_city" />
+            </div>
+
+            <Field label="State" name="signing_state" defaultValue="IN" />
+            <Field label="ZIP" name="signing_zip" />
+          </div>
+
+          <div className="border-t border-slate-200 pt-5">
+            <h3 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-400">
+              Property Address
+            </h3>
+
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="md:col-span-4">
+                <Field label="Property Address" name="property_address" />
+              </div>
+
+              <div className="md:col-span-2">
+                <Field label="City" name="property_city" />
+              </div>
+
+              <Field label="State" name="property_state" defaultValue="IN" />
+              <Field label="ZIP" name="property_zip" />
+            </div>
+          </div>
+        </section>
+
+        <section
+          className={`space-y-5 ${activeTab === "Details" ? "" : "hidden"}`}
+        >
+          <h2 className="text-xl font-black text-slate-950">Details</h2>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <ChoiceField
+              label="Platform"
+              name="platform"
+              category="platform"
+              choices={choices}
+            />
+
+            <ChoiceField
+              label="Loan Type"
+              name="loan_type"
+              category="loan_type"
+              choices={choices}
+            />
+
+            <Field label="Order/Escrow #" name="order_escrow_number" />
+            <Field label="Tracking #" name="tracking_number" />
+
+            <ChoiceField
+              label="Signing Platform"
+              name="signing_platform"
+              category="signing_platform"
+              choices={choices}
+            />
+          </div>
+
+          <label className="block">
+            <span className="text-sm font-bold text-slate-700">
+              Special Instructions
+            </span>
+            <textarea
+              name="notes"
+              rows={6}
+              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950 placeholder:text-slate-400"
+            />
+          </label>
+        </section>
+
+        <section
+          className={`space-y-5 ${activeTab === "Payment" ? "" : "hidden"}`}
+        >
+          <h2 className="text-xl font-black text-slate-950">
+            Payment & Invoice
+          </h2>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <Field label="Invoice #" name="invoice_number" />
+            <Field
+              label="Payment Terms Days"
+              name="payment_terms_days"
+              type="number"
+              defaultValue="0"
+            />
+            <Field label="Signing Fee" name="fee" type="number" />
+          </div>
+
+          <div className="rounded-2xl bg-blue-50 p-4 text-sm font-semibold text-blue-900">
+            Multiple amounts, invoice generation, and payment tracking are
+            next-phase features.
+          </div>
+        </section>
+
+        <section
+          className={`space-y-4 ${activeTab === "Review" ? "" : "hidden"}`}
+        >
+          <h2 className="text-xl font-black text-slate-950">Review & Save</h2>
+
+          <p className="text-sm text-slate-500">
+            Review each tab, then save the signing. This will create a manual
+            INS Pro job and keep it separate from INS assignments.
+          </p>
+        </section>
       </div>
 
       <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50 p-5 sm:flex-row sm:justify-end">
