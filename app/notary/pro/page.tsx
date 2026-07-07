@@ -21,6 +21,28 @@ type Assignment = {
   scanbacks_required?: boolean | null;
 };
 
+type NotaryProfile = {
+  first_name: string | null;
+  last_name: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  commission_number: string | null;
+  commission_expiration: string | null;
+  home_phone: string | null;
+  mobile_phone: string | null;
+  accepts_text_messages: boolean | null;
+  accepts_email_notifications: boolean | null;
+};
+
+type Credential = {
+  credential_type: string | null;
+  status: string | null;
+  issue_date: string | null;
+  expiration_date: string | null;
+};
+
 type PageProps = {
   searchParams?: Promise<{
     filter?: string;
@@ -133,6 +155,142 @@ function jobMatchesTimeFrame(job: Assignment, timeFrame: string) {
   return job.signing_date.startsWith(String(today.getFullYear()));
 }
 
+function normalizeCredentialType(type: string | null) {
+  return (type ?? "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function isFilled(value: string | null | undefined) {
+  return Boolean(value && value.trim().length > 0);
+}
+
+function isExpired(date: string | null | undefined) {
+  if (!date) return true;
+
+  const expirationDate = new Date(`${date}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return expirationDate < today;
+}
+
+function hasCurrentCredential(
+  credentials: Credential[],
+  aliases: string[],
+  options?: { requiresExpiration?: boolean; w9YearMinimum?: number }
+) {
+  const normalizedAliases = aliases.map(normalizeCredentialType);
+
+  return credentials.some((credential) => {
+    const normalizedType = normalizeCredentialType(credential.credential_type);
+    const status = (credential.status ?? "").toLowerCase();
+
+    if (!normalizedAliases.includes(normalizedType)) return false;
+    if (status === "rejected" || status === "denied") return false;
+
+    if (options?.requiresExpiration && isExpired(credential.expiration_date)) {
+      return false;
+    }
+
+    if (options?.w9YearMinimum) {
+      const year = credential.issue_date
+        ? new Date(`${credential.issue_date}T00:00:00`).getFullYear()
+        : null;
+
+      if (year && year < options.w9YearMinimum) return false;
+    }
+
+    return true;
+  });
+}
+
+function buildMissingProfileItems(profile: NotaryProfile | null) {
+  const missingItems: string[] = [];
+
+  if (!isFilled(profile?.first_name)) missingItems.push("First Name");
+  if (!isFilled(profile?.last_name)) missingItems.push("Last Name");
+  if (!isFilled(profile?.address)) missingItems.push("Address");
+  if (!isFilled(profile?.city)) missingItems.push("City");
+  if (!isFilled(profile?.state)) missingItems.push("State");
+  if (!isFilled(profile?.zip)) missingItems.push("ZIP Code");
+
+  if (!isFilled(profile?.commission_number)) {
+    missingItems.push("Commission Number");
+  }
+
+  if (!isFilled(profile?.commission_expiration)) {
+    missingItems.push("Commission Expiration");
+  }
+
+  if (!isFilled(profile?.home_phone) && !isFilled(profile?.mobile_phone)) {
+    missingItems.push("Home Phone or Mobile Phone");
+  }
+
+  if (!profile?.accepts_text_messages && !profile?.accepts_email_notifications) {
+    missingItems.push("Accept Text Messages or Accept Email Notifications");
+  }
+
+  return missingItems;
+}
+
+function buildMissingCredentialItems(credentials: Credential[]) {
+  const requirements = [
+    {
+      label: "Non-expired Background Check",
+      aliases: ["background_check", "background check"],
+      requiresExpiration: true,
+    },
+    {
+      label: "E&O Insurance",
+      aliases: [
+        "eo_insurance",
+        "e_and_o_insurance",
+        "errors_and_omissions_insurance",
+        "e&o insurance",
+      ],
+      requiresExpiration: true,
+    },
+    {
+      label: "Notary Bond",
+      aliases: ["notary_bond", "bond", "notary bond"],
+      requiresExpiration: true,
+    },
+    {
+      label: "Notary Commission",
+      aliases: ["notary_commission", "commission", "notary commission"],
+      requiresExpiration: true,
+    },
+    {
+      label: "Title Producer License",
+      aliases: [
+        "title_producer_license",
+        "title producer license",
+        "title_license",
+        "title insurance producer license",
+      ],
+      requiresExpiration: true,
+    },
+    {
+      label: "W9, 2018 or newer",
+      aliases: ["w9", "w_9", "w-9"],
+      w9YearMinimum: 2018,
+    },
+  ];
+
+  return requirements
+    .filter(
+      (requirement) =>
+        !hasCurrentCredential(credentials, requirement.aliases, {
+          requiresExpiration: requirement.requiresExpiration,
+          w9YearMinimum: requirement.w9YearMinimum,
+        })
+    )
+    .map((requirement) => requirement.label);
+}
+
 function getFilterTitle(filter: string) {
   switch (filter) {
     case "upcoming":
@@ -236,13 +394,56 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, is_active")
+    .select("email, full_name, role, is_active, approval_status")
     .eq("id", user.id)
     .single();
 
   if (!profile || profile.role !== "notary" || !profile.is_active) {
     redirect("/login");
   }
+
+  const { data: notaryProfile } = await supabase
+    .from("notary_profiles")
+    .select(
+      "first_name, last_name, address, city, state, zip, commission_number, commission_expiration, home_phone, mobile_phone, accepts_text_messages, accepts_email_notifications"
+    )
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const { data: credentials } = await supabase
+    .from("notary_credentials")
+    .select("*")
+    .eq("user_id", user.id);
+
+  const safeCredentials = (credentials ?? []) as Credential[];
+  const safeNotaryProfile = notaryProfile as NotaryProfile | null;
+
+  const missingProfileItems = buildMissingProfileItems(safeNotaryProfile);
+  const missingCredentialItems = buildMissingCredentialItems(safeCredentials);
+  const hasMissingReadinessItems =
+    missingProfileItems.length > 0 || missingCredentialItems.length > 0;
+
+  const credentialAlerts: string[] = [];
+  const today = new Date();
+
+  safeCredentials.forEach((credential) => {
+    if (!credential.expiration_date) return;
+
+    const expirationDate = new Date(credential.expiration_date);
+    const daysUntilExpiration = Math.ceil(
+      (expirationDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (daysUntilExpiration < 0) {
+      credentialAlerts.push(`${credential.credential_type} has expired`);
+    } else if (daysUntilExpiration <= 30) {
+      credentialAlerts.push(
+        `${credential.credential_type} expires in ${daysUntilExpiration} day${
+          daysUntilExpiration === 1 ? "" : "s"
+        }`
+      );
+    }
+  });
 
   const { data: assignments } = await supabase
     .from("assignments")
@@ -463,6 +664,97 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
     </Link>
   </div>
 </section>
+
+        {hasMissingReadinessItems && (
+          <section className="rounded-2xl border border-slate-200 border-l-4 border-l-amber-500 bg-white p-5 shadow-sm">
+            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+              <div>
+                <h2 className="text-lg font-black text-slate-950">
+                  Profile Pending Approval
+                </h2>
+
+                <p className="mt-1 max-w-3xl text-sm text-slate-600">
+                  Some profile information or credentials are missing. Complete
+                  the required items before your account can be approved for
+                  assignments.
+                </p>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {missingProfileItems.length > 0 && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-xs font-black uppercase tracking-wide text-amber-700">
+                        Missing Profile Info
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-700">
+                        {missingProfileItems.slice(0, 4).join(", ")}
+                        {missingProfileItems.length > 4 ? "..." : ""}
+                      </p>
+                    </div>
+                  )}
+
+                  {missingCredentialItems.length > 0 && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-xs font-black uppercase tracking-wide text-amber-700">
+                        Missing Credentials
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-700">
+                        {missingCredentialItems.slice(0, 4).join(", ")}
+                        {missingCredentialItems.length > 4 ? "..." : ""}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
+                {missingProfileItems.length > 0 && (
+                  <Link
+                    href="/notary/profile"
+                    className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-center text-sm font-black text-white transition hover:bg-blue-950"
+                  >
+                    Complete Profile
+                  </Link>
+                )}
+
+                {missingCredentialItems.length > 0 && (
+                  <Link
+                    href="/notary/credentials"
+                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-center text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Upload Credentials
+                  </Link>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {credentialAlerts.length > 0 && (
+          <section className="rounded-2xl border border-slate-200 border-l-4 border-l-amber-500 bg-white p-5 shadow-sm">
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+              <div>
+                <h2 className="text-lg font-black text-slate-950">
+                  Credential Alert
+                </h2>
+                <div className="mt-2 space-y-1">
+                  {credentialAlerts.slice(0, 3).map((alert) => (
+                    <p key={alert} className="text-sm font-semibold text-slate-600">
+                      <span className="font-black text-amber-600">⚠</span> {alert}
+                    </p>
+                  ))}
+                </div>
+              </div>
+
+              <Link
+                href="/notary/credentials"
+                className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-center text-sm font-black text-white transition hover:bg-blue-950"
+              >
+                Review Credentials
+              </Link>
+            </div>
+          </section>
+        )}
+
         <section className="grid gap-4 lg:grid-cols-4">
           {topAlertCards.map((card) => {
             const active = activeFilter === card.filter;
