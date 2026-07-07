@@ -1193,6 +1193,13 @@ export default async function ReportsPage({
       tag: "Collections",
     },
     {
+      title: "Expenses Report",
+      description: "Expense categories, receipts, vendors, and totals.",
+      href: "#expense-report",
+      printTarget: "expense-report",
+      tag: "Expenses",
+    },
+    {
       title: "Journal Report",
       description:
         "Journal entry status, notarial acts, and compliance totals.",
@@ -1937,7 +1944,18 @@ export default async function ReportsPage({
                       return (
                         <tr key={`print-invoice-${invoice.id}`}>
                           <td className="border p-2 font-semibold">{formatInvoiceNumber(invoice.invoice_number)}</td>
-                          <td className="border p-2">{assignmentTitle(assignment)}</td>
+                          <td className="border p-2">
+                            {assignment ? (
+                              <Link
+                                href={`/notary/dashboard/assignments/${assignment.id}`}
+                                className="font-black text-blue-700 hover:underline"
+                              >
+                                {assignmentTitle(assignment)}
+                              </Link>
+                            ) : (
+                              assignmentTitle(assignment)
+                            )}
+                          </td>
                           <td className="border p-2">{formatDate(invoice.due_date)}</td>
                           <td className="border p-2 text-right font-black">{money(invoice.subtotal)}</td>
                           <td className="border p-2 text-right text-green-700 font-bold">{money(invoice.payments_total)}</td>
@@ -2933,9 +2951,18 @@ export default async function ReportsPage({
                         {formatInvoiceNumber(invoice.invoice_number)}
                       </td>
                       <td className="px-2 py-4 sm:px-5">
-                        <p className="font-bold text-slate-950">
-                          {assignmentTitle(assignment)}
-                        </p>
+                        {assignment ? (
+                          <Link
+                            href={`/notary/dashboard/assignments/${assignment.id}`}
+                            className="font-black text-blue-700 hover:underline"
+                          >
+                            {assignmentTitle(assignment)}
+                          </Link>
+                        ) : (
+                          <p className="font-bold text-slate-950">
+                            {assignmentTitle(assignment)}
+                          </p>
+                        )}
                         <p className="text-xs text-slate-500">
                           {assignment?.control_number || "—"}
                         </p>
@@ -2969,6 +2996,131 @@ export default async function ReportsPage({
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section
+        id="expense-report"
+        data-print-title={reportPrintTitle(
+          "Expense Report",
+          selectedRange.label,
+        )}
+        className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]"
+      >
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 p-5">
+            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+              Expense Report
+            </p>
+            <h2 className="mt-1 text-2xl font-black text-slate-950">
+              Expenses
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Expense categories, vendors, receipts, and totals for this report period.
+            </p>
+          </div>
+
+          <div className="w-full overflow-hidden">
+            <table className="w-full min-w-0 table-fixed text-left text-xs sm:text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-2 py-3 sm:px-5 font-bold">Date</th>
+                  <th className="px-2 py-3 sm:px-5 font-bold">Category</th>
+                  <th className="px-2 py-3 font-bold sm:px-5">Vendor</th>
+                  <th className="px-2 py-3 font-bold sm:px-5">Assignment</th>
+                  <th className="px-2 py-3 sm:px-5 text-right font-bold">
+                    Amount
+                  </th>
+                  <th className="hidden px-2 py-3 font-bold sm:table-cell sm:px-5">
+                    Receipt
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {expenses.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-2 py-8 sm:px-5 text-center font-semibold text-slate-500"
+                    >
+                      No expenses found.
+                    </td>
+                  </tr>
+                ) : (
+                  expenses.map((expense) => {
+                    const assignment = expense.assignment_id
+                      ? assignmentById.get(expense.assignment_id)
+                      : null;
+
+                    return (
+                      <tr key={expense.id}>
+                        <td className="px-2 py-4 sm:px-5 font-semibold text-slate-700">
+                          {formatDate(expense.expense_date)}
+                        </td>
+                        <td className="px-2 py-4 sm:px-5 font-bold text-slate-950">
+                          {expense.category || "Misc."}
+                        </td>
+                        <td className="px-2 py-4 sm:px-5">
+                          <p className="font-semibold text-slate-700">
+                            {expense.vendor || expense.description || "Expense"}
+                          </p>
+                          {expense.description && (
+                            <p className="mt-1 text-xs text-slate-500">
+                              {expense.description}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-2 py-4 sm:px-5 font-semibold text-slate-700">
+                          {assignment ? (
+                            <Link
+                              href={`/notary/dashboard/assignments/${assignment.id}`}
+                              className="font-black text-blue-700 hover:underline"
+                            >
+                              {assignmentTitle(assignment)}
+                            </Link>
+                          ) : (
+                            assignmentTitle(assignment)
+                          )}
+                        </td>
+                        <td className="px-2 py-4 sm:px-5 text-right font-black text-slate-950">
+                          {money(expense.amount)}
+                        </td>
+                        <td className="hidden px-2 py-4 sm:table-cell sm:px-5">
+                          <ReceiptAttachment expense={expense} />
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+            Category Breakdown
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            Expense Summary
+          </h2>
+          <div className="mt-5 space-y-4">
+            {categoryRows.length === 0 ? (
+              <p className="text-sm font-semibold text-slate-500">
+                No categories yet.
+              </p>
+            ) : (
+              categoryRows.map((row) => (
+                <div key={row.category}>
+                  <div className="mb-1 flex justify-between gap-3 text-sm font-bold text-slate-700">
+                    <span className="truncate">{row.category}</span>
+                    <span>{money(row.amount)}</span>
+                  </div>
+                  <Bar value={row.amount} max={maxCategoryAmount} />
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
       </section>
 
       <section
