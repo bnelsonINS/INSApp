@@ -84,7 +84,7 @@ export default async function LoginPage({
     }
 
     if (profile?.role === "admin") redirect("/dashboard");
-    if (profile?.role === "notary") redirect("/notary/dashboard");
+    if (profile?.role === "notary") redirect("/notary/pro/");
     if (profile?.role === "client") redirect("/client/dashboard");
 
     redirect("/login?error=Account role not found");
