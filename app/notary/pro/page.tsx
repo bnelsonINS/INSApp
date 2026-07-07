@@ -665,29 +665,28 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
   </div>
 </section>
 
-        {hasMissingReadinessItems && (
-          <section className="rounded-2xl border border-slate-200 border-l-4 border-l-amber-500 bg-white p-5 shadow-sm">
+        {(hasMissingReadinessItems || credentialAlerts.length > 0) && (
+          <section className="rounded-2xl border border-slate-200 border-l-4 border-l-amber-500 bg-white px-6 py-5 shadow-sm">
             <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
               <div>
                 <h2 className="text-lg font-black text-slate-950">
-                  Profile Pending Approval
+                  Account Needs Attention
                 </h2>
 
-                <p className="mt-1 max-w-3xl text-sm text-slate-600">
-                  Some profile information or credentials are missing. Complete
-                  the required items before your account can be approved for
-                  assignments.
+                <p className="mt-1 max-w-4xl text-sm text-slate-600">
+                  Complete missing profile details, upload required credentials,
+                  or review expiring credentials before taking assignments.
                 </p>
 
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
                   {missingProfileItems.length > 0 && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                       <p className="text-xs font-black uppercase tracking-wide text-amber-700">
                         Missing Profile Info
                       </p>
                       <p className="mt-1 text-sm font-semibold text-slate-700">
-                        {missingProfileItems.slice(0, 4).join(", ")}
-                        {missingProfileItems.length > 4 ? "..." : ""}
+                        {missingProfileItems.slice(0, 3).join(", ")}
+                        {missingProfileItems.length > 3 ? "..." : ""}
                       </p>
                     </div>
                   )}
@@ -698,59 +697,57 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
                         Missing Credentials
                       </p>
                       <p className="mt-1 text-sm font-semibold text-slate-700">
-                        {missingCredentialItems.slice(0, 4).join(", ")}
-                        {missingCredentialItems.length > 4 ? "..." : ""}
+                        {missingCredentialItems.slice(0, 3).join(", ")}
+                        {missingCredentialItems.length > 3 ? "..." : ""}
                       </p>
+                    </div>
+                  )}
+
+                  {credentialAlerts.length > 0 && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-xs font-black uppercase tracking-wide text-amber-700">
+                        Credential Alerts
+                      </p>
+                      <div className="mt-1 space-y-1">
+                        {credentialAlerts.slice(0, 2).map((alert) => (
+                          <p
+                            key={alert}
+                            className="text-sm font-semibold text-slate-700"
+                          >
+                            <span className="font-black text-amber-600">⚠</span>{" "}
+                            {alert}
+                          </p>
+                        ))}
+                        {credentialAlerts.length > 2 && (
+                          <p className="text-sm font-semibold text-slate-700">
+                            +{credentialAlerts.length - 2} more
+                          </p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
+              <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
                 {missingProfileItems.length > 0 && (
                   <Link
                     href="/notary/profile"
-                    className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-center text-sm font-black text-white transition hover:bg-blue-950"
+                    className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-center text-sm font-black text-slate-700 transition hover:bg-slate-50"
                   >
-                    Complete Profile
+                    Go to Profile
                   </Link>
                 )}
 
-                {missingCredentialItems.length > 0 && (
+                {(missingCredentialItems.length > 0 || credentialAlerts.length > 0) && (
                   <Link
                     href="/notary/credentials"
-                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-center text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                    className="rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-center text-sm font-black text-white transition hover:bg-blue-950"
                   >
-                    Upload Credentials
+                    Go to Credentials
                   </Link>
                 )}
               </div>
-            </div>
-          </section>
-        )}
-
-        {credentialAlerts.length > 0 && (
-          <section className="rounded-2xl border border-slate-200 border-l-4 border-l-amber-500 bg-white p-5 shadow-sm">
-            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-              <div>
-                <h2 className="text-lg font-black text-slate-950">
-                  Credential Alert
-                </h2>
-                <div className="mt-2 space-y-1">
-                  {credentialAlerts.slice(0, 3).map((alert) => (
-                    <p key={alert} className="text-sm font-semibold text-slate-600">
-                      <span className="font-black text-amber-600">⚠</span> {alert}
-                    </p>
-                  ))}
-                </div>
-              </div>
-
-              <Link
-                href="/notary/credentials"
-                className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-center text-sm font-black text-white transition hover:bg-blue-950"
-              >
-                Review Credentials
-              </Link>
             </div>
           </section>
         )}
