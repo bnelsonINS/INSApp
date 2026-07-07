@@ -1947,7 +1947,7 @@ export default async function ReportsPage({
                           <td className="border p-2">
                             {assignment ? (
                               <Link
-                                href={`/notary/dashboard/assignments/${assignment.id}`}
+                                href={`/notary/dashboard/assignments?assignment=${assignment.id}`}
                                 className="font-black text-blue-700 hover:underline"
                               >
                                 {assignmentTitle(assignment)}
@@ -2953,7 +2953,7 @@ export default async function ReportsPage({
                       <td className="px-2 py-4 sm:px-5">
                         {assignment ? (
                           <Link
-                            href={`/notary/dashboard/assignments/${assignment.id}`}
+                            href={`/notary/dashboard/assignments?assignment=${assignment.id}`}
                             className="font-black text-blue-700 hover:underline"
                           >
                             {assignmentTitle(assignment)}
@@ -3072,7 +3072,7 @@ export default async function ReportsPage({
                         <td className="px-2 py-4 sm:px-5 font-semibold text-slate-700">
                           {assignment ? (
                             <Link
-                              href={`/notary/dashboard/assignments/${assignment.id}`}
+                              href={`/notary/dashboard/assignments?assignment=${assignment.id}`}
                               className="font-black text-blue-700 hover:underline"
                             >
                               {assignmentTitle(assignment)}
