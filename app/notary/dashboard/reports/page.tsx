@@ -150,6 +150,10 @@ type ProfileRow = {
   business_name?: string | null;
   company?: string | null;
   organization_name?: string | null;
+  name?: string | null;
+  client_name?: string | null;
+  title_company_name?: string | null;
+  [key: string]: any;
 };
 
 function money(value: number | string | null | undefined) {
@@ -299,6 +303,9 @@ function clientName(profile: ProfileRow | null | undefined) {
     profile.business_name ||
     profile.company ||
     profile.organization_name ||
+    profile.title_company_name ||
+    profile.client_name ||
+    profile.name ||
     profile.full_name ||
     profile.email ||
     "—"
@@ -566,14 +573,16 @@ export default async function ReportsPage({
     ),
   );
 
-  const { data: allClientProfiles } = clientIds.length
+  const { data: allClientProfiles, error: clientProfilesError } = clientIds.length
     ? await supabaseAdmin
         .from("profiles")
-        .select(
-          "id, full_name, email, company_name, business_name, company, organization_name",
-        )
+        .select("*")
         .in("id", clientIds)
-    : { data: [] };
+    : { data: [], error: null };
+
+  if (clientProfilesError) {
+    console.error("Reports client profiles lookup error:", clientProfilesError);
+  }
 
   const clientById = new Map<string, ProfileRow>(
     ((allClientProfiles ?? []) as ProfileRow[]).map((profile) => [
