@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../src/lib/supabase-server";
-import TimeFrameSelect from "./time-frame-select";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -9,58 +8,71 @@ export const revalidate = 0;
 type Assignment = {
   id: string;
   control_number: string | null;
+  notary_id?: string | null;
+  assigned_notary_id?: string | null;
   status: string | null;
   signing_type: string | null;
   borrower_name: string | null;
   signing_date: string | null;
   signing_time: string | null;
+  signing_address: string | null;
   signing_city: string | null;
   signing_state: string | null;
   signing_zip: string | null;
+  documents_url: string | null;
   notary_fee: number | string | null;
-  scanbacks_required?: boolean | null;
 };
 
-type NotaryProfile = {
-  first_name: string | null;
-  last_name: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  zip: string | null;
-  commission_number: string | null;
-  commission_expiration: string | null;
-  home_phone: string | null;
-  mobile_phone: string | null;
-  accepts_text_messages: boolean | null;
-  accepts_email_notifications: boolean | null;
-};
-
-type Credential = {
-  credential_type: string | null;
+type ProJob = {
+  id: string;
+  source_type: string | null;
+  client_name: string | null;
+  borrower_name: string | null;
   status: string | null;
-  issue_date: string | null;
-  expiration_date: string | null;
+  signing_type: string | null;
+  signing_date: string | null;
+  signing_time: string | null;
+  signing_address: string | null;
+  signing_city: string | null;
+  signing_state: string | null;
+  signing_zip: string | null;
+  fee: number | string | null;
 };
 
-type PageProps = {
-  searchParams?: Promise<{
-    filter?: string;
-    timeframe?: string;
-  }>;
+type UnifiedAssignment = {
+  id: string;
+  source: "ins" | "external";
+  sourceLabel: "INS" | "External";
+  controlNumber: string | null;
+  clientName: string | null;
+  borrowerName: string | null;
+  status: string | null;
+  signingType: string | null;
+  signingDate: string | null;
+  signingTime: string | null;
+  signingAddress: string | null;
+  signingCity: string | null;
+  signingState: string | null;
+  signingZip: string | null;
+  fee: number | string | null;
+  documentsUrl: string | null;
+  href: string;
 };
 
-function money(value: number) {
-  return value.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
-}
+const inputClass =
+  "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100";
+
+const primaryButtonClass =
+  "rounded-xl bg-[#0B1F4D] px-5 py-3 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-950";
+
+const secondaryButtonClass =
+  "rounded-xl border border-slate-300 bg-white px-5 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-50";
 
 function formatDate(date: string | null) {
   if (!date) return "Not scheduled";
 
   return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
+    weekday: "short",
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -80,309 +92,276 @@ function formatTime(time: string | null) {
   });
 }
 
-function isFutureOrToday(date: string | null) {
+function formatMoney(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") return "—";
+
+  const amount = Number(value);
+  if (Number.isNaN(amount)) return "—";
+
+  return `$${amount.toFixed(2)}`;
+}
+
+function normalizeStatus(status: string | null) {
+  return (status ?? "").toLowerCase().trim();
+}
+
+function rawStatusCategory(status: string | null) {
+  const normalized = normalizeStatus(status);
+
+  if (
+    normalized === "signing complete" ||
+    normalized === "completed" ||
+    normalized === "closed"
+  ) {
+    return "completed";
+  }
+
+  if (normalized === "cancelled" || normalized === "canceled") {
+    return "cancelled";
+  }
+
+  if (normalized === "in progress" || normalized === "late") {
+    return "in_progress";
+  }
+
+  if (normalized === "confirmed") {
+    return "confirmed";
+  }
+
+  return "upcoming";
+}
+
+function isUpcomingDate(date: string | null) {
   if (!date) return false;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const signingDate = new Date(`${date}T00:00:00`);
+  signingDate.setHours(0, 0, 0, 0);
+
   return signingDate >= today;
 }
 
-function isClosedOrComplete(status: string | null) {
-  const normalized = (status ?? "").toLowerCase();
-  return normalized === "closed" || normalized === "signing complete";
+function assignmentBucket(assignment: UnifiedAssignment) {
+  const category = rawStatusCategory(assignment.status);
+
+  if (category === "completed") return "completed";
+  if (category === "cancelled") return "cancelled";
+  if (category === "in_progress") return "in_progress";
+
+  if (isUpcomingDate(assignment.signingDate)) {
+    return "upcoming";
+  }
+
+  return "completed";
 }
 
-function jobMatchesTimeFrame(job: Assignment, timeFrame: string) {
-  if (timeFrame === "since-inception") return true;
-  if (!job.signing_date) return false;
+function statusBadge(status: string | null) {
+  const category = rawStatusCategory(status);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const jobDate = new Date(`${job.signing_date}T00:00:00`);
-  jobDate.setHours(0, 0, 0, 0);
-
-  if (/^\d{4}$/.test(timeFrame)) {
-    return job.signing_date.startsWith(timeFrame);
+  if (category === "upcoming") {
+    return "bg-blue-50 text-blue-700 ring-blue-200";
   }
 
-  if (timeFrame === "this-month") {
-    return (
-      jobDate.getFullYear() === today.getFullYear() &&
-      jobDate.getMonth() === today.getMonth()
-    );
+  if (category === "confirmed") {
+    return "bg-slate-100 text-slate-700 ring-slate-200";
   }
 
-  if (timeFrame === "last-month") {
-    const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-
-    return (
-      jobDate.getFullYear() === lastMonth.getFullYear() &&
-      jobDate.getMonth() === lastMonth.getMonth()
-    );
+  if (category === "in_progress") {
+    return "bg-amber-50 text-amber-700 ring-amber-200";
   }
 
-  if (timeFrame === "this-week") {
-    const start = new Date(today);
-    start.setDate(today.getDate() - today.getDay());
-
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-
-    return jobDate >= start && jobDate <= end;
+  if (category === "completed") {
+    return "bg-green-50 text-green-700 ring-green-200";
   }
 
-  if (timeFrame === "last-week") {
-    const start = new Date(today);
-    start.setDate(today.getDate() - today.getDay() - 7);
-
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-
-    return jobDate >= start && jobDate <= end;
+  if (category === "cancelled") {
+    return "bg-red-50 text-red-700 ring-red-200";
   }
 
-  if (timeFrame === "last-10-weeks") {
-    const start = new Date(today);
-    start.setDate(today.getDate() - 70);
-
-    return jobDate >= start && jobDate <= today;
-  }
-
-  return job.signing_date.startsWith(String(today.getFullYear()));
+  return "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
-function normalizeCredentialType(type: string | null) {
-  return (type ?? "")
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
+function sourceBadge(source: "ins" | "external") {
+  if (source === "ins") {
+    return "bg-blue-50 text-blue-700 ring-blue-200";
+  }
+
+  return "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
-function isFilled(value: string | null | undefined) {
-  return Boolean(value && value.trim().length > 0);
+function assignmentDateTimeValue(assignment: UnifiedAssignment) {
+  if (!assignment.signingDate) return 0;
+
+  const time = assignment.signingTime || "00:00";
+  return new Date(`${assignment.signingDate}T${time}`).getTime();
 }
 
-function isExpired(date: string | null | undefined) {
-  if (!date) return true;
-
-  const expirationDate = new Date(`${date}T00:00:00`);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  return expirationDate < today;
+function assignmentFeeValue(assignment: UnifiedAssignment) {
+  const amount = Number(assignment.fee);
+  return Number.isNaN(amount) ? 0 : amount;
 }
 
-function hasCurrentCredential(
-  credentials: Credential[],
-  aliases: string[],
-  options?: { requiresExpiration?: boolean; w9YearMinimum?: number }
-) {
-  const normalizedAliases = aliases.map(normalizeCredentialType);
+function compareText(a: string | null, b: string | null) {
+  return (a ?? "").localeCompare(b ?? "", "en", { sensitivity: "base" });
+}
 
-  return credentials.some((credential) => {
-    const normalizedType = normalizeCredentialType(credential.credential_type);
-    const status = (credential.status ?? "").toLowerCase();
-
-    if (!normalizedAliases.includes(normalizedType)) return false;
-    if (status === "rejected" || status === "denied") return false;
-
-    if (options?.requiresExpiration && isExpired(credential.expiration_date)) {
-      return false;
+function sortAssignments(rows: UnifiedAssignment[], sort: string) {
+  return [...rows].sort((a, b) => {
+    if (sort === "date_asc") {
+      return assignmentDateTimeValue(a) - assignmentDateTimeValue(b);
     }
 
-    if (options?.w9YearMinimum) {
-      const year = credential.issue_date
-        ? new Date(`${credential.issue_date}T00:00:00`).getFullYear()
-        : null;
-
-      if (year && year < options.w9YearMinimum) return false;
+    if (sort === "fee_desc") {
+      return assignmentFeeValue(b) - assignmentFeeValue(a);
     }
 
-    return true;
+    if (sort === "fee_asc") {
+      return assignmentFeeValue(a) - assignmentFeeValue(b);
+    }
+
+    if (sort === "borrower_asc") {
+      return compareText(a.borrowerName, b.borrowerName);
+    }
+
+    if (sort === "client_asc") {
+      return compareText(a.clientName, b.clientName);
+    }
+
+    return assignmentDateTimeValue(b) - assignmentDateTimeValue(a);
   });
 }
 
-function buildMissingProfileItems(profile: NotaryProfile | null) {
-  const missingItems: string[] = [];
+function statusAccent(type: string) {
+  if (type === "upcoming") return "bg-blue-500";
+  if (type === "confirmed") return "bg-slate-500";
+  if (type === "in_progress") return "bg-amber-500";
+  if (type === "completed") return "bg-green-600";
+  if (type === "cancelled") return "bg-red-600";
 
-  if (!isFilled(profile?.first_name)) missingItems.push("First Name");
-  if (!isFilled(profile?.last_name)) missingItems.push("Last Name");
-  if (!isFilled(profile?.address)) missingItems.push("Address");
-  if (!isFilled(profile?.city)) missingItems.push("City");
-  if (!isFilled(profile?.state)) missingItems.push("State");
-  if (!isFilled(profile?.zip)) missingItems.push("ZIP Code");
-
-  if (!isFilled(profile?.commission_number)) {
-    missingItems.push("Commission Number");
-  }
-
-  if (!isFilled(profile?.commission_expiration)) {
-    missingItems.push("Commission Expiration");
-  }
-
-  if (!isFilled(profile?.home_phone) && !isFilled(profile?.mobile_phone)) {
-    missingItems.push("Home Phone or Mobile Phone");
-  }
-
-  if (!profile?.accepts_text_messages && !profile?.accepts_email_notifications) {
-    missingItems.push("Accept Text Messages or Accept Email Notifications");
-  }
-
-  return missingItems;
+  return "bg-slate-400";
 }
 
-function buildMissingCredentialItems(credentials: Credential[]) {
-  const requirements = [
-    {
-      label: "Non-expired Background Check",
-      aliases: ["background_check", "background check"],
-      requiresExpiration: true,
-    },
-    {
-      label: "E&O Insurance",
-      aliases: [
-        "eo_insurance",
-        "e_and_o_insurance",
-        "errors_and_omissions_insurance",
-        "e&o insurance",
-      ],
-      requiresExpiration: true,
-    },
-    {
-      label: "Notary Bond",
-      aliases: ["notary_bond", "bond", "notary bond"],
-      requiresExpiration: true,
-    },
-    {
-      label: "Notary Commission",
-      aliases: ["notary_commission", "commission", "notary commission"],
-      requiresExpiration: true,
-    },
-    {
-      label: "Title Producer License",
-      aliases: [
-        "title_producer_license",
-        "title producer license",
-        "title_license",
-        "title insurance producer license",
-      ],
-      requiresExpiration: true,
-    },
-    {
-      label: "W9, 2018 or newer",
-      aliases: ["w9", "w_9", "w-9"],
-      w9YearMinimum: 2018,
-    },
-  ];
-
-  return requirements
-    .filter(
-      (requirement) =>
-        !hasCurrentCredential(credentials, requirement.aliases, {
-          requiresExpiration: requirement.requiresExpiration,
-          w9YearMinimum: requirement.w9YearMinimum,
-        })
-    )
-    .map((requirement) => requirement.label);
-}
-
-function getFilterTitle(filter: string) {
-  switch (filter) {
-    case "upcoming":
-      return "Upcoming Signings";
-    case "unconfirmed":
-      return "Unconfirmed Appointments";
-    case "unpaid":
-      return "Unpaid - Not Overdue";
-    case "overdue-8-14":
-      return "Overdue 8-14 Days";
-    case "overdue-15-plus":
-      return "Overdue 15+ Days";
-    default:
-      return "Upcoming Signings";
-  }
-}
-
-function ProIcon({ type }: { type: string }) {
-  const className = "h-6 w-6";
-
-  if (type === "calendar") {
-    return (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7 3v3m10-3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z" />
-      </svg>
-    );
-  }
-
-  if (type === "clock") {
-    return (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-      </svg>
-    );
-  }
-
-  if (type === "money") {
-    return (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 8.5H11a1.5 1.5 0 0 0 0 3h2a1.5 1.5 0 0 1 0 3H9.5M12 7v10" />
-      </svg>
-    );
-  }
-
-  if (type === "warning") {
-    return (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 4.3 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" />
-      </svg>
-    );
-  }
-
-  if (type === "invoice") {
-    return (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7 3h10v18l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2V3Z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 8h6M9 12h6M9 16h3" />
-      </svg>
-    );
-  }
-
-  if (type === "car") {
-    return (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M5 16h14l-1.5-5h-11L5 16Zm2 0v3m10-3v3M7 19h.01M17 19h.01M8 11l1-4h6l1 4" />
-      </svg>
-    );
-  }
-
-  if (type === "book") {
-    return (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v17H6.5A2.5 2.5 0 0 1 4 17.5v-12Z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h8M8 11h8" />
-      </svg>
-    );
-  }
-
+function assignmentCard(assignment: UnifiedAssignment) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 12h16M13 5l7 7-7 7" />
-    </svg>
+    <div
+      key={`${assignment.source}-${assignment.id}`}
+      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${sourceBadge(
+              assignment.source,
+            )}`}
+          >
+            {assignment.sourceLabel}
+          </span>
+
+          <p className="mt-3 text-sm font-semibold text-slate-500">Control #</p>
+          <p className="mt-1 font-bold text-slate-950">
+            {assignment.controlNumber ?? "—"}
+          </p>
+        </div>
+
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
+            assignment.status,
+          )}`}
+        >
+          {assignment.status ?? "Unknown"}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3 text-sm">
+        <div>
+          <p className="font-semibold text-slate-500">Signing</p>
+          <p className="font-semibold text-slate-950">
+            {formatDate(assignment.signingDate)}
+          </p>
+          <p className="text-slate-600">{formatTime(assignment.signingTime)}</p>
+          <p className="text-xs text-slate-500">
+            {assignment.signingType ?? "Signing"}
+          </p>
+        </div>
+
+        <div>
+          <p className="font-semibold text-slate-500">Borrower</p>
+          <p className="font-semibold text-slate-950">
+            {assignment.borrowerName ?? "—"}
+          </p>
+        </div>
+
+        <div>
+          <p className="font-semibold text-slate-500">Client</p>
+          <p className="font-semibold text-slate-950">
+            {assignment.clientName ?? "—"}
+          </p>
+        </div>
+
+        <div>
+          <p className="font-semibold text-slate-500">Location</p>
+          <p className="font-semibold text-slate-950">
+            {assignment.signingAddress ?? "—"}
+          </p>
+          <p className="text-slate-600">
+            {assignment.signingCity ?? "—"}, {assignment.signingState ?? "IN"}{" "}
+            {assignment.signingZip ?? ""}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="text-xs font-semibold text-slate-500">Fee</p>
+          <p className="font-bold text-slate-950">
+            {formatMoney(assignment.fee)}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        {assignment.documentsUrl ? (
+          <a
+            href={assignment.documentsUrl}
+            className={secondaryButtonClass}
+            target="_blank"
+          >
+            View Docs
+          </a>
+        ) : (
+          <span className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-center text-sm font-semibold text-slate-400">
+            No Docs
+          </span>
+        )}
+
+        <Link href={assignment.href} className={primaryButtonClass}>
+          View
+        </Link>
+      </div>
+    </div>
   );
 }
 
-export default async function INSProHomePage({ searchParams }: PageProps) {
-  const resolvedSearchParams = await searchParams;
-  const currentYear = new Date().getFullYear();
+export default async function AssignmentsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    q?: string;
+    status?: string;
+    source?: string;
+    from?: string;
+    to?: string;
+    sort?: string;
+  }>;
+}) {
+  const params = await searchParams;
 
-  const activeFilter = resolvedSearchParams?.filter ?? "upcoming";
-  const activeTimeFrame = resolvedSearchParams?.timeframe ?? `${currentYear}`;
+  const search = params?.q?.trim() ?? "";
+  const status = params?.status?.trim() ?? "";
+  const source = params?.source?.trim() ?? "";
+  const from = params?.from?.trim() ?? "";
+  const to = params?.to?.trim() ?? "";
+  const sort = params?.sort?.trim() || "date_desc";
 
   const supabase = await createSupabaseServerClient();
 
@@ -392,692 +371,408 @@ export default async function INSProHomePage({ searchParams }: PageProps) {
 
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("email, full_name, role, is_active, approval_status")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || profile.role !== "notary" || !profile.is_active) {
-    redirect("/login");
-  }
-
-  const { data: notaryProfile } = await supabase
-    .from("notary_profiles")
-    .select(
-      "first_name, last_name, address, city, state, zip, commission_number, commission_expiration, home_phone, mobile_phone, accepts_text_messages, accepts_email_notifications"
-    )
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const { data: credentials } = await supabase
-    .from("notary_credentials")
-    .select("*")
-    .eq("user_id", user.id);
-
-  const safeCredentials = (credentials ?? []) as Credential[];
-  const safeNotaryProfile = notaryProfile as NotaryProfile | null;
-
-  const missingProfileItems = buildMissingProfileItems(safeNotaryProfile);
-  const missingCredentialItems = buildMissingCredentialItems(safeCredentials);
-  const hasMissingReadinessItems =
-    missingProfileItems.length > 0 || missingCredentialItems.length > 0;
-
-  const credentialAlerts: string[] = [];
-  const today = new Date();
-
-  safeCredentials.forEach((credential) => {
-    if (!credential.expiration_date) return;
-
-    const expirationDate = new Date(credential.expiration_date);
-    const daysUntilExpiration = Math.ceil(
-      (expirationDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    if (daysUntilExpiration < 0) {
-      credentialAlerts.push(`${credential.credential_type} has expired`);
-    } else if (daysUntilExpiration <= 30) {
-      credentialAlerts.push(
-        `${credential.credential_type} expires in ${daysUntilExpiration} day${
-          daysUntilExpiration === 1 ? "" : "s"
-        }`
-      );
-    }
-  });
-
-  const hasProfileAttention = missingProfileItems.length > 0;
-  const hasCredentialAttention =
-    missingCredentialItems.length > 0 || credentialAlerts.length > 0;
-
-  const attentionDescription = hasProfileAttention && hasCredentialAttention
-    ? "Complete missing profile details and review required credentials before taking assignments."
-    : hasProfileAttention
-      ? "Complete missing profile details before taking assignments."
-      : "Upload missing credentials or review expiring credentials before taking assignments.";
-
-  const { data: assignments } = await supabase
+  const { data: insAssignments } = await supabase
     .from("assignments")
     .select("*")
     .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
-    .order("signing_date", { ascending: true, nullsFirst: false })
-    .order("signing_time", { ascending: true, nullsFirst: false });
+    .order("signing_date", { ascending: true })
+    .order("signing_time", { ascending: true });
 
-  const jobs = (assignments ?? []) as Assignment[];
+  const { data: externalJobs } = await supabase
+    .from("pro_jobs")
+    .select("*")
+    .eq("notary_id", user.id)
+    .eq("source_type", "manual")
+    .order("signing_date", { ascending: true })
+    .order("signing_time", { ascending: true });
 
-  const timeFrameJobs = jobs.filter((job) =>
-    jobMatchesTimeFrame(job, activeTimeFrame)
-  );
+  const insRows: UnifiedAssignment[] = (
+    (insAssignments ?? []) as Assignment[]
+  ).map((assignment) => ({
+    id: assignment.id,
+    source: "ins",
+    sourceLabel: "INS",
+    controlNumber: assignment.control_number,
+    clientName: null,
+    borrowerName: assignment.borrower_name,
+    status: assignment.status,
+    signingType: assignment.signing_type,
+    signingDate: assignment.signing_date,
+    signingTime: assignment.signing_time,
+    signingAddress: assignment.signing_address,
+    signingCity: assignment.signing_city,
+    signingState: assignment.signing_state,
+    signingZip: assignment.signing_zip,
+    fee: assignment.notary_fee,
+    documentsUrl: assignment.documents_url,
+    href: `/notary/assignments/${assignment.id}`,
+  }));
 
-  const upcomingJobs = timeFrameJobs.filter((job) => {
-    const status = (job.status ?? "").toLowerCase();
+  const externalRows: UnifiedAssignment[] = (
+  (externalJobs ?? []) as ProJob[]
+).map((job) => ({
+  id: job.id,
+  source: "external",
+  sourceLabel: "External",
+  controlNumber: null,
+  clientName: job.client_name,
+  borrowerName: job.borrower_name,
+  status: job.status,
+  signingType: job.signing_type,
+  signingDate: job.signing_date,
+  signingTime: job.signing_time,
+  signingAddress: job.signing_address,
+  signingCity: job.signing_city,
+  signingState: job.signing_state,
+  signingZip: job.signing_zip,
+  fee: job.fee,
+  documentsUrl: null,
+  href: `/notary/assignments/${job.id}`,
+}));
 
-    return (
-      isFutureOrToday(job.signing_date) &&
-      status !== "closed" &&
-      status !== "cancelled" &&
-      status !== "did not sign"
+  let rows = [...insRows, ...externalRows];
+
+  if (source === "ins" || source === "external") {
+    rows = rows.filter((row) => row.source === source);
+  }
+
+  if (status) {
+    rows = rows.filter((row) => assignmentBucket(row) === status);
+  }
+
+  if (from) {
+    rows = rows.filter((row) => row.signingDate && row.signingDate >= from);
+  }
+
+  if (to) {
+    rows = rows.filter((row) => row.signingDate && row.signingDate <= to);
+  }
+
+  if (search) {
+    const lowered = search.toLowerCase();
+
+    rows = rows.filter((row) =>
+      [
+        row.controlNumber,
+        row.clientName,
+        row.borrowerName,
+        row.signingCity,
+        row.signingZip,
+        row.signingType,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(lowered)),
     );
-  });
+  }
 
-  const unconfirmedJobs = upcomingJobs.filter((job) => {
-    const status = (job.status ?? "").toLowerCase();
-    return status === "new request" || status === "not confirmed";
-  });
+  rows = sortAssignments(rows, sort);
 
-  const completedJobs = timeFrameJobs.filter((job) =>
-    isClosedOrComplete(job.status)
-  );
+  const buildHref = (updates: Record<string, string>) => {
+    const query = new URLSearchParams();
 
-  const revenue = completedJobs.reduce(
-    (sum, job) => sum + Number(job.notary_fee ?? 0),
-    0
-  );
+    if (search) query.set("q", search);
+    if (source) query.set("source", source);
+    if (status) query.set("status", status);
+    if (from) query.set("from", from);
+    if (to) query.set("to", to);
+    if (sort && sort !== "date_desc") query.set("sort", sort);
 
-  const estimatedExpenses = 0;
-  const profit = revenue - estimatedExpenses;
-  const averageProfit =
-    completedJobs.length > 0 ? profit / completedJobs.length : 0;
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value) {
+        query.set(key, value);
+      } else {
+        query.delete(key);
+      }
+    });
 
-  const unpaidJobs = completedJobs;
+    const queryString = query.toString();
+    return queryString
+      ? `/notary/assignments?${queryString}`
+      : "/notary/assignments";
+  };
 
-  const filteredJobs =
-    activeFilter === "upcoming"
-      ? upcomingJobs
-      : activeFilter === "unconfirmed"
-        ? unconfirmedJobs
-        : activeFilter === "unpaid"
-          ? unpaidJobs
-          : [];
+  const upcomingCount = rows.filter(
+    (assignment) => assignmentBucket(assignment) === "upcoming",
+  ).length;
 
-  const monthlyCounts = Array.from({ length: 12 }, (_, index) => {
-    const month = index + 1;
+  const inProgressCount = rows.filter(
+    (assignment) => assignmentBucket(assignment) === "in_progress",
+  ).length;
 
-    return timeFrameJobs.filter((job) => {
-      if (!job.signing_date) return false;
-      const jobMonth = Number(job.signing_date.slice(5, 7));
-      return jobMonth === month;
-    }).length;
-  });
+  const completedCount = rows.filter(
+    (assignment) => assignmentBucket(assignment) === "completed",
+  ).length;
 
-  const maxMonthCount = Math.max(...monthlyCounts, 1);
+  const insCount = rows.filter(
+    (assignment) => assignment.source === "ins",
+  ).length;
 
-  const topAlertCards = [
-    {
-      label: "Upcoming Signings",
-      filter: "upcoming",
-      count: upcomingJobs.length,
-      amount: null,
-      icon: "calendar",
-      tone: "blue",
-    },
-    {
-      label: "Unconfirmed Appointments",
-      filter: "unconfirmed",
-      count: unconfirmedJobs.length,
-      amount: null,
-      icon: "clock",
-      tone: "amber",
-    },
-    {
-      label: "Unpaid - Not Overdue",
-      filter: "unpaid",
-      count: unpaidJobs.length,
-      amount: revenue,
-      icon: "money",
-      tone: "blue",
-    },
-    {
-      label: "Overdue 15+ Days",
-      filter: "overdue-15-plus",
-      count: 0,
-      amount: 0,
-      icon: "warning",
-      tone: "red",
-    },
-  ];
-
-  const alertList = [
-    {
-      label: "Upcoming Signings",
-      filter: "upcoming",
-      count: upcomingJobs.length,
-      amount: null,
-      icon: "calendar",
-      tone: "blue",
-    },
-    {
-      label: "Unconfirmed Appointments",
-      filter: "unconfirmed",
-      count: unconfirmedJobs.length,
-      amount: null,
-      icon: "clock",
-      tone: "amber",
-    },
-    {
-      label: "Unpaid - Not Overdue",
-      filter: "unpaid",
-      count: unpaidJobs.length,
-      amount: revenue,
-      icon: "money",
-      tone: "blue",
-    },
-    {
-      label: "Overdue 8-14 Days",
-      filter: "overdue-8-14",
-      count: 0,
-      amount: 0,
-      icon: "warning",
-      tone: "red",
-    },
-    {
-      label: "Overdue 15+ Days",
-      filter: "overdue-15-plus",
-      count: 0,
-      amount: 0,
-      icon: "warning",
-      tone: "red",
-    },
-  ];
-
-  const quickActions = [
-    {
-  label: "View Pro Jobs",
-  href: "/notary/pro/jobs",
-  icon: "calendar",
-},
-    {
-  label: "Add Non-INS Signing",
-  href: "/notary/pro/jobs/new",
-  icon: "invoice",
-},
-    {
-      label: "Mileage Log",
-      href: "/notary/pro?filter=upcoming",
-      icon: "car",
-    },
-    {
-      label: "Notary Journal",
-      href: "/notary/pro?filter=upcoming",
-      icon: "book",
-    },
-    {
-      label: "Send Invoice",
-      href: "/notary/pro?filter=unpaid",
-      icon: "send",
-    },
-  ];
-
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
+  const externalCount = rows.filter(
+    (assignment) => assignment.source === "external",
+  ).length;
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 sm:p-6">
-      <div className="mx-auto max-w-[1600px] space-y-5">
-        <section className="flex flex-col justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center">
-  <div>
-    <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
-      INS Pro
-    </p>
-    <h1 className="text-3xl font-black text-slate-950">
-      Business Dashboard
-    </h1>
-    <p className="mt-1 text-sm text-slate-500">
-      Track signings, customers, invoices, mileage, and business tasks.
-    </p>
-  </div>
-
-  <div className="flex flex-col gap-3 sm:flex-row">
-    <Link
-      href="/notary/pro/jobs/new"
-      className="rounded-xl bg-[#0B1F4D] px-5 py-2.5 text-center text-sm font-black text-white transition hover:bg-blue-950"
-    >
-      + New Signing
-    </Link>
-
-    <Link
-      href="/notary/pro/customers/new"
-      className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-center text-sm font-black text-slate-700 transition hover:bg-slate-50"
-    >
-      + New Customer
-    </Link>
-  </div>
-</section>
-
-        {(hasMissingReadinessItems || credentialAlerts.length > 0) && (
-          <section className="rounded-2xl border border-slate-200 border-l-4 border-l-amber-500 bg-white px-6 py-5 shadow-sm">
-            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-              <div>
-                <h2 className="text-lg font-black text-slate-950">
-                  Account Needs Attention
-                </h2>
-
-                <p className="mt-1 max-w-4xl text-sm text-slate-600">
-                  {attentionDescription}
-                </p>
-
-                <div className="mt-3 grid gap-3 md:grid-cols-3">
-                  {missingProfileItems.length > 0 && (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                      <p className="text-xs font-black uppercase tracking-wide text-amber-700">
-                        Missing Profile Info
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-700">
-                        {missingProfileItems.slice(0, 3).join(", ")}
-                        {missingProfileItems.length > 3 ? "..." : ""}
-                      </p>
-                    </div>
-                  )}
-
-                  {missingCredentialItems.length > 0 && (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                      <p className="text-xs font-black uppercase tracking-wide text-amber-700">
-                        Missing Credentials
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-700">
-                        {missingCredentialItems.slice(0, 3).join(", ")}
-                        {missingCredentialItems.length > 3 ? "..." : ""}
-                      </p>
-                    </div>
-                  )}
-
-                  {credentialAlerts.length > 0 && (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                      <p className="text-xs font-black uppercase tracking-wide text-amber-700">
-                        Credential Alerts
-                      </p>
-                      <div className="mt-1 space-y-1">
-                        {credentialAlerts.slice(0, 2).map((alert) => (
-                          <p
-                            key={alert}
-                            className="text-sm font-semibold text-slate-700"
-                          >
-                            <span className="font-black text-amber-600">⚠</span>{" "}
-                            {alert}
-                          </p>
-                        ))}
-                        {credentialAlerts.length > 2 && (
-                          <p className="text-sm font-semibold text-slate-700">
-                            +{credentialAlerts.length - 2} more
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
-                {hasProfileAttention && (
-                  <Link
-                    href="/notary/profile"
-                    className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-center text-sm font-black text-slate-700 transition hover:bg-slate-50"
-                  >
-                    Go to Profile
-                  </Link>
-                )}
-
-                {hasCredentialAttention && (
-                  <Link
-                    href="/notary/credentials"
-                    className="rounded-xl bg-[#0B1F4D] px-4 py-2.5 text-center text-sm font-black text-white transition hover:bg-blue-950"
-                  >
-                    Go to Credentials
-                  </Link>
-                )}
-              </div>
-            </div>
-          </section>
-        )}
-
-        <section className="grid gap-4 lg:grid-cols-4">
-          {topAlertCards.map((card) => {
-            const active = activeFilter === card.filter;
-
-            const tone =
-              card.tone === "red"
-                ? "text-red-600 bg-red-100 border-red-200"
-                : card.tone === "amber"
-                  ? "text-amber-700 bg-amber-100 border-amber-200"
-                  : "text-blue-700 bg-blue-100 border-blue-200";
-
-            return (
-              <Link
-                key={card.filter}
-                href={`/notary/pro?filter=${card.filter}&timeframe=${activeTimeFrame}`}
-                className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                  active ? "ring-2 ring-[#0B1F4D] ring-offset-2" : ""
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border ${tone}`}
-                  >
-                    <ProIcon type={card.icon} />
-                  </div>
-
-                  <div className="min-w-0">
-                    <p className="text-sm font-black uppercase tracking-wide text-slate-600">
-                      {card.label}
-                    </p>
-                    <div className="mt-1 flex items-end gap-3">
-                      <p
-                        className={`text-4xl font-black ${
-                          card.tone === "red"
-                            ? "text-red-600"
-                            : card.tone === "amber"
-                              ? "text-amber-700"
-                              : "text-blue-700"
-                        }`}
-                      >
-                        {card.count}
-                      </p>
-
-                      {card.amount !== null && (
-                        <p
-                          className={`pb-1 text-sm font-bold ${
-                            card.tone === "red"
-                              ? "text-red-600"
-                              : "text-blue-700"
-                          }`}
-                        >
-                          {money(card.amount)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-              Signings
+    <main className="space-y-6 bg-slate-50 p-4 sm:p-6">
+      <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] text-white shadow-sm">
+        <div className="flex flex-col justify-between gap-4 p-6 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-sm font-medium text-blue-100">
+              Notary Work Queue
             </p>
-            <p className="mt-2 text-4xl font-black text-blue-700">
-              {timeFrameJobs.length}
+            <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+              Assignments
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100/90">
+              Manage INS and External assignments from one workspace.
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-              Revenue
-            </p>
-            <p className="mt-2 text-4xl font-black text-blue-700">
-              {money(revenue)}
-            </p>
-          </div>
+          <Link
+            href="/notary/pro/jobs/new"
+            className="rounded-xl bg-white px-5 py-3 text-center text-sm font-black text-[#0B1F4D] transition hover:bg-blue-50"
+          >
+            + Add External Assignment
+          </Link>
+        </div>
+      </section>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-              Profit
-            </p>
-            <p className="mt-2 text-4xl font-black text-emerald-600">
-              {money(profit)}
-            </p>
-          </div>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-950">Find Assignments</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Search by borrower, client, control number, city, or ZIP code.
+        </p>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-              Avg Profit
-            </p>
-            <p className="mt-2 text-4xl font-black text-emerald-600">
-              {money(averageProfit)}
-            </p>
-          </div>
-        </section>
+        <form
+          method="get"
+          className="mt-5 grid gap-3 md:grid-cols-[1.2fr_.7fr_.8fr_.9fr_1fr_1fr_auto_auto]"
+        >
+          <input
+            name="q"
+            defaultValue={search}
+            placeholder="Search assignments"
+            className={inputClass}
+          />
 
-        <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-              <div>
-                <h2 className="text-2xl font-black text-slate-950">
-                  Signing Activity
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Signing count for selected time frame.
-                </p>
-              </div>
+          <select name="source" defaultValue={source} className={inputClass}>
+            <option value="">All Sources</option>
+            <option value="ins">INS</option>
+            <option value="external">External</option>
+          </select>
 
-              <TimeFrameSelect
-                currentYear={currentYear}
-                selectedTimeFrame={activeTimeFrame}
-              />
-            </div>
+          <select name="status" defaultValue={status} className={inputClass}>
+            <option value="">All Statuses</option>
+            <option value="upcoming">Upcoming</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
 
-            <div className="mt-3 grid h-72 grid-cols-12 items-end gap-2 border-b border-slate-200 px-2">
-              {monthlyCounts.map((count, index) => {
-                const barHeight =
-                  count > 0 ? Math.max((count / maxMonthCount) * 220, 28) : 0;
+          <select name="sort" defaultValue={sort} className={inputClass}>
+            <option value="date_desc">Signing Date: Newest → Oldest</option>
+            <option value="date_asc">Signing Date: Oldest → Newest</option>
+            <option value="fee_desc">Fee: Highest</option>
+            <option value="fee_asc">Fee: Lowest</option>
+            <option value="borrower_asc">Borrower: A–Z</option>
+            <option value="client_asc">Client: A–Z</option>
+          </select>
 
-                return (
-                  <div
-                    key={months[index]}
-                    className="flex h-full min-w-0 flex-col items-center justify-end gap-2"
-                  >
-                    <div className="text-xs font-bold text-slate-600">
-                      {count}
-                    </div>
+          <input
+            name="from"
+            type="date"
+            defaultValue={from}
+            className={inputClass}
+          />
 
-                    <div
-                      className="w-full max-w-10 rounded-t-lg bg-blue-600"
-                      style={{ height: `${barHeight}px` }}
-                    />
+          <input
+            name="to"
+            type="date"
+            defaultValue={to}
+            className={inputClass}
+          />
 
-                    <div className="text-[10px] font-bold text-slate-500 sm:text-xs">
-                      {months[index]}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <button className={primaryButtonClass}>Filter</button>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-black text-slate-950">Top Alerts</h2>
+          <Link href="/notary/assignments" className={secondaryButtonClass}>
+            Reset
+          </Link>
+        </form>
+      </section>
 
-            <div className="mt-4 space-y-2">
-              {alertList.map((alert) => {
-                const tone =
-                  alert.tone === "red"
-                    ? "text-red-600 bg-red-50"
-                    : alert.tone === "amber"
-                      ? "text-amber-700 bg-amber-50"
-                      : "text-blue-700 bg-blue-50";
+      <section className="grid gap-4 md:grid-cols-4 xl:grid-cols-6">
+        {[
+          ["All", rows.length, "Every assignment", ""],
+          ["INS", insCount, "INS originated", "ins"],
+          ["External", externalCount, "Outside INS", "external"],
+        ].map(([label, count, description, sourceValue]) => (
+          <Link
+            key={label}
+            href={
+              sourceValue
+                ? buildHref({ source: String(sourceValue) })
+                : buildHref({ source: "", status: "" })
+            }
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:bg-slate-50"
+          >
+            <div className="mb-4 h-1 w-10 rounded-full bg-[#0B1F4D]" />
+            <p className="text-sm font-semibold text-slate-600">{label}</p>
+            <p className="mt-2 text-4xl font-bold text-slate-950">{count}</p>
+            <p className="mt-2 text-xs text-slate-500">{description}</p>
+          </Link>
+        ))}
 
-                return (
-                  <Link
-                    key={alert.filter}
-                    href={`/notary/pro?filter=${alert.filter}&timeframe=${activeTimeFrame}`}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 p-3 transition hover:bg-slate-50"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tone}`}
-                      >
-                        <ProIcon type={alert.icon} />
-                      </div>
-                      <p className="truncate text-sm font-bold text-slate-900">
-                        {alert.label}
-                      </p>
-                    </div>
+        {[
+          ["Upcoming", upcomingCount, "Scheduled work", "upcoming"],
+          ["In Progress", inProgressCount, "Currently active", "in_progress"],
+          ["Completed", completedCount, "Finished work", "completed"],
+        ].map(([label, count, description, statusValue]) => (
+          <Link
+            key={label}
+            href={buildHref({ status: String(statusValue) })}
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:bg-slate-50"
+          >
+            <div
+              className={`mb-4 h-1 w-10 rounded-full ${statusAccent(
+                String(statusValue),
+              )}`}
+            />
+            <p className="text-sm font-semibold text-slate-600">{label}</p>
+            <p className="mt-2 text-4xl font-bold text-slate-950">{count}</p>
+            <p className="mt-2 text-xs text-slate-500">{description}</p>
+          </Link>
+        ))}
+      </section>
 
-                    <div className="text-right">
-                      <p
-                        className={`text-lg font-black ${
-                          alert.tone === "red"
-                            ? "text-red-600"
-                            : alert.tone === "amber"
-                              ? "text-amber-700"
-                              : "text-slate-950"
-                        }`}
-                      >
-                        {alert.count}
-                      </p>
-                      {alert.amount !== null && (
-                        <p
-                          className={`text-xs font-bold ${
-                            alert.tone === "red"
-                              ? "text-red-600"
-                              : "text-emerald-600"
-                          }`}
-                        >
-                          {money(alert.amount)}
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-
-            <Link
-              href={`/notary/pro?filter=upcoming&timeframe=${activeTimeFrame}`}
-              className="mt-4 block rounded-xl px-4 py-2.5 text-center text-sm font-black text-blue-700 transition hover:bg-blue-50"
-            >
-              View All Alerts
-            </Link>
-          </div>
-        </section>
-
-        <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-col justify-between gap-4 border-b border-slate-100 p-5 md:flex-row md:items-center">
-              <div>
-                <h2 className="text-2xl font-black text-slate-950">
-                  {getFilterTitle(activeFilter)}
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Showing jobs that match the selected INS Pro alert card.
-                </p>
-              </div>
-
-              <Link
-                href={`/notary/pro?filter=upcoming&timeframe=${activeTimeFrame}`}
-                className="rounded-xl bg-[#0B1F4D] px-5 py-2.5 text-center text-sm font-black text-white transition hover:bg-blue-950"
-              >
-                View All
-              </Link>
-            </div>
-
-            {filteredJobs.length === 0 ? (
-              <div className="p-6 text-sm font-medium text-slate-500">
-                No jobs match this filter yet.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[850px] text-left text-sm">
-                  <thead className="bg-slate-50 text-xs font-black uppercase tracking-wide text-slate-400">
-                    <tr>
-                      <th className="px-5 py-2.5">Borrower</th>
-                      <th className="px-5 py-2.5">Control #</th>
-                      <th className="px-5 py-2.5">Type</th>
-                      <th className="px-5 py-2.5">Date & Time</th>
-                      <th className="px-5 py-2.5">Location</th>
-                      <th className="px-5 py-2.5 text-right">Fee</th>
-                      <th className="px-5 py-2.5" />
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredJobs.slice(0, 8).map((job) => (
-                      <tr key={job.id} className="hover:bg-slate-50">
-                        <td className="px-5 py-4 font-black text-slate-950">
-                          {job.borrower_name || "Unnamed Borrower"}
-                        </td>
-                        <td className="px-5 py-4 text-slate-600">
-                          {job.control_number || "No control #"}
-                        </td>
-                        <td className="px-5 py-4 text-slate-600">
-                          {job.signing_type || "Signing"}
-                        </td>
-                        <td className="px-5 py-4 font-semibold text-slate-900">
-                          {formatDate(job.signing_date)}{" "}
-                          {formatTime(job.signing_time)}
-                        </td>
-                        <td className="px-5 py-4 text-slate-600">
-                          {job.signing_city}, {job.signing_state}{" "}
-                          {job.signing_zip}
-                        </td>
-                        <td className="px-5 py-4 text-right font-black text-emerald-600">
-                          {money(Number(job.notary_fee ?? 0))}
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <Link
-                            href={`/notary/assignments/${job.id}`}
-                            className="font-black text-blue-700"
-                          >
-                            ›
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-black text-slate-950">
-              Quick Actions
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col justify-between gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="text-xl font-bold text-slate-950">
+              All Assignments
             </h2>
-
-            <div className="mt-4 space-y-2">
-              {quickActions.map((action) => (
-                <Link
-                  key={action.label}
-                  href={action.href}
-                  className="flex items-center justify-between rounded-xl border border-slate-200 p-3 transition hover:bg-slate-50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50 text-[#0B1F4D]">
-                      <ProIcon type={action.icon} />
-                    </div>
-                    <p className="font-bold text-slate-900">{action.label}</p>
-                  </div>
-
-                  <span className="text-xl font-black text-slate-400">›</span>
-                </Link>
-              ))}
-            </div>
+            <p className="mt-1 text-sm text-slate-500">
+              INS and External work in one list with source badges.
+            </p>
           </div>
-        </section>
-      </div>
+
+          <Link href="/notary/pro/jobs/new" className={primaryButtonClass}>
+            + Add External Assignment
+          </Link>
+        </div>
+
+        {!rows.length ? (
+          <div className="p-8 text-center text-sm text-slate-500">
+            No assignments match your filters.
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-4 p-4 md:hidden">
+              {rows.map((assignment) => assignmentCard(assignment))}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 font-bold">Source</th>
+                    <th className="px-4 py-3 font-bold">Borrower</th>
+                    <th className="px-4 py-3 font-bold">Client</th>
+                    <th className="px-4 py-3 font-bold">Signing</th>
+                    <th className="px-4 py-3 font-bold">Location</th>
+                    <th className="px-4 py-3 font-bold">Fee</th>
+                    <th className="px-4 py-3 font-bold">Status</th>
+                    <th className="px-4 py-3 font-bold">Docs</th>
+                    <th className="px-4 py-3 font-bold">Actions</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-200">
+                  {rows.map((assignment) => (
+                    <tr
+                      key={`${assignment.source}-${assignment.id}`}
+                      className="transition hover:bg-slate-50"
+                    >
+                      <td className="px-4 py-4">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${sourceBadge(
+                            assignment.source,
+                          )}`}
+                        >
+                          {assignment.sourceLabel}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-4 font-semibold text-slate-950">
+                        {assignment.borrowerName ?? "—"}
+                      </td>
+
+                      <td className="px-4 py-4 text-slate-700">
+                        {assignment.clientName ?? "—"}
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <div className="font-semibold text-slate-950">
+                          {formatDate(assignment.signingDate)}
+                        </div>
+                        <div className="text-slate-500">
+                          {formatTime(assignment.signingTime)}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {assignment.signingType ?? "Signing"}
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-4 text-slate-700">
+                        <div>{assignment.signingAddress ?? "—"}</div>
+                        <div className="text-slate-500">
+                          {assignment.signingCity ?? "—"},{" "}
+                          {assignment.signingState ?? "IN"}{" "}
+                          {assignment.signingZip ?? ""}
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-4 font-bold text-slate-950">
+                        {formatMoney(assignment.fee)}
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusBadge(
+                            assignment.status,
+                          )}`}
+                        >
+                          {assignment.status ?? "Unknown"}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-4">
+                        {assignment.documentsUrl ? (
+                          <a
+                            href={assignment.documentsUrl}
+                            className="font-bold text-[#0B1F4D] hover:underline"
+                            target="_blank"
+                          >
+                            View Docs
+                          </a>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <Link
+                          href={assignment.href}
+                          className="rounded-xl bg-[#0B1F4D] px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-950"
+                        >
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
     </main>
   );
 }
