@@ -11,6 +11,113 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+
+function proJobFormText(formData: FormData, key: string) {
+  const value = String(formData.get(key) ?? "").trim();
+  return value || null;
+}
+
+function proJobFormNumber(formData: FormData, key: string) {
+  const value = String(formData.get(key) ?? "").trim();
+  if (!value) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+async function updateExternalAssignment(formData: FormData) {
+  "use server";
+
+  const jobId = String(formData.get("job_id") ?? "").trim();
+  if (!jobId) redirect("/notary/assignments");
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  // Ownership is enforced in the update itself. A notary can only edit a
+  // manual Pro job that belongs to their own account.
+  const { data: existingJob, error: lookupError } = await supabase
+    .from("pro_jobs")
+    .select("id, notary_id, source_type")
+    .eq("id", jobId)
+    .eq("notary_id", user.id)
+    .eq("source_type", "manual")
+    .maybeSingle();
+
+  if (lookupError) throw new Error(lookupError.message);
+  if (!existingJob) throw new Error("External assignment not found or you do not have permission to edit it.");
+
+  const borrowerName = proJobFormText(formData, "borrower_name");
+  if (!borrowerName) throw new Error("Borrower name is required.");
+
+  const { error } = await supabase
+    .from("pro_jobs")
+    .update({
+      client_name: proJobFormText(formData, "client_name"),
+      borrower_name: borrowerName,
+      signer_phone: proJobFormText(formData, "signer_phone"),
+      signer_email: proJobFormText(formData, "signer_email"),
+      signing_type: proJobFormText(formData, "signing_type"),
+      signing_date: proJobFormText(formData, "signing_date"),
+      signing_time: proJobFormText(formData, "signing_time"),
+      signing_address: proJobFormText(formData, "signing_address"),
+      signing_city: proJobFormText(formData, "signing_city"),
+      signing_state: proJobFormText(formData, "signing_state") || "IN",
+      signing_zip: proJobFormText(formData, "signing_zip"),
+      fee: proJobFormNumber(formData, "fee") ?? 0,
+      status: proJobFormText(formData, "status") || "Not Confirmed",
+      tracking_number: proJobFormText(formData, "tracking_number"),
+      notes: proJobFormText(formData, "notes"),
+    })
+    .eq("id", jobId)
+    .eq("notary_id", user.id)
+    .eq("source_type", "manual");
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/notary/assignments/${jobId}`);
+  revalidatePath("/notary/assignments");
+  revalidatePath("/notary/dashboard");
+  redirect(`/notary/assignments/${jobId}`);
+}
+
+async function deleteExternalAssignment(formData: FormData) {
+  "use server";
+
+  const jobId = String(formData.get("job_id") ?? "").trim();
+  const confirmation = String(formData.get("confirm_delete") ?? "");
+
+  if (!jobId) redirect("/notary/assignments");
+  if (confirmation !== "yes") {
+    throw new Error("You must confirm deletion before deleting this external assignment.");
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  // The delete is scoped by both owner and source type. INS-created
+  // assignments can never be deleted through this action.
+  const { error } = await supabase
+    .from("pro_jobs")
+    .delete()
+    .eq("id", jobId)
+    .eq("notary_id", user.id)
+    .eq("source_type", "manual");
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/notary/assignments");
+  revalidatePath("/notary/dashboard");
+  redirect("/notary/assignments");
+}
+
 const FEDERAL_MILEAGE_RATE = 0.725;
 const INDIANA_NOTARIAL_ACT_FEE = 10;
 const EXPENSE_CATEGORIES = [
@@ -2504,8 +2611,8 @@ Thank you for choosing Indiana Notary Solutions.
         notary_fee: proJob.fee ?? 0,
 
         borrower_name: proJob.borrower_name ?? null,
-        borrower_phone: proJob.borrower_phone ?? null,
-        borrower_email: proJob.borrower_email ?? null,
+        borrower_phone: proJob.signer_phone ?? proJob.borrower_phone ?? null,
+        borrower_email: proJob.signer_email ?? proJob.borrower_email ?? null,
 
         signing_type: proJob.signing_type ?? null,
         signing_date: proJob.signing_date ?? null,
@@ -3866,6 +3973,230 @@ Thank you for choosing Indiana Notary Solutions.
               </span>
 
               {nextAction(assignment, signingDate, signingTime)}
+
+              {isExternalAssignment && (
+                <details className="relative">
+                  <summary className="cursor-pointer list-none rounded-xl bg-white px-4 py-2 text-sm font-black text-[#0B1F4D] transition hover:bg-blue-50 [&::-webkit-details-marker]:hidden">
+                    Edit Order
+                  </summary>
+
+                  <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 p-4 sm:p-8">
+                    <div className="mx-auto max-w-4xl rounded-3xl bg-white text-slate-950 shadow-2xl">
+                      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 sm:px-6">
+                        <div>
+                          <h2 className="text-xl font-black">Edit External Order</h2>
+                          <p className="mt-1 text-sm font-semibold text-slate-500">
+                            This order was created by you, so you can change its core details.
+                          </p>
+                        </div>
+                        <CloseDetailsButton />
+                      </div>
+
+                      <form action={updateExternalAssignment} className="space-y-6 p-5 sm:p-6">
+                        <input type="hidden" name="job_id" value={assignment.id} />
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <label className="block">
+                            <span className="text-sm font-bold text-slate-700">Borrower Name *</span>
+                            <input
+                              name="borrower_name"
+                              required
+                              defaultValue={assignment.borrower_name ?? ""}
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold"
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-sm font-bold text-slate-700">Client / Company</span>
+                            <input
+                              name="client_name"
+                              defaultValue={assignment.client_name ?? ""}
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold"
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-sm font-bold text-slate-700">Signer Phone</span>
+                            <input
+                              name="signer_phone"
+                              defaultValue={assignment.signer_phone ?? assignment.borrower_phone ?? ""}
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold"
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-sm font-bold text-slate-700">Signer Email</span>
+                            <input
+                              name="signer_email"
+                              type="email"
+                              defaultValue={assignment.signer_email ?? assignment.borrower_email ?? ""}
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold"
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-sm font-bold text-slate-700">Signing Type</span>
+                            <input
+                              name="signing_type"
+                              defaultValue={assignment.signing_type ?? ""}
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold"
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-sm font-bold text-slate-700">Status</span>
+                            <select
+                              name="status"
+                              defaultValue={assignment.status ?? "Not Confirmed"}
+                              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold"
+                            >
+                              {[
+                                "Not Confirmed",
+                                "Confirmed",
+                                "In Progress",
+                                "Signing Complete",
+                                "Closed",
+                                "Cancelled",
+                                "Did Not Sign",
+                                "scheduled",
+                                "confirmed",
+                                "completed",
+                                "cancelled",
+                              ].map((status) => (
+                                <option key={status} value={status}>{status}</option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <label className="block">
+                            <span className="text-sm font-bold text-slate-700">Signing Date</span>
+                            <input
+                              name="signing_date"
+                              type="date"
+                              defaultValue={formatInputDate(assignment.signing_date)}
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold"
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-sm font-bold text-slate-700">Signing Time</span>
+                            <input
+                              name="signing_time"
+                              type="time"
+                              defaultValue={assignment.signing_time ? String(assignment.signing_time).slice(0, 5) : ""}
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold"
+                            />
+                          </label>
+
+                          <label className="block md:col-span-2">
+                            <span className="text-sm font-bold text-slate-700">Signing Address</span>
+                            <input
+                              name="signing_address"
+                              defaultValue={assignment.signing_address ?? ""}
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold"
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-sm font-bold text-slate-700">City</span>
+                            <input
+                              name="signing_city"
+                              defaultValue={assignment.signing_city ?? ""}
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold"
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-sm font-bold text-slate-700">State</span>
+                            <input
+                              name="signing_state"
+                              defaultValue={assignment.signing_state ?? "IN"}
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold"
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-sm font-bold text-slate-700">ZIP</span>
+                            <input
+                              name="signing_zip"
+                              defaultValue={assignment.signing_zip ?? ""}
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold"
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-sm font-bold text-slate-700">Fee</span>
+                            <input
+                              name="fee"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              defaultValue={String(assignment.fee ?? assignment.notary_fee ?? 0)}
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold"
+                            />
+                          </label>
+
+                          <label className="block md:col-span-2">
+                            <span className="text-sm font-bold text-slate-700">Tracking Number</span>
+                            <input
+                              name="tracking_number"
+                              defaultValue={assignment.tracking_number ?? ""}
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold"
+                            />
+                          </label>
+
+                          <label className="block md:col-span-2">
+                            <span className="text-sm font-bold text-slate-700">Notes</span>
+                            <textarea
+                              name="notes"
+                              rows={5}
+                              defaultValue={assignment.notes ?? ""}
+                              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                          <CloseDetailsButton />
+                          <SubmitButton
+                            pendingText="Saving..."
+                            className="rounded-xl bg-[#0B1F4D] px-5 py-3 text-sm font-black text-white hover:bg-blue-950"
+                          >
+                            Save Changes
+                          </SubmitButton>
+                        </div>
+                      </form>
+
+                      <div className="border-t border-red-200 bg-red-50 p-5 sm:p-6">
+                        <h3 className="font-black text-red-800">Delete External Order</h3>
+                        <p className="mt-1 text-sm font-semibold text-red-700">
+                          This permanently deletes this notary-created order. This does not apply to INS-assigned orders.
+                        </p>
+
+                        <form action={deleteExternalAssignment} className="mt-4 space-y-4">
+                          <input type="hidden" name="job_id" value={assignment.id} />
+                          <label className="flex items-start gap-3 text-sm font-bold text-red-800">
+                            <input
+                              type="checkbox"
+                              name="confirm_delete"
+                              value="yes"
+                              required
+                              className="mt-1 h-4 w-4"
+                            />
+                            <span>I understand this external order will be permanently deleted.</span>
+                          </label>
+                          <SubmitButton
+                            pendingText="Deleting..."
+                            className="rounded-xl bg-red-700 px-5 py-3 text-sm font-black text-white hover:bg-red-800"
+                          >
+                            Delete Order
+                          </SubmitButton>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+              )}
             </div>
           </div>
         </div>
