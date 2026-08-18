@@ -419,7 +419,7 @@ export default async function UserDetailPage({
   </select>
 </label>
 
-                <button className="w-full rounded-xl bg-[#0B1F4D] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950">
+                <button type="submit" className="w-full rounded-xl bg-[#0B1F4D] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-950">
                   Save Profile
                 </button>
               </div>
@@ -430,32 +430,69 @@ export default async function UserDetailPage({
                 Access Tools
               </h3>
 
-              <div className="mt-4 space-y-3">
+              <p className="mt-2 text-xs text-slate-500">
+                Send a reset email, set a temporary password, or control whether
+                this user can access the application.
+              </p>
+
+              <div className="mt-4 space-y-4">
                 <form action={sendPasswordReset}>
+                  <input type="hidden" name="user_id" value={id} />
                   <input type="hidden" name="email" value={user.email ?? ""} />
-                  <button className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50">
+
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                  >
                     Send Password Reset
                   </button>
                 </form>
 
-                <form action={setTemporaryPassword}>
-                  <input type="hidden" name="id" value={id} />
-                  <button className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50">
+                <form action={setTemporaryPassword} className="space-y-2">
+                  <input type="hidden" name="user_id" value={id} />
+
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-600">
+                      Temporary Password
+                    </span>
+                    <input
+                      type="password"
+                      name="temporary_password"
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                      placeholder="Enter at least 8 characters"
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                    />
+                  </label>
+
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                  >
                     Set Temporary Password
                   </button>
                 </form>
 
                 {user.is_active ? (
                   <form action={disableUser}>
-                    <input type="hidden" name="id" value={id} />
-                    <button className="w-full rounded-xl bg-amber-600 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-amber-700">
+                    <input type="hidden" name="user_id" value={id} />
+
+                    <button
+                      type="submit"
+                      className="w-full rounded-xl bg-amber-600 px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-amber-700"
+                    >
                       Disable User
                     </button>
                   </form>
                 ) : (
                   <form action={reactivateUser}>
-                    <input type="hidden" name="id" value={id} />
-                    <button className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-emerald-700">
+                    <input type="hidden" name="user_id" value={id} />
+
+                    <button
+                      type="submit"
+                      className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700"
+                    >
                       Reactivate User
                     </button>
                   </form>
@@ -472,8 +509,8 @@ export default async function UserDetailPage({
               </p>
 
               <form action={deleteUser} className="mt-4">
-                <input type="hidden" name="id" value={id} />
-                <button className="w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-red-700">
+                <input type="hidden" name="user_id" value={id} />
+                <button type="submit" className="w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-red-700">
                   Delete User
                 </button>
               </form>
