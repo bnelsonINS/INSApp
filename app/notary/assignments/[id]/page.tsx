@@ -2463,14 +2463,86 @@ Thank you for choosing Indiana Notary Solutions.
 
   if (!user) redirect("/login");
 
-  const { data: assignment } = await supabase
+  // Load either an INS assignment or an external/manual Pro job.
+  // Both sources are normalized into the same assignment shape so this
+  // existing workspace can render either type at the same URL.
+  const { data: insAssignment, error: insAssignmentError } = await supabase
     .from("assignments")
     .select("*")
     .eq("id", id)
     .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
-    .single();
+    .maybeSingle();
+
+  if (insAssignmentError) {
+    console.error("Unable to load INS assignment:", insAssignmentError);
+  }
+
+  let assignment: any = insAssignment;
+  let assignmentSource: "ins" | "external" = "ins";
+
+  if (!assignment) {
+    const { data: proJob, error: proJobError } = await supabase
+      .from("pro_jobs")
+      .select("*")
+      .eq("id", id)
+      .eq("notary_id", user.id)
+      .maybeSingle();
+
+    if (proJobError) {
+      console.error("Unable to load external assignment:", proJobError);
+    }
+
+    if (proJob) {
+      assignmentSource = "external";
+
+      assignment = {
+        ...proJob,
+        id: proJob.id,
+
+        // Normalize Pro fields to the names the existing assignment UI expects.
+        control_number: proJob.job_number ?? null,
+        notary_fee: proJob.fee ?? 0,
+
+        borrower_name: proJob.borrower_name ?? null,
+        borrower_phone: proJob.borrower_phone ?? null,
+        borrower_email: proJob.borrower_email ?? null,
+
+        signing_type: proJob.signing_type ?? null,
+        signing_date: proJob.signing_date ?? null,
+        signing_time: proJob.signing_time ?? null,
+        signing_address: proJob.signing_address ?? null,
+        signing_city: proJob.signing_city ?? null,
+        signing_state: proJob.signing_state ?? null,
+        signing_zip: proJob.signing_zip ?? null,
+
+        status: proJob.status ?? "Not Confirmed",
+
+        client_name: proJob.client_name ?? null,
+        client_id: proJob.client_id ?? null,
+
+        special_instructions:
+          proJob.special_instructions ??
+          proJob.instructions ??
+          proJob.notes ??
+          null,
+
+        scanbacks_required: proJob.scanbacks_required ?? false,
+        shipping_carrier: proJob.shipping_carrier ?? null,
+        tracking_number: proJob.tracking_number ?? null,
+        drop_date: proJob.drop_date ?? null,
+        completion_notes: proJob.completion_notes ?? null,
+        completed_at: proJob.completed_at ?? null,
+
+        documents_url: proJob.documents_url ?? null,
+        source_type: proJob.source_type ?? "manual",
+        is_external_assignment: true,
+      };
+    }
+  }
 
   if (!assignment) redirect("/notary/assignments");
+
+  const isExternalAssignment = assignmentSource === "external";
 
   const { data: activity } = await supabase
     .from("assignment_activity")
@@ -2519,11 +2591,13 @@ Thank you for choosing Indiana Notary Solutions.
     }),
   );
 
-  const { data: titleDocuments } = await supabaseAdmin
-    .from("order_documents")
-    .select("id, file_name, file_path, file_type, file_size")
-    .eq("order_id", assignment.id)
-    .order("file_name", { ascending: true });
+  const { data: titleDocuments } = !isExternalAssignment
+    ? await supabaseAdmin
+        .from("order_documents")
+        .select("id, file_name, file_path, file_type, file_size")
+        .eq("order_id", assignment.id)
+        .order("file_name", { ascending: true })
+    : { data: [] };
 
   const { data: clientProfile } = assignment.client_id
     ? await supabaseAdmin
