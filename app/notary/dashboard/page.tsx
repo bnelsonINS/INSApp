@@ -18,6 +18,7 @@ type Assignment = {
   signing_state: string | null;
   signing_zip: string | null;
   notary_fee: number | string | null;
+  source?: "ins" | "external";
 };
 
 type NotaryProfile = {
@@ -287,14 +288,71 @@ export default async function NotaryDashboardPage() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const { data: assignments } = await supabase
+  const { data: assignments, error: assignmentsError } = await supabase
     .from("assignments")
     .select("*")
     .or(`notary_id.eq.${user.id},assigned_notary_id.eq.${user.id}`)
     .order("signing_date", { ascending: true, nullsFirst: false })
     .order("signing_time", { ascending: true, nullsFirst: false });
 
-  const safeAssignments = (assignments ?? []) as Assignment[];
+  if (assignmentsError) {
+    console.error("Unable to load INS assignments:", assignmentsError);
+  }
+
+  const { data: externalJobs, error: externalJobsError } = await supabase
+    .from("pro_jobs")
+    .select(
+      "id, job_number, status, signing_type, borrower_name, signing_date, signing_time, signing_city, signing_state, signing_zip, fee"
+    )
+    .eq("notary_id", user.id)
+    .eq("source_type", "manual")
+    .order("signing_date", { ascending: true, nullsFirst: false })
+    .order("signing_time", { ascending: true, nullsFirst: false });
+
+  if (externalJobsError) {
+    console.error(
+      "Unable to load external jobs on notary dashboard:",
+      externalJobsError
+    );
+  }
+
+  const insAssignments: Assignment[] = (
+    (assignments ?? []) as Assignment[]
+  ).map((assignment) => ({
+    ...assignment,
+    source: "ins",
+  }));
+
+  const externalAssignments: Assignment[] = (externalJobs ?? []).map(
+    (job) => ({
+      id: job.id,
+      control_number: job.job_number ?? null,
+      status: job.status ?? null,
+      signing_type: job.signing_type ?? null,
+      borrower_name: job.borrower_name ?? null,
+      signing_date: job.signing_date ?? null,
+      signing_time: job.signing_time ?? null,
+      signing_city: job.signing_city ?? null,
+      signing_state: job.signing_state ?? null,
+      signing_zip: job.signing_zip ?? null,
+      notary_fee: job.fee ?? 0,
+      source: "external",
+    })
+  );
+
+  const safeAssignments: Assignment[] = [
+    ...insAssignments,
+    ...externalAssignments,
+  ].sort((a, b) => {
+    const aDate = `${a.signing_date ?? "9999-12-31"}T${
+      a.signing_time ?? "23:59"
+    }`;
+    const bDate = `${b.signing_date ?? "9999-12-31"}T${
+      b.signing_time ?? "23:59"
+    }`;
+
+    return aDate.localeCompare(bDate);
+  });
 
   const todayAssignments = safeAssignments.filter((item) =>
     isToday(item.signing_date)
