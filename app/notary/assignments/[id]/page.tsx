@@ -7,6 +7,7 @@ import CloseDetailsButton from "./CloseDetailsButton";
 import SubmitButton from "../../../components/SubmitButton";
 import SignaturePad from "./SignaturePad";
 import Link from "next/link";
+import DriversLicenseScanner from "./DriversLicenseScanner";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -7046,12 +7047,7 @@ Thank you for choosing Indiana Notary Solutions.
                         </p>
                       </div>
 
-                      <button
-                        type="button"
-                        className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
-                      >
-                        Scan Indiana Driver's License
-                      </button>
+                      <DriversLicenseScanner />
                     </div>
 
                     <div className="mt-5 grid gap-4 md:grid-cols-2">
