@@ -1,7 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseAdmin } from "../../../src/lib/supabase-admin";
 import { createSupabaseServerClient } from "../../../src/lib/supabase-server";
@@ -11,16 +11,14 @@ function cleanString(value: FormDataEntryValue | null) {
 }
 
 function getUserId(formData: FormData) {
-  return (
-    cleanString(formData.get("user_id")) ||
-    cleanString(formData.get("id"))
-  );
+  return cleanString(formData.get("user_id")) || cleanString(formData.get("id"));
 }
 
-/**
- * Server actions that use the service-role client must verify the caller.
- * The dashboard layout also protects the UI, but this protects the action itself.
- */
+function userPage(userId: string, kind?: "access_success" | "access_error", message?: string) {
+  if (!kind || !message) return `/dashboard/users/${userId}`;
+  return `/dashboard/users/${userId}?${kind}=${encodeURIComponent(message)}`;
+}
+
 async function requireAdmin() {
   const supabase = await createSupabaseServerClient();
 
@@ -51,27 +49,46 @@ async function requireAdmin() {
   return user;
 }
 
+async function getAuthUserOrNull(userId: string) {
+  const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
+
+  if (!error && data?.user) {
+    return data.user;
+  }
+
+  if (error) {
+    const message = error.message.toLowerCase();
+
+    if (message.includes("user not found") || message.includes("not found")) {
+      return null;
+    }
+
+    throw new Error(error.message);
+  }
+
+  return null;
+}
+
 async function getSiteUrl() {
-  const requestHeaders = await headers();
-
-  const forwardedHost = requestHeaders.get("x-forwarded-host");
-  const host = forwardedHost || requestHeaders.get("host");
-  const forwardedProto = requestHeaders.get("x-forwarded-proto");
-
   if (process.env.NEXT_PUBLIC_SITE_URL) {
     return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
   }
 
-  if (host) {
-    const protocol =
-      forwardedProto || (host.includes("localhost") ? "http" : "https");
+  const requestHeaders = await headers();
+  const forwardedHost = requestHeaders.get("x-forwarded-host");
+  const host = forwardedHost || requestHeaders.get("host");
+  const forwardedProto = requestHeaders.get("x-forwarded-proto");
 
-    return `${protocol}://${host}`;
+  if (!host) {
+    throw new Error(
+      "Unable to determine the site URL. Set NEXT_PUBLIC_SITE_URL in Vercel."
+    );
   }
 
-  throw new Error(
-    "Unable to determine the site URL. Set NEXT_PUBLIC_SITE_URL in Vercel."
-  );
+  const protocol =
+    forwardedProto || (host.includes("localhost") ? "http" : "https");
+
+  return `${protocol}://${host}`;
 }
 
 export async function createUser(formData: FormData) {
@@ -85,6 +102,10 @@ export async function createUser(formData: FormData) {
 
   if (!email || !password || !role) {
     throw new Error("Email, password, and role are required.");
+  }
+
+  if (password.length < 8) {
+    throw new Error("Password must be at least 8 characters.");
   }
 
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
@@ -118,10 +139,11 @@ export async function createUser(formData: FormData) {
   });
 
   if (profileError) {
+    // Avoid leaving a second orphan, this time on the Auth side.
+    await supabaseAdmin.auth.admin.deleteUser(userId);
     throw new Error(profileError.message);
   }
 
-  // If the admin creates the account as inactive, ban Auth too.
   if (!isActive) {
     const { error: banError } =
       await supabaseAdmin.auth.admin.updateUserById(userId, {
@@ -135,6 +157,7 @@ export async function createUser(formData: FormData) {
     }
   }
 
+  revalidatePath("/dashboard/users");
   redirect("/dashboard/users");
 }
 
@@ -152,28 +175,32 @@ export async function updateUserProfile(formData: FormData) {
     throw new Error("User ID and role are required.");
   }
 
-  const authUpdate: {
-    user_metadata: { full_name: string };
-    app_metadata: { role: string };
-    email?: string;
-  } = {
-    user_metadata: {
-      full_name: fullName,
-    },
-    app_metadata: {
-      role,
-    },
-  };
+  const authUser = await getAuthUserOrNull(userId);
 
-  if (email) {
-    authUpdate.email = email;
-  }
+  if (authUser) {
+    const authUpdate: {
+      user_metadata: { full_name: string };
+      app_metadata: { role: string };
+      email?: string;
+    } = {
+      user_metadata: {
+        full_name: fullName,
+      },
+      app_metadata: {
+        role,
+      },
+    };
 
-  const { error: authError } =
-    await supabaseAdmin.auth.admin.updateUserById(userId, authUpdate);
+    if (email) {
+      authUpdate.email = email;
+    }
 
-  if (authError) {
-    throw new Error(authError.message);
+    const { error: authError } =
+      await supabaseAdmin.auth.admin.updateUserById(userId, authUpdate);
+
+    if (authError) {
+      redirect(userPage(userId, "access_error", authError.message));
+    }
   }
 
   const updateData: {
@@ -197,11 +224,23 @@ export async function updateUserProfile(formData: FormData) {
     .eq("id", userId);
 
   if (profileError) {
-    throw new Error(profileError.message);
+    redirect(userPage(userId, "access_error", profileError.message));
   }
 
   revalidatePath("/dashboard/users");
   revalidatePath(`/dashboard/users/${userId}`);
+
+  if (!authUser) {
+    redirect(
+      userPage(
+        userId,
+        "access_success",
+        "Profile saved. This legacy profile still has no Supabase Auth login account."
+      )
+    );
+  }
+
+  redirect(userPage(userId, "access_success", "Profile saved successfully."));
 }
 
 export async function disableUser(formData: FormData) {
@@ -213,36 +252,53 @@ export async function disableUser(formData: FormData) {
   }
 
   if (userId === adminUser.id) {
-    throw new Error("You cannot disable your own administrator account.");
+    redirect(
+      userPage(
+        userId,
+        "access_error",
+        "You cannot disable your own administrator account."
+      )
+    );
   }
 
-  // Disable the Supabase Auth account so new sign-ins fail.
+  const authUser = await getAuthUserOrNull(userId);
+
+  if (!authUser) {
+    redirect(
+      userPage(
+        userId,
+        "access_error",
+        "This profile has no Supabase Auth account, so there is no login account to disable."
+      )
+    );
+  }
+
   const { error: authError } =
     await supabaseAdmin.auth.admin.updateUserById(userId, {
       ban_duration: "876000h",
     });
 
   if (authError) {
-    throw new Error(authError.message);
+    redirect(userPage(userId, "access_error", authError.message));
   }
 
-  // Also update the application profile. Your portal layouts already enforce this.
   const { error: profileError } = await supabaseAdmin
     .from("profiles")
     .update({ is_active: false })
     .eq("id", userId);
 
   if (profileError) {
-    // Try to undo the Auth ban if the profile update fails.
+    // Try to put Auth back the way it was if the profile update fails.
     await supabaseAdmin.auth.admin.updateUserById(userId, {
       ban_duration: "none",
     });
 
-    throw new Error(profileError.message);
+    redirect(userPage(userId, "access_error", profileError.message));
   }
 
   revalidatePath("/dashboard/users");
   revalidatePath(`/dashboard/users/${userId}`);
+  redirect(userPage(userId, "access_success", "User access has been disabled."));
 }
 
 export async function reactivateUser(formData: FormData) {
@@ -254,14 +310,25 @@ export async function reactivateUser(formData: FormData) {
     throw new Error("Missing user ID.");
   }
 
-  // "none" is Supabase's supported value for lifting a user ban.
+  const authUser = await getAuthUserOrNull(userId);
+
+  if (!authUser) {
+    redirect(
+      userPage(
+        userId,
+        "access_error",
+        "This profile has no Supabase Auth account, so it cannot be reactivated for login."
+      )
+    );
+  }
+
   const { error: authError } =
     await supabaseAdmin.auth.admin.updateUserById(userId, {
       ban_duration: "none",
     });
 
   if (authError) {
-    throw new Error(authError.message);
+    redirect(userPage(userId, "access_error", authError.message));
   }
 
   const { error: profileError } = await supabaseAdmin
@@ -270,38 +337,65 @@ export async function reactivateUser(formData: FormData) {
     .eq("id", userId);
 
   if (profileError) {
-    throw new Error(profileError.message);
+    redirect(userPage(userId, "access_error", profileError.message));
   }
 
   revalidatePath("/dashboard/users");
   revalidatePath(`/dashboard/users/${userId}`);
+  redirect(userPage(userId, "access_success", "User access has been reactivated."));
 }
 
 export async function sendPasswordReset(formData: FormData) {
   await requireAdmin();
 
-  const email = cleanString(formData.get("email")).toLowerCase();
   const userId = getUserId(formData);
 
+  if (!userId) {
+    throw new Error("Missing user ID.");
+  }
+
+  const authUser = await getAuthUserOrNull(userId);
+
+  if (!authUser) {
+    redirect(
+      userPage(
+        userId,
+        "access_error",
+        "Password reset cannot be sent because this profile has no Supabase Auth account."
+      )
+    );
+  }
+
+  const email = authUser.email?.trim().toLowerCase();
+
   if (!email) {
-    throw new Error("Missing email.");
+    redirect(
+      userPage(
+        userId,
+        "access_error",
+        "This Auth account does not have an email address."
+      )
+    );
   }
 
   const siteUrl = await getSiteUrl();
 
-  // resetPasswordForEmail actually sends the recovery email.
-  // admin.generateLink only generates a link for a custom mailer.
   const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
     redirectTo: `${siteUrl}/reset-password`,
   });
 
   if (error) {
-    throw new Error(error.message);
+    redirect(userPage(userId, "access_error", error.message));
   }
 
-  if (userId) {
-    revalidatePath(`/dashboard/users/${userId}`);
-  }
+  revalidatePath(`/dashboard/users/${userId}`);
+  redirect(
+    userPage(
+      userId,
+      "access_success",
+      `Password reset email sent to ${email}.`
+    )
+  );
 }
 
 export async function setTemporaryPassword(formData: FormData) {
@@ -315,7 +409,25 @@ export async function setTemporaryPassword(formData: FormData) {
   }
 
   if (password.length < 8) {
-    throw new Error("Temporary password must be at least 8 characters.");
+    redirect(
+      userPage(
+        userId,
+        "access_error",
+        "Temporary password must be at least 8 characters."
+      )
+    );
+  }
+
+  const authUser = await getAuthUserOrNull(userId);
+
+  if (!authUser) {
+    redirect(
+      userPage(
+        userId,
+        "access_error",
+        "Temporary password cannot be set because this profile has no Supabase Auth account."
+      )
+    );
   }
 
   const { error } =
@@ -324,20 +436,19 @@ export async function setTemporaryPassword(formData: FormData) {
     });
 
   if (error) {
-    throw new Error(error.message);
+    redirect(userPage(userId, "access_error", error.message));
   }
 
   revalidatePath(`/dashboard/users/${userId}`);
+  redirect(
+    userPage(userId, "access_success", "Temporary password set successfully.")
+  );
 }
 
 /**
- * Left intentionally as a deactivate-style operation.
- *
- * The current repo does not include the live database FK/delete rules for
- * profiles, orders, assignments, credentials, documents, etc. Hard-deleting
- * auth.users without knowing those rules could destroy or orphan business data.
- * If you want true permanent deletion, verify the schema first and then replace
- * this with supabaseAdmin.auth.admin.deleteUser(...).
+ * This stays as a deactivation operation rather than a destructive hard delete.
+ * The repo does not contain the live database FK/cascade rules needed to prove
+ * that deleting auth.users is safe for orders, credentials, assignments, etc.
  */
 export async function deleteUser(formData: FormData) {
   const adminUser = await requireAdmin();
@@ -348,16 +459,26 @@ export async function deleteUser(formData: FormData) {
   }
 
   if (userId === adminUser.id) {
-    throw new Error("You cannot delete/disable your own administrator account.");
+    redirect(
+      userPage(
+        userId,
+        "access_error",
+        "You cannot disable/delete your own administrator account."
+      )
+    );
   }
 
-  const { error: authError } =
-    await supabaseAdmin.auth.admin.updateUserById(userId, {
-      ban_duration: "876000h",
-    });
+  const authUser = await getAuthUserOrNull(userId);
 
-  if (authError) {
-    throw new Error(authError.message);
+  if (authUser) {
+    const { error: authError } =
+      await supabaseAdmin.auth.admin.updateUserById(userId, {
+        ban_duration: "876000h",
+      });
+
+    if (authError) {
+      redirect(userPage(userId, "access_error", authError.message));
+    }
   }
 
   const { error: profileError } = await supabaseAdmin
@@ -366,9 +487,18 @@ export async function deleteUser(formData: FormData) {
     .eq("id", userId);
 
   if (profileError) {
-    throw new Error(profileError.message);
+    redirect(userPage(userId, "access_error", profileError.message));
   }
 
   revalidatePath("/dashboard/users");
   revalidatePath(`/dashboard/users/${userId}`);
+  redirect(
+    userPage(
+      userId,
+      "access_success",
+      authUser
+        ? "User has been disabled."
+        : "Legacy profile has been marked inactive. It did not have an Auth login account."
+    )
+  );
 }

@@ -203,10 +203,18 @@ function getInitials(name: string | null | undefined, email: string | null | und
 
 export default async function UserDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{
+    access_success?: string;
+    access_error?: string;
+  }>;
 }) {
   const { id } = await params;
+  const messages = await searchParams;
+  const accessSuccess = messages?.access_success ?? "";
+  const accessError = messages?.access_error ?? "";
 
   const { data: user } = await supabaseAdmin
     .from("profiles")
@@ -215,6 +223,16 @@ export default async function UserDetailPage({
     .single();
 
   if (!user) redirect("/dashboard/users");
+
+  const { data: authLookup, error: authLookupError } =
+    await supabaseAdmin.auth.admin.getUserById(id);
+
+  const hasAuthAccount = Boolean(authLookup?.user) && !authLookupError;
+  const authLookupFailedForOtherReason = Boolean(
+    authLookupError &&
+      !authLookupError.message.toLowerCase().includes("user not found") &&
+      !authLookupError.message.toLowerCase().includes("not found")
+  );
 
   const { data: notaryProfile } = await supabaseAdmin
     .from("notary_profiles")
@@ -285,6 +303,24 @@ export default async function UserDetailPage({
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
+        {accessSuccess && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800 shadow-sm">
+            {accessSuccess}
+          </div>
+        )}
+
+        {accessError && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-800 shadow-sm">
+            {accessError}
+          </div>
+        )}
+
+        {authLookupFailedForOtherReason && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 shadow-sm">
+            Supabase Auth could not be checked: {authLookupError?.message}
+          </div>
+        )}
+
         <section className="overflow-hidden rounded-2xl bg-[#0B1F4D] p-6 text-white shadow-sm">
   <Link
     href="/dashboard/users"
@@ -316,6 +352,16 @@ export default async function UserDetailPage({
 
         <span className="rounded-full bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">
           {displayValue(user.role)}
+        </span>
+
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${
+            hasAuthAccount
+              ? "bg-emerald-100 text-emerald-700 ring-emerald-200"
+              : "bg-red-100 text-red-700 ring-red-200"
+          }`}
+        >
+          {hasAuthAccount ? "Login Account Active" : "No Login Account"}
         </span>
 
         {user.approval_status && (
@@ -430,74 +476,94 @@ export default async function UserDetailPage({
                 Access Tools
               </h3>
 
-              <p className="mt-2 text-xs text-slate-500">
-                Send a reset email, set a temporary password, or control whether
-                this user can access the application.
-              </p>
+              {hasAuthAccount ? (
+                <>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Send a reset email, set a temporary password, or control
+                    whether this user can sign in.
+                  </p>
 
-              <div className="mt-4 space-y-4">
-                <form action={sendPasswordReset}>
-                  <input type="hidden" name="user_id" value={id} />
-                  <input type="hidden" name="email" value={user.email ?? ""} />
+                  <div className="mt-4 space-y-4">
+                    <form action={sendPasswordReset}>
+                      <input type="hidden" name="user_id" value={id} />
 
-                  <button
-                    type="submit"
-                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm transition hover:bg-slate-50"
-                  >
-                    Send Password Reset
-                  </button>
-                </form>
+                      <button
+                        type="submit"
+                        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                      >
+                        Send Password Reset
+                      </button>
+                    </form>
 
-                <form action={setTemporaryPassword} className="space-y-2">
-                  <input type="hidden" name="user_id" value={id} />
+                    <form action={setTemporaryPassword} className="space-y-2">
+                      <input type="hidden" name="user_id" value={id} />
 
-                  <label className="block">
-                    <span className="text-xs font-semibold text-slate-600">
-                      Temporary Password
-                    </span>
-                    <input
-                      type="password"
-                      name="temporary_password"
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                      placeholder="Enter at least 8 characters"
-                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
-                    />
-                  </label>
+                      <label className="block">
+                        <span className="text-xs font-semibold text-slate-600">
+                          Temporary Password
+                        </span>
+                        <input
+                          type="password"
+                          name="temporary_password"
+                          required
+                          minLength={8}
+                          autoComplete="new-password"
+                          placeholder="Enter at least 8 characters"
+                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
+                        />
+                      </label>
 
-                  <button
-                    type="submit"
-                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm transition hover:bg-slate-50"
-                  >
-                    Set Temporary Password
-                  </button>
-                </form>
+                      <button
+                        type="submit"
+                        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                      >
+                        Set Temporary Password
+                      </button>
+                    </form>
 
-                {user.is_active ? (
-                  <form action={disableUser}>
-                    <input type="hidden" name="user_id" value={id} />
+                    {user.is_active ? (
+                      <form action={disableUser}>
+                        <input type="hidden" name="user_id" value={id} />
 
-                    <button
-                      type="submit"
-                      className="w-full rounded-xl bg-amber-600 px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-amber-700"
-                    >
-                      Disable User
-                    </button>
-                  </form>
-                ) : (
-                  <form action={reactivateUser}>
-                    <input type="hidden" name="user_id" value={id} />
+                        <button
+                          type="submit"
+                          className="w-full rounded-xl bg-amber-600 px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-amber-700"
+                        >
+                          Disable User
+                        </button>
+                      </form>
+                    ) : (
+                      <form action={reactivateUser}>
+                        <input type="hidden" name="user_id" value={id} />
 
-                    <button
-                      type="submit"
-                      className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700"
-                    >
-                      Reactivate User
-                    </button>
-                  </form>
-                )}
-              </div>
+                        <button
+                          type="submit"
+                          className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700"
+                        >
+                          Reactivate User
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-sm font-black text-red-900">
+                    No Supabase Auth Account
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-red-800">
+                    This is a legacy profile record only. There is no login
+                    account for this UUID, so password reset, temporary
+                    password, disable, and reactivate cannot run against it.
+                  </p>
+                  <p className="mt-3 text-xs leading-5 text-red-700">
+                    Do not create a second Auth user for this profile without
+                    migrating its related notary data. New users created through
+                    the application are created in Supabase Auth first and do
+                    not have this problem.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm">
