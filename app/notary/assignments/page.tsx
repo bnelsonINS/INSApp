@@ -409,26 +409,26 @@ export default async function AssignmentsPage({
   }));
 
   const externalRows: UnifiedAssignment[] = (
-    (externalJobs ?? []) as ProJob[]
-  ).map((job) => ({
-    id: job.id,
-    source: "external",
-    sourceLabel: "External",
-    controlNumber: null,
-    clientName: job.client_name,
-    borrowerName: job.borrower_name,
-    status: job.status,
-    signingType: job.signing_type,
-    signingDate: job.signing_date,
-    signingTime: job.signing_time,
-    signingAddress: job.signing_address,
-    signingCity: job.signing_city,
-    signingState: job.signing_state,
-    signingZip: job.signing_zip,
-    fee: job.fee,
-    documentsUrl: null,
-    href: "/notary/pro/jobs",
-  }));
+  (externalJobs ?? []) as ProJob[]
+).map((job) => ({
+  id: job.id,
+  source: "external",
+  sourceLabel: "External",
+  controlNumber: null,
+  clientName: job.client_name,
+  borrowerName: job.borrower_name,
+  status: job.status,
+  signingType: job.signing_type,
+  signingDate: job.signing_date,
+  signingTime: job.signing_time,
+  signingAddress: job.signing_address,
+  signingCity: job.signing_city,
+  signingState: job.signing_state,
+  signingZip: job.signing_zip,
+  fee: job.fee,
+  documentsUrl: null,
+  href: `/notary/pro/jobs/${job.id}`,
+}));
 
   let rows = [...insRows, ...externalRows];
 
