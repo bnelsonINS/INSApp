@@ -158,8 +158,12 @@ function parseAamva(raw: string): ParsedLicense {
   };
 }
 
-function setFormValue(form: HTMLFormElement, name: string, value?: string) {
-  if (!value) return;
+function setFormValue(
+  form: HTMLFormElement,
+  name: string,
+  value?: string,
+) {
+  if (value === undefined || value === null || value === "") return;
 
   const element = form.elements.namedItem(name);
 
@@ -168,17 +172,19 @@ function setFormValue(form: HTMLFormElement, name: string, value?: string) {
     element instanceof HTMLTextAreaElement ||
     element instanceof HTMLSelectElement
   ) {
-    const prototype =
-      element instanceof HTMLSelectElement
-        ? HTMLSelectElement.prototype
-        : element instanceof HTMLTextAreaElement
-          ? HTMLTextAreaElement.prototype
-          : HTMLInputElement.prototype;
+    element.value = value;
 
-    const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
-    setter?.call(element, value);
-    element.dispatchEvent(new Event("input", { bubbles: true }));
-    element.dispatchEvent(new Event("change", { bubbles: true }));
+    element.dispatchEvent(
+      new Event("input", {
+        bubbles: true,
+      }),
+    );
+
+    element.dispatchEvent(
+      new Event("change", {
+        bubbles: true,
+      }),
+    );
   }
 }
 
