@@ -3068,7 +3068,9 @@ Thank you for choosing Indiana Notary Solutions.
       categories.push(cleanCategory);
     }
 
-    return categories;
+    return categories.sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" }),
+    );
   })();
 
   const { count: existingMileageCount } = await supabase
@@ -4676,7 +4678,6 @@ Thank you for choosing Indiana Notary Solutions.
                   <input
                     id="expenses-workspace-modal"
                     type="checkbox"
-                    defaultChecked={activeWorkspace === "expenses"}
                     className="peer/expenses sr-only"
                   />
 
@@ -4691,6 +4692,57 @@ Thank you for choosing Indiana Notary Solutions.
                     type="checkbox"
                     className="peer/print sr-only"
                   />
+
+                  {activeWorkspace === "expenses" && (
+                    <script
+                      dangerouslySetInnerHTML={{
+                        __html: `
+                          (function () {
+                            function openExpensesOnce() {
+                              var checkbox = document.getElementById("expenses-workspace-modal");
+
+                              if (checkbox) {
+                                checkbox.checked = true;
+                                checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+                              }
+
+                              try {
+                                var url = new URL(window.location.href);
+                                url.searchParams.delete("workspace");
+                                url.searchParams.delete("expense_saved");
+                                url.searchParams.delete("expense_error");
+
+                                var cleanUrl =
+                                  url.pathname +
+                                  (url.searchParams.toString()
+                                    ? "?" + url.searchParams.toString()
+                                    : "") +
+                                  (url.hash || "");
+
+                                window.history.replaceState(
+                                  window.history.state,
+                                  "",
+                                  cleanUrl,
+                                );
+                              } catch (error) {
+                                console.error("Unable to clean expense workspace URL:", error);
+                              }
+                            }
+
+                            if (document.readyState === "loading") {
+                              document.addEventListener(
+                                "DOMContentLoaded",
+                                openExpensesOnce,
+                                { once: true },
+                              );
+                            } else {
+                              setTimeout(openExpensesOnce, 0);
+                            }
+                          })();
+                        `,
+                      }}
+                    />
+                  )}
 
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-black uppercase tracking-wide text-slate-500">
