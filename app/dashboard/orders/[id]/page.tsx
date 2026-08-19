@@ -678,6 +678,22 @@ const scoreMonth = now.getMonth() + 1;
     .eq("assignment_id", id)
     .order("created_at", { ascending: false });
 
+  const { data: orderMessages, error: orderMessagesError } = await supabaseAdmin
+    .from("order_messages")
+    .select(
+      "id, assignment_id, sender_id, message, created_at, visibility, is_system, system_type",
+    )
+    .eq("assignment_id", id)
+    .in("visibility", ["all", "admin_notary"])
+    .order("created_at", { ascending: false });
+
+  if (orderMessagesError) {
+    console.error(
+      "[AdminOrderDetailPage] order_messages query error:",
+      orderMessagesError,
+    );
+  }
+
   const { data: uploadedDocuments } = await supabase
     .from("assignment_uploaded_documents")
     .select("*")
@@ -1570,6 +1586,44 @@ const points = rawPoints > 0 ? -rawPoints : rawPoints;
                 Add Comment
               </SubmitButton>
             </form>
+
+            {(orderMessages ?? []).length > 0 && (
+              <div className="mt-5 space-y-3 border-t border-slate-200 pt-5">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Order Messages
+                </p>
+
+                {(orderMessages ?? []).map((message) => (
+                  <div
+                    key={message.id}
+                    className={`rounded-xl border p-4 ${
+                      message.is_system
+                        ? "border-amber-200 bg-amber-50"
+                        : "border-slate-200 bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                      <p className="text-sm font-bold text-slate-900">
+                        {message.is_system ? "INS Automation" : "Order Message"}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {formatActivityDate(message.created_at)}
+                      </p>
+                    </div>
+
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                      {message.message}
+                    </p>
+
+                    {message.visibility === "admin_notary" && (
+                      <p className="mt-2 text-xs font-bold text-amber-700">
+                        Internal • Admin + Notary only
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         </section>
       </div>
