@@ -3033,6 +3033,44 @@ Thank you for choosing Indiana Notary Solutions.
     .order("expense_date", { ascending: false })
     .order("created_at", { ascending: false });
 
+  const { data: savedExpenseCategoryRows, error: savedExpenseCategoryError } =
+    await supabaseAdmin
+      .from("assignment_expenses")
+      .select("category")
+      .eq("notary_id", user.id)
+      .not("category", "is", null)
+      .order("category", { ascending: true });
+
+  if (savedExpenseCategoryError) {
+    console.error(
+      "Unable to load saved expense categories:",
+      savedExpenseCategoryError,
+    );
+  }
+
+  const expenseCategoryOptions = (() => {
+    const categories: string[] = [];
+    const seen = new Set<string>();
+
+    for (const category of [
+      ...EXPENSE_CATEGORIES,
+      ...(savedExpenseCategoryRows ?? []).map((row) =>
+        String(row.category ?? "").trim(),
+      ),
+    ]) {
+      const cleanCategory = String(category ?? "").trim();
+      if (!cleanCategory) continue;
+
+      const normalizedCategory = cleanCategory.toLowerCase();
+      if (seen.has(normalizedCategory)) continue;
+
+      seen.add(normalizedCategory);
+      categories.push(cleanCategory);
+    }
+
+    return categories;
+  })();
+
   const { count: existingMileageCount } = await supabase
     .from("assignment_mileage")
     .select("id", { count: "exact", head: true })
@@ -5132,7 +5170,7 @@ Thank you for choosing Indiana Notary Solutions.
                                   defaultValue="Document Printing"
                                   className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-[#0B1F4D] focus:ring-4 focus:ring-blue-100"
                                 >
-                                  {EXPENSE_CATEGORIES.map((category) => (
+                                  {expenseCategoryOptions.map((category) => (
                                     <option key={category} value={category}>
                                       {category}
                                     </option>
