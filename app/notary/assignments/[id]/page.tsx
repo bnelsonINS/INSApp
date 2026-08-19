@@ -941,7 +941,7 @@ export default async function AssignmentDetailPage({
       .maybeSingle();
 
     if (!journalEntry) {
-      const { data: insertedJournalEntry } = await supabase
+      const { data: insertedJournalEntry, error: journalInsertError } = await supabase
         .from("assignment_journal_entries")
         .insert({
           assignment_id: assignmentId,
@@ -961,9 +961,14 @@ export default async function AssignmentDetailPage({
         .select("id")
         .single();
 
+      if (journalInsertError) {
+        console.error("Journal entry insert error:", journalInsertError);
+        throw new Error(`Journal entry could not be created: ${journalInsertError.message}`);
+      }
+
       journalEntry = insertedJournalEntry;
     } else {
-      await supabase
+      const { error: journalUpdateError } = await supabase
         .from("assignment_journal_entries")
         .update({
           journal_date: journalDate || null,
@@ -981,19 +986,39 @@ export default async function AssignmentDetailPage({
         })
         .eq("id", journalEntry.id)
         .eq("notary_id", user.id);
+
+      if (journalUpdateError) {
+        console.error("Journal entry update error:", journalUpdateError);
+        throw new Error(`Journal entry could not be updated: ${journalUpdateError.message}`);
+      }
     }
 
     if (journalEntry?.id) {
-      const existingPrimaryPerson = signerName
-        ? await supabase
-            .from("assignment_journal_people")
-            .select("id")
-            .eq("journal_entry_id", journalEntry.id)
-            .eq("notary_id", user.id)
-            .eq("person_type", "signer")
-            .ilike("full_name", signerName)
-            .maybeSingle()
-        : { data: null };
+      // The primary signer must be identified by stable journal metadata, not
+      // by name. A driver's-license scan can replace the assignment borrower
+      // name with the signer's exact legal name, so name matching is not a
+      // reliable way to find the row again later.
+      const {
+        data: existingPrimaryPeople,
+        error: existingPrimaryPersonError,
+      } = await supabase
+        .from("assignment_journal_people")
+        .select("id")
+        .eq("journal_entry_id", journalEntry.id)
+        .eq("notary_id", user.id)
+        .eq("person_type", "signer")
+        .eq("sort_order", 0)
+        .order("created_at", { ascending: true })
+        .limit(1);
+
+      if (existingPrimaryPersonError) {
+        console.error("Primary journal signer lookup error:", existingPrimaryPersonError);
+        throw new Error(
+          `Primary signer could not be loaded: ${existingPrimaryPersonError.message}`,
+        );
+      }
+
+      const existingPrimaryPerson = existingPrimaryPeople?.[0] ?? null;
 
       const primaryPersonPayload = {
         journal_entry_id: journalEntry.id,
@@ -1023,14 +1048,31 @@ export default async function AssignmentDetailPage({
         sort_order: 0,
       };
 
-      if (existingPrimaryPerson.data?.id) {
-        await supabase
+      if (existingPrimaryPerson?.id) {
+        const { error: primaryPersonUpdateError } = await supabase
           .from("assignment_journal_people")
           .update(primaryPersonPayload)
-          .eq("id", existingPrimaryPerson.data.id)
+          .eq("id", existingPrimaryPerson.id)
+          .eq("journal_entry_id", journalEntry.id)
           .eq("notary_id", user.id);
+
+        if (primaryPersonUpdateError) {
+          console.error("Primary journal signer update error:", primaryPersonUpdateError);
+          throw new Error(
+            `Primary signer could not be saved: ${primaryPersonUpdateError.message}`,
+          );
+        }
       } else {
-        await supabase.from("assignment_journal_people").insert(primaryPersonPayload);
+        const { error: primaryPersonInsertError } = await supabase
+          .from("assignment_journal_people")
+          .insert(primaryPersonPayload);
+
+        if (primaryPersonInsertError) {
+          console.error("Primary journal signer insert error:", primaryPersonInsertError);
+          throw new Error(
+            `Primary signer could not be saved: ${primaryPersonInsertError.message}`,
+          );
+        }
       }
 
       const defaultNotarialAct = String(
@@ -3345,23 +3387,16 @@ Thank you for choosing Indiana Notary Solutions.
 
   const journalPeople = savedJournalPeople ?? [];
 
-  const primaryBorrowerName = String(assignment.borrower_name ?? "")
-    .trim()
-    .toLowerCase();
-
+  // The primary signer is the signer at sort_order 0. Do not identify this
+  // row by comparing names because a scanned ID can populate a different,
+  // more exact legal name than assignment.borrower_name.
   const savedPrimaryJournalPerson = journalPeople.find((person) => {
-    const savedPersonName = String(person.full_name ?? "")
-      .trim()
-      .toLowerCase();
     const savedPersonType = String(
       person.person_type ?? "signer",
     ).toLowerCase();
+    const savedSortOrder = Number(person.sort_order ?? -1);
 
-    return (
-      primaryBorrowerName &&
-      savedPersonName === primaryBorrowerName &&
-      savedPersonType === "signer"
-    );
+    return savedPersonType === "signer" && savedSortOrder === 0;
   });
 
   const primaryJournalPerson = {
@@ -3401,18 +3436,12 @@ Thank you for choosing Indiana Notary Solutions.
   };
 
   const savedJournalPeopleWithoutPrimary = journalPeople.filter((person) => {
-    const savedPersonName = String(person.full_name ?? "")
-      .trim()
-      .toLowerCase();
     const savedPersonType = String(
       person.person_type ?? "signer",
     ).toLowerCase();
+    const savedSortOrder = Number(person.sort_order ?? -1);
 
-    return !(
-      primaryBorrowerName &&
-      savedPersonName === primaryBorrowerName &&
-      savedPersonType === "signer"
-    );
+    return !(savedPersonType === "signer" && savedSortOrder === 0);
   });
 
   const displayJournalPeople = [
