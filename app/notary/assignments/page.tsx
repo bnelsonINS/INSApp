@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../src/lib/supabase-server";
+import { supabaseAdmin } from "../../../src/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -400,7 +401,7 @@ export default async function AssignmentsPage({
   const clientNameById = new Map<string, string>();
 
   if (clientIds.length > 0) {
-    const { data: clientProfiles, error: clientProfilesError } = await supabase
+    const { data: clientProfiles, error: clientProfilesError } = await supabaseAdmin
       .from("profiles")
       .select("id, full_name")
       .in("id", clientIds);
