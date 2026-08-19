@@ -66,6 +66,17 @@ type ActivityItem = {
   created_at: string | null;
 };
 
+type OrderMessage = {
+  id: string;
+  assignment_id: string;
+  sender_id: string | null;
+  message: string;
+  created_at: string | null;
+  visibility: string;
+  is_system: boolean;
+  system_type: string | null;
+};
+
 function getBaseUrl() {
   return (
     process.env.NEXT_PUBLIC_SITE_URL ||
@@ -394,6 +405,21 @@ export default async function ClientOrderDetailPage({
   if (activityError) {
     console.error("Client order activity load error:", activityError);
   }
+
+  const { data: orderMessages, error: orderMessagesError } = await supabaseAdmin
+    .from("order_messages")
+    .select(
+      "id, assignment_id, sender_id, message, created_at, visibility, is_system, system_type",
+    )
+    .eq("assignment_id", order.id)
+    .eq("visibility", "all")
+    .order("created_at", { ascending: false });
+
+  if (orderMessagesError) {
+    console.error("Client order messages load error:", orderMessagesError);
+  }
+
+  const clientVisibleOrderMessages = (orderMessages ?? []) as OrderMessage[];
 
   const activityUserIds = new Set<string>();
 
@@ -1020,7 +1046,7 @@ Indiana Notary Solutions
           </SubmitButton>
         </form>
 
-        {!activityItems.length ? (
+        {!activityItems.length && !clientVisibleOrderMessages.length ? (
           <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
             <p className="font-bold text-slate-800">No notes yet</p>
             <p className="mt-2 text-sm text-slate-500">
@@ -1029,6 +1055,25 @@ Indiana Notary Solutions
           </div>
         ) : (
           <div className="mt-5 space-y-3">
+            {clientVisibleOrderMessages.map((message) => (
+              <div
+                key={`message-${message.id}`}
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+              >
+                <p className="font-bold text-slate-950">
+                  {message.is_system ? "INS Update" : "Order note"}
+                </p>
+
+                <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-slate-600">
+                  {message.message}
+                </p>
+
+                <p className="mt-3 text-xs font-medium text-slate-400">
+                  {formatDateTime(message.created_at)}
+                </p>
+              </div>
+            ))}
+
             {visibleActivityItems.map((item) => (
               <div
                 key={item.id}
