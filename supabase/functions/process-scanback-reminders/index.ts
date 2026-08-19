@@ -218,11 +218,42 @@ serve(async () => {
         );
       }
 
+      const { data: adminProfile, error: adminProfileError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("role", "admin")
+        .eq("is_active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (adminProfileError) {
+        await rollbackReminderState(
+          supabase,
+          assignment.id,
+          state,
+        );
+
+        throw new Error(
+          `Unable to load admin sender profile: ${adminProfileError.message}`,
+        );
+      }
+
+      if (!adminProfile?.id) {
+        await rollbackReminderState(
+          supabase,
+          assignment.id,
+          state,
+        );
+
+        throw new Error("No active admin profile was found for system messages.");
+      }
+
       const { error: messageError } = await supabase
         .from("order_messages")
         .insert({
           assignment_id: assignment.id,
-          sender_id: null,
+          sender_id: adminProfile.id,
           message: reminderMessage,
           visibility: "admin_notary",
           is_system: true,
