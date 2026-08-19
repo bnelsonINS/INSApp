@@ -50,42 +50,111 @@ function titleCase(value?: string) {
     .replace(/\b([a-z])/g, (letter) => letter.toUpperCase());
 }
 
-function field(raw: string, code: string) {
-  // AAMVA fields may be separated by CR/LF/RS or packed together.
-  // Stop at the next three-letter AAMVA data element.
-  const pattern = new RegExp(
-    `${code}([^\\r\\n\\x1e]+?)(?=[A-Z]{3}|\\r|\\n|\\x1e|$)`,
-  );
-  return clean(raw.match(pattern)?.[1]);
+function normalizeAamvaRaw(raw: string) {
+  return raw
+    .replace(/\u0000/g, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\u001e/g, "\n")
+    .replace(/\u001d/g, "\n");
+}
+
+function parseAamvaElements(raw: string) {
+  const normalized = normalizeAamvaRaw(raw);
+
+  // PDF417 AAMVA payloads normally contain one data element per line.
+  // Some decoders leave subfile/header text attached to the first element,
+  // so we locate known 3-character element IDs without treating capital
+  // letters inside the value as new fields.
+  const knownCodes = [
+    "DCA","DCB","DCD","DBA","DCS","DAC","DAD","DBD","DBB","DBC","DAY",
+    "DAU","DAG","DAI","DAJ","DAK","DAQ","DCF","DCG","DDE","DDF","DDG",
+    "DAH","DAZ","DCI","DCJ","DCK","DBN","DBG","DBS",
+  ];
+
+  const result: Record<string, string> = {};
+
+  for (const line of normalized.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // A line can contain AAMVA/header bytes before the first field.
+    const positions = knownCodes
+      .map((code) => ({ code, index: trimmed.indexOf(code) }))
+      .filter((item) => item.index >= 0)
+      .sort((a, b) => a.index - b.index);
+
+    if (!positions.length) continue;
+
+    for (let i = 0; i < positions.length; i++) {
+      const current = positions[i];
+      const next = positions[i + 1];
+      const valueStart = current.index + 3;
+      const valueEnd = next ? next.index : trimmed.length;
+      const value = clean(trimmed.slice(valueStart, valueEnd));
+      if (value && !result[current.code]) result[current.code] = value;
+    }
+  }
+
+  // Fallback for payloads where the decoder returns fields without line
+  // separators. Known AAMVA codes are safe boundaries; arbitrary uppercase
+  // letters are not.
+  if (Object.keys(result).length < 4) {
+    const matches = [...normalized.matchAll(
+      /(DCA|DCB|DCD|DBA|DCS|DAC|DAD|DBD|DBB|DBC|DAY|DAU|DAG|DAI|DAJ|DAK|DAQ|DCF|DCG|DDE|DDF|DDG|DAH|DAZ|DCI|DCJ|DCK|DBN|DBG|DBS)/g,
+    )];
+
+    for (let i = 0; i < matches.length; i++) {
+      const current = matches[i];
+      const next = matches[i + 1];
+      const code = current[1];
+      const valueStart = (current.index ?? 0) + code.length;
+      const valueEnd = next?.index ?? normalized.length;
+      const value = clean(normalized.slice(valueStart, valueEnd));
+      if (value && !result[code]) result[code] = value;
+    }
+  }
+
+  return result;
+}
+
+function normalizeZip(value?: string) {
+  const digits = clean(value).replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.length >= 9 && digits.slice(5, 9) === "0000") return digits.slice(0, 5);
+  if (digits.length >= 9) return `${digits.slice(0, 5)}-${digits.slice(5, 9)}`;
+  return digits.slice(0, 5);
 }
 
 function parseAamva(raw: string): ParsedLicense {
-  const first = field(raw, "DAC");
-  const middle = field(raw, "DAD");
-  const last = field(raw, "DCS");
-  const suffix = field(raw, "DCU");
+  const data = parseAamvaElements(raw);
+
+  const first = data.DAC;
+  const middle = data.DAD;
+  const last = data.DCS;
+  const suffix = data.DCU;
 
   const fullName = [first, middle, last, suffix]
     .map(titleCase)
     .filter(Boolean)
     .join(" ");
 
-  const state = field(raw, "DAJ");
-  const country = field(raw, "DCG");
+  const state = clean(data.DAJ).toUpperCase();
+  const country = clean(data.DCG).toUpperCase();
 
   return {
     fullName,
-    address: titleCase(field(raw, "DAG")),
-    city: titleCase(field(raw, "DAI")),
-    state: state.toUpperCase(),
-    zip: field(raw, "DAK").replace(/\D/g, "").slice(0, 9),
-    idNumber: field(raw, "DAQ"),
+    address: titleCase(data.DAG),
+    city: titleCase(data.DAI),
+    state,
+    zip: normalizeZip(data.DAK),
+    idNumber: clean(data.DAQ),
     issuedBy:
-      state?.toUpperCase() === "IN"
+      state === "IN"
         ? "Indiana BMV"
-        : state?.toUpperCase() || country?.toUpperCase() || "",
-    issueDate: normalizeDate(field(raw, "DBD")),
-    expirationDate: normalizeDate(field(raw, "DBA")),
+        : state || country || "",
+    issueDate: normalizeDate(data.DBD),
+    expirationDate: normalizeDate(data.DBA),
   };
 }
 
@@ -183,7 +252,7 @@ export default function DriversLicenseScanner() {
         hints.set(DecodeHintType.TRY_HARDER, true);
 
         const reader = new BrowserMultiFormatReader(hints);
-        
+
         const controls = await reader.decodeFromConstraints(
           {
             audio: false,
