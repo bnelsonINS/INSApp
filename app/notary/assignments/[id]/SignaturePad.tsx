@@ -19,27 +19,21 @@ export default function SignaturePad({
 }: SignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const signatureDataRef = useRef(defaultValue ?? "");
+  const lastCanvasSizeRef = useRef({ width: 0, height: 0 });
 
   const [signatureData, setSignatureData] = useState(defaultValue ?? "");
   const [hasSignature, setHasSignature] = useState(Boolean(defaultValue));
 
-  function setupCanvas() {
-    const canvas = canvasRef.current;
-    const wrapper = wrapperRef.current;
-    if (!canvas || !wrapper) return;
-
-    const rect = wrapper.getBoundingClientRect();
-    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-
-    canvas.width = Math.floor(rect.width * ratio);
-    canvas.height = Math.floor(220 * ratio);
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = "220px";
-
+  function configureContext(
+    canvas: HTMLCanvasElement,
+    ratio: number,
+  ) {
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) return null;
 
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.lineCap = "round";
@@ -47,20 +41,109 @@ export default function SignaturePad({
     ctx.lineWidth = 3;
     ctx.strokeStyle = "#0f172a";
 
-    if (signatureData) {
+    return ctx;
+  }
+
+  function resizeCanvas() {
+    const canvas = canvasRef.current;
+    const wrapper = wrapperRef.current;
+
+    if (!canvas || !wrapper) return;
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const width = Math.floor(canvasRect.width);
+    const height = 220;
+
+    // When the journal modal is hidden, the canvas can report a width of 0.
+    // Do not initialize it until the modal is actually visible.
+    if (width <= 0) return;
+
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+
+    const targetPixelWidth = Math.floor(width * ratio);
+    const targetPixelHeight = Math.floor(height * ratio);
+
+    const previousSize = lastCanvasSizeRef.current;
+
+    if (
+      canvas.width === targetPixelWidth &&
+      canvas.height === targetPixelHeight &&
+      previousSize.width === width &&
+      previousSize.height === height
+    ) {
+      return;
+    }
+
+    canvas.width = targetPixelWidth;
+    canvas.height = targetPixelHeight;
+    canvas.style.width = "100%";
+    canvas.style.height = `${height}px`;
+
+    lastCanvasSizeRef.current = {
+      width,
+      height,
+    };
+
+    const ctx = configureContext(canvas, ratio);
+    if (!ctx) return;
+
+    const savedSignature = signatureDataRef.current;
+
+    if (savedSignature?.startsWith("data:image/")) {
       const img = new Image();
-      img.onload = () => ctx.drawImage(img, 0, 0, rect.width, 220);
-      img.src = signatureData;
+
+      img.onload = () => {
+        const currentCanvas = canvasRef.current;
+        if (!currentCanvas) return;
+
+        const currentRatio = Math.max(window.devicePixelRatio || 1, 1);
+        const currentCtx = configureContext(currentCanvas, currentRatio);
+        if (!currentCtx) return;
+
+        const currentRect = currentCanvas.getBoundingClientRect();
+        currentCtx.clearRect(0, 0, currentRect.width, height);
+        currentCtx.drawImage(img, 0, 0, currentRect.width, height);
+      };
+
+      img.src = savedSignature;
     }
   }
 
   useEffect(() => {
-    setupCanvas();
-    window.addEventListener("resize", setupCanvas);
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
 
-    return () => window.removeEventListener("resize", setupCanvas);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let animationFrame = 0;
+
+    const scheduleResize = () => {
+      window.cancelAnimationFrame(animationFrame);
+
+      animationFrame = window.requestAnimationFrame(() => {
+        resizeCanvas();
+      });
+    };
+
+    // This is the important fix for a canvas inside a hidden modal.
+    // It fires again when the modal becomes visible and receives a real width.
+    const resizeObserver = new ResizeObserver(() => {
+      scheduleResize();
+    });
+
+    resizeObserver.observe(wrapper);
+
+    window.addEventListener("resize", scheduleResize);
+    scheduleResize();
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", scheduleResize);
+    };
   }, []);
+
+  useEffect(() => {
+    signatureDataRef.current = signatureData;
+  }, [signatureData]);
 
   function getPoint(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
@@ -76,9 +159,11 @@ export default function SignaturePad({
 
   function saveCanvas() {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || canvas.width <= 0 || canvas.height <= 0) return;
 
     const dataUrl = canvas.toDataURL("image/png");
+
+    signatureDataRef.current = dataUrl;
     setSignatureData(dataUrl);
     setHasSignature(true);
   }
@@ -88,18 +173,29 @@ export default function SignaturePad({
 
     const canvas = canvasRef.current;
     const point = getPoint(event);
-    if (!canvas || !point) return;
+
+    if (!canvas || !point || canvas.width <= 0 || canvas.height <= 0) {
+      return;
+    }
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    canvas.setPointerCapture(event.pointerId);
+    try {
+      canvas.setPointerCapture(event.pointerId);
+    } catch {
+      // Some browsers can throw if pointer capture is unavailable.
+    }
 
     isDrawingRef.current = true;
     lastPointRef.current = point;
 
     ctx.beginPath();
     ctx.moveTo(point.x, point.y);
+
+    // Draw a tiny dot so a simple tap is still recorded.
+    ctx.lineTo(point.x + 0.01, point.y + 0.01);
+    ctx.stroke();
   }
 
   function draw(event: React.PointerEvent<HTMLCanvasElement>) {
@@ -131,12 +227,19 @@ export default function SignaturePad({
 
     const canvas = canvasRef.current;
 
-    if (canvas?.hasPointerCapture(event.pointerId)) {
-      canvas.releasePointerCapture(event.pointerId);
+    if (canvas) {
+      try {
+        if (canvas.hasPointerCapture(event.pointerId)) {
+          canvas.releasePointerCapture(event.pointerId);
+        }
+      } catch {
+        // Ignore browsers that do not support pointer capture cleanly.
+      }
     }
 
     isDrawingRef.current = false;
     lastPointRef.current = null;
+
     saveCanvas();
   }
 
@@ -147,10 +250,13 @@ export default function SignaturePad({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const rect = canvas.getBoundingClientRect();
+    ctx.clearRect(0, 0, rect.width, rect.height);
 
+    signatureDataRef.current = "";
     setSignatureData("");
     setHasSignature(false);
+
     lastPointRef.current = null;
     isDrawingRef.current = false;
   }
@@ -177,6 +283,7 @@ export default function SignaturePad({
           ref={canvasRef}
           className="block w-full cursor-crosshair rounded-xl border border-dashed border-slate-300 bg-white"
           style={{
+            width: "100%",
             height: "220px",
             touchAction: "none",
             WebkitUserSelect: "none",
@@ -186,7 +293,7 @@ export default function SignaturePad({
           onPointerMove={draw}
           onPointerUp={stopDrawing}
           onPointerCancel={stopDrawing}
-          onPointerLeave={stopDrawing}
+          onLostPointerCapture={stopDrawing}
         />
       </div>
 
