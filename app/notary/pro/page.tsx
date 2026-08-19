@@ -8,6 +8,7 @@ export const revalidate = 0;
 type Assignment = {
   id: string;
   control_number: string | null;
+  client_id?: string | null;
   notary_id?: string | null;
   assigned_notary_id?: string | null;
   status: string | null;
@@ -21,6 +22,11 @@ type Assignment = {
   signing_zip: string | null;
   documents_url: string | null;
   notary_fee: number | string | null;
+};
+
+type ClientProfile = {
+  id: string;
+  full_name: string | null;
 };
 
 type ProJob = {
@@ -386,14 +392,39 @@ export default async function AssignmentsPage({
     .order("signing_date", { ascending: true })
     .order("signing_time", { ascending: true });
 
-  const insRows: UnifiedAssignment[] = (
-    (insAssignments ?? []) as Assignment[]
-  ).map((assignment) => ({
+  const assignmentRows = (insAssignments ?? []) as Assignment[];
+  const clientIds = Array.from(
+    new Set(
+      assignmentRows
+        .map((assignment) => assignment.client_id)
+        .filter((clientId): clientId is string => Boolean(clientId)),
+    ),
+  );
+
+  let clientNameById = new Map<string, string | null>();
+
+  if (clientIds.length > 0) {
+    const { data: clientProfiles } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", clientIds);
+
+    clientNameById = new Map(
+      ((clientProfiles ?? []) as ClientProfile[]).map((profile) => [
+        profile.id,
+        profile.full_name,
+      ]),
+    );
+  }
+
+  const insRows: UnifiedAssignment[] = assignmentRows.map((assignment) => ({
     id: assignment.id,
     source: "ins",
     sourceLabel: "INS",
     controlNumber: assignment.control_number,
-    clientName: null,
+    clientName: assignment.client_id
+      ? clientNameById.get(assignment.client_id) ?? null
+      : null,
     borrowerName: assignment.borrower_name,
     status: assignment.status,
     signingType: assignment.signing_type,
@@ -409,26 +440,26 @@ export default async function AssignmentsPage({
   }));
 
   const externalRows: UnifiedAssignment[] = (
-  (externalJobs ?? []) as ProJob[]
-).map((job) => ({
-  id: job.id,
-  source: "external",
-  sourceLabel: "External",
-  controlNumber: null,
-  clientName: job.client_name,
-  borrowerName: job.borrower_name,
-  status: job.status,
-  signingType: job.signing_type,
-  signingDate: job.signing_date,
-  signingTime: job.signing_time,
-  signingAddress: job.signing_address,
-  signingCity: job.signing_city,
-  signingState: job.signing_state,
-  signingZip: job.signing_zip,
-  fee: job.fee,
-  documentsUrl: null,
-  href: `/notary/assignments/${job.id}`,
-}));
+    (externalJobs ?? []) as ProJob[]
+  ).map((job) => ({
+    id: job.id,
+    source: "external",
+    sourceLabel: "External",
+    controlNumber: null,
+    clientName: job.client_name,
+    borrowerName: job.borrower_name,
+    status: job.status,
+    signingType: job.signing_type,
+    signingDate: job.signing_date,
+    signingTime: job.signing_time,
+    signingAddress: job.signing_address,
+    signingCity: job.signing_city,
+    signingState: job.signing_state,
+    signingZip: job.signing_zip,
+    fee: job.fee,
+    documentsUrl: null,
+    href: `/notary/assignments/${job.id}`,
+  }));
 
   let rows = [...insRows, ...externalRows];
 
