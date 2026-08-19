@@ -394,29 +394,17 @@ export default async function AssignmentsPage({
     .order("signing_time", { ascending: true });
 
   const assignmentRows = (insAssignments ?? []) as Assignment[];
-  const clientIds = Array.from(
-    new Set(
-      assignmentRows
-        .map((assignment) => assignment.client_id)
-        .filter((clientId): clientId is string => Boolean(clientId)),
-    ),
+
+  const { data: clientProfiles } = await supabase.rpc(
+    "get_notary_assignment_clients",
   );
 
-  let clientNameById = new Map<string, string | null>();
-
-  if (clientIds.length > 0) {
-    const { data: clientProfiles } = await supabase
-      .from("profiles")
-      .select("id, company_name, full_name")
-      .in("id", clientIds);
-
-    clientNameById = new Map(
-      ((clientProfiles ?? []) as ClientProfile[]).map((profile) => [
-        profile.id,
-        profile.company_name || profile.full_name,
-      ]),
-    );
-  }
+  const clientNameById = new Map(
+    ((clientProfiles ?? []) as ClientProfile[]).map((profile) => [
+      profile.id,
+      profile.company_name || profile.full_name,
+    ]),
+  );
 
   const insRows: UnifiedAssignment[] = assignmentRows.map((assignment) => ({
     id: assignment.id,
