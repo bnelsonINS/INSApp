@@ -403,7 +403,7 @@ export default async function AssignmentsPage({
   if (clientIds.length > 0) {
     const { data: clientProfiles, error: clientProfilesError } = await supabaseAdmin
       .from("profiles")
-      .select("id, full_name")
+      .select("id, company_name")
       .in("id", clientIds);
 
     if (clientProfilesError) {
@@ -411,8 +411,8 @@ export default async function AssignmentsPage({
     }
 
     for (const clientProfile of clientProfiles ?? []) {
-      if (clientProfile.id && clientProfile.full_name) {
-        clientNameById.set(clientProfile.id, clientProfile.full_name);
+      if (clientProfile.id && clientProfile.company_name) {
+        clientNameById.set(clientProfile.id, clientProfile.company_name);
       }
     }
   }
