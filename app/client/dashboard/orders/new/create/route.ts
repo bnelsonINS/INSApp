@@ -68,6 +68,10 @@ export async function POST(request: NextRequest) {
 
   const clientFeeRaw = String(formData.get("client_fee") || "").trim();
   const clientFee = clientFeeRaw ? Number(clientFeeRaw) : null;
+  const notaryFee =
+    clientFee !== null && Number.isFinite(clientFee)
+      ? Math.round(clientFee * 0.6 * 100) / 100
+      : null;
 
   const signerFirstName = String(formData.get("signer_first_name") || "").trim();
   const signerLastName = String(formData.get("signer_last_name") || "").trim();
@@ -116,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     client_fee: clientFee,
     fee: clientFee,
-    notary_fee: null,
+    notary_fee: notaryFee,
   });
 
   if (error) {
