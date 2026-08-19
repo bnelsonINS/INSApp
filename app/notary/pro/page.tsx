@@ -26,6 +26,7 @@ type Assignment = {
 
 type ClientProfile = {
   id: string;
+  company_name: string | null;
   full_name: string | null;
 };
 
@@ -406,13 +407,13 @@ export default async function AssignmentsPage({
   if (clientIds.length > 0) {
     const { data: clientProfiles } = await supabase
       .from("profiles")
-      .select("id, full_name")
+      .select("id, company_name, full_name")
       .in("id", clientIds);
 
     clientNameById = new Map(
       ((clientProfiles ?? []) as ClientProfile[]).map((profile) => [
         profile.id,
-        profile.full_name,
+        profile.company_name || profile.full_name,
       ]),
     );
   }
