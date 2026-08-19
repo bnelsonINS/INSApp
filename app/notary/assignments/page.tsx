@@ -8,6 +8,7 @@ export const revalidate = 0;
 type Assignment = {
   id: string;
   control_number: string | null;
+  client_id?: string | null;
   notary_id?: string | null;
   assigned_notary_id?: string | null;
   status: string | null;
@@ -386,14 +387,43 @@ export default async function AssignmentsPage({
     .order("signing_date", { ascending: true })
     .order("signing_time", { ascending: true });
 
-  const insRows: UnifiedAssignment[] = (
-    (insAssignments ?? []) as Assignment[]
-  ).map((assignment) => ({
+  const assignmentRows = (insAssignments ?? []) as Assignment[];
+
+  const clientIds = Array.from(
+    new Set(
+      assignmentRows
+        .map((assignment) => assignment.client_id)
+        .filter((clientId): clientId is string => Boolean(clientId)),
+    ),
+  );
+
+  const clientNameById = new Map<string, string>();
+
+  if (clientIds.length > 0) {
+    const { data: clientProfiles, error: clientProfilesError } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", clientIds);
+
+    if (clientProfilesError) {
+      console.error("Client profile lookup error:", clientProfilesError);
+    }
+
+    for (const clientProfile of clientProfiles ?? []) {
+      if (clientProfile.id && clientProfile.full_name) {
+        clientNameById.set(clientProfile.id, clientProfile.full_name);
+      }
+    }
+  }
+
+  const insRows: UnifiedAssignment[] = assignmentRows.map((assignment) => ({
     id: assignment.id,
     source: "ins",
     sourceLabel: "INS",
     controlNumber: assignment.control_number,
-    clientName: null,
+    clientName: assignment.client_id
+      ? clientNameById.get(assignment.client_id) ?? null
+      : null,
     borrowerName: assignment.borrower_name,
     status: assignment.status,
     signingType: assignment.signing_type,
