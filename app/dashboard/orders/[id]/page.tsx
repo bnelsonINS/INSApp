@@ -36,6 +36,7 @@ function formatActivityDate(date: string | null) {
   if (!date) return "Date unavailable";
 
   return new Date(date).toLocaleString("en-US", {
+    timeZone: "America/Indiana/Indianapolis",
     month: "short",
     day: "numeric",
     year: "numeric",
